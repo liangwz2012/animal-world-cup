@@ -1,7 +1,7 @@
 # 微信小游戏原版比赛 Runtime 静态移植可行性验证设计
 
 日期：2026-07-10  
-状态：已确认设计，等待规格审阅后实施
+状态：已确认方向；根据既有失败审计修订，等待规格复审后实施
 
 ## 1. 背景与实测结论
 
@@ -12,7 +12,81 @@
 - `wechat-minigame/` 的 runtime 资源键与加载器查找键不一致，`standalone-match.js` 未注册 `window.__startStandaloneMatch`，随后自动回退到自研 Canvas 简化比赛。当前可见的低还原效果来自兜底内核，不是原版引擎。
 - `wechat-minigame-high-fidelity-production/` 已成功加载 Pixi、微信环境适配层和 shim，但通过 `new Function` 执行 `match.rebuilt.js` 时得到 `runner is not a function`，原版比赛逻辑未启动。
 
-这些结果证明旧工程当前不可作为生产基础，也证明 Pixi 与基础 shim 已经能在开发者工具中加载。尚未验证的关键点是：把原版 runtime 静态打包并移除动态代码生成后，原版比赛能否在微信小游戏环境完成渲染与交互。
+这些结果证明旧工程当前不可作为生产基础。已有记录只证明 Pixi 与基础 shim 能在 Node mock 或开发者工具的部分启动阶段被加载，**没有证明原版引擎已经在微信主 Canvas 画出首帧**。尚未验证的关键点是：把原版 runtime 静态打包并移除动态代码生成后，原版比赛能否在微信小游戏环境完成渲染与交互。
+
+### 1.1 既有尝试失败审计
+
+本次审计以当前源码、既有工作日志和开发者工具配置为证据。结论按“已证实”“高概率”“尚未验证”区分，不把推测写成成功事实。
+
+#### 已证实问题 A：旧加载器根本找不到生成脚本
+
+`wechat-minigame/src/runtime/web-runtime-game.js` 请求的键形如：
+
+```text
+runtime/match-runtime-min/standalone-match.js
+```
+
+但 `runtime/runtime-text-assets.js` 中真实键是：
+
+```text
+standalone-match.js
+```
+
+加载器的三个候选键都不会命中真实键。每个脚本加载错误又被单独捕获后继续执行，最终 `window.__startStandaloneMatch` 未注册。随后工程自动进入自研 Canvas 比赛，因此“有画面”曾被误认为“原版引擎基本跑通”。
+
+#### 已证实问题 B：两条旧路线都依赖微信不允许的动态执行
+
+- `wechat-minigame/` 的外层加载器包含 `eval` 和三处 `new Function`；
+- `wechat-minigame-high-fidelity-production/` 用 `new Function` 执行 `match.rebuilt.js` 和 `standalone-match.js`；
+- 原始 `match.rebuilt.js` 内部另有三处 `new Function`，分别用于 MessageFormat、Swig 和 `core/states` 状态构造；独立 `swig.min.js` 还有一处。
+
+因此只把外层脚本文本改成静态 `require` 仍不够。最终产物必须同时消除引擎内部的动态构造点，否则开发者工具运行或代码安全检查仍会失败。
+
+#### 已证实问题 C：两套 Canvas 归属策略都不正确
+
+- `wechat-minigame/` 用 `__claimNextCanvasAsScreen` 把下一次 `document.createElement('canvas')` 指向主 Canvas，但创建后没有清除此标记，后续离屏纹理 Canvas 也会重复拿到主 Canvas；
+- `wechat-minigame-high-fidelity-production/` 的 `document.createElement('canvas')` 每次都调用 `wx.createCanvas()`，没有把 Pixi Renderer 的首个 Canvas 绑定到已显示的主 Canvas。即使渲染成功，也可能画在不可见的离屏 Canvas 上。
+
+新适配层必须采用“一次性领取”：Pixi Renderer 首次创建 Canvas 时返回主 Canvas 并立即清除领取标记；后续创建全部返回独立离屏 Canvas。
+
+#### 已证实问题 D：错误被多层吞掉，形成虚假进展
+
+- 分包加载失败仍调用成功路径；
+- 六个 runtime 脚本逐个失败后仍继续；
+- 25 秒未创建原版画面就切回简化内核；
+- HUD 自身也大量使用防御性 `catch`，可能隐藏首次真实错误。
+
+这套容错适合线上降级，不适合可行性验证。新 spike 不允许 fallback，任一阶段失败必须停在明确错误页。
+
+#### 已证实问题 E：旧包从未达到可提审的包体结构
+
+- `wechat-minigame/` 当前目录约 26.17 MiB，其中 runtime 约 18.21 MiB、其余约 7.97 MiB；
+- `wechat-minigame-high-fidelity-production/` 当前目录约 30.47 MiB，且 `game.json` 没有分包；
+- 高还原目录同时保存原始 `__data-bundle.json` 和约 9 MiB 的生成文本资源，存在明显重复。
+
+目录体积不等于最终上传压缩包体积，但足以证明旧方案没有完成主包与总包预算验收。新 spike 从第一天就输出主包、分包和总包三项预算。
+
+#### 已证实问题 F：Node mock 验证被过度解读
+
+旧日志中的“六脚本 eval 成功、进入 createGame、调用 getContext('webgl')”发生在 Node mock 中。Node 允许动态执行，mock WebGL 也不会真实编译 Shader、上传纹理、创建 Framebuffer 或输出可见首帧。这只能证明补桩方向有价值，不能证明微信小游戏可运行。
+
+#### 高概率后续风险
+
+- 原版 `core/states` 的动态构造器承担继承、生命周期和 signal 绑定，静态替换若语义有偏差，会出现能启动但状态机异常；
+- 原 shim 的文件系统以浏览器同步 XHR 为中心，迁到分包后需要重新验证目录枚举、同步文本读取和图片异步加载顺序；
+- Pixi 4.8.9 本身没有发现动态代码构造，但 RenderTexture、Framebuffer、滤镜和离屏 Canvas 仍必须在开发者工具及真机验证；
+- 高还原工程的 `project.config.json` 使用 `compileType: "minigame"`，而已正常识别的小游戏工程使用 `compileType: "game"`，新工程必须固定并检查后者。
+
+### 1.2 为什么仍值得做一次独立 spike
+
+这条路线不是高把握承诺，只是仍有清晰、有限的验证价值：
+
+- 原版比赛代码约 1.3 MiB、原始数据约 12 MiB，体积基础优于当前 Cocos 烘帧方案；
+- Pixi 4.8.9 本体未发现 `eval`/`new Function`；
+- 引擎内已知动态构造集中在四个位置，理论上可在构建期逐项替换；
+- 浏览器 API 依赖面已经被前两次尝试枚举出大部分，新的主要未知量是静态化语义与真实 WebGL 首帧，而不是从零猜依赖。
+
+所以本项目的目标是得到可信的“可行/不可行”结论，不承诺一定成功，更不在首帧之前扩展 UI、联机或全部球队。
 
 ## 2. 验证目标
 
@@ -90,9 +164,18 @@ wechat-minigame-original-runtime-spike/
 
 最终小游戏产物必须通过禁止项扫描：业务与 runtime 代码中 `eval`、`new Function` 数量均为 0。
 
+静态转换不得直接修改网页真相源。每个转换必须包含：输入文件哈希、命中的旧片段数量、生成文件哈希和转换后禁止项扫描；命中数量不符合预期时构建立即失败，防止对压缩单行代码进行模糊替换后悄悄产出错误文件。
+
 ### 5.3 资源策略
 
 本次只同步两队、国际球场、经典足球、共用球员骨骼/贴图、必要语言与配置。资源索引在构建阶段生成，运行时使用微信包内路径与 `wx.getFileSystemManager`/图片 API，不使用同步 XHR，也不把完整资源库塞进一个 Base64 JSON。
+
+### 5.4 Canvas 所有权
+
+- 平台启动时只取得一个可见主 Canvas；
+- Pixi Renderer 第一次请求 Canvas 时领取该主 Canvas，领取后标记立即清除；
+- 纹理生成、SVG 栅格化和 RenderTexture 所需 Canvas 均创建独立离屏 Canvas；
+- 诊断层记录每次 Canvas 创建的用途、序号、尺寸与 context 类型；若主 Canvas 被领取超过一次则立即失败。
 
 ## 6. 运行时身份与禁止回退
 
@@ -133,6 +216,17 @@ wechat-minigame-original-runtime-spike/
 
 ## 9. 验收闸门
 
+闸门必须顺序通过。任一闸门失败即停止，不通过继续补 UI 或资源来“绕过去”。
+
+### 闸门 0：旧坑回归扫描
+
+- `compileType` 必须是 `game`；
+- 不存在 fallback 比赛引用；
+- 资源键清单与请求键逐项匹配；
+- 分包失败不得进入启动成功路径；
+- 主 Canvas 只能被领取一次；
+- 主包、分包和总包预算报告生成成功。
+
 ### 闸门 A：静态构建
 
 - 构建成功；
@@ -149,6 +243,14 @@ wechat-minigame-original-runtime-spike/
 - 能完成开球、移动、传球、射门、进球；
 - 连续运行 3 分钟不崩溃、不切换实现。
 
+闸门 B 分成三个小检查点：
+
+1. **B1 模块注册**：Pixi、shim、比赛模块静态加载，`__startStandaloneMatch` 注册；
+2. **B2 可见首帧**：主 Canvas 出现原版球场、至少一个原版球员和原版足球；
+3. **B3 完整比赛**：14 名球员、AI、开球、传射、进球和计时持续运行。
+
+B1 通过不等于路线成功；只有 B3 通过才进入真机闸门。
+
 ### 闸门 C：真机预览
 
 - 至少一台 iPhone 与一台主流 Android 真机能进入比赛；
@@ -163,6 +265,14 @@ wechat-minigame-original-runtime-spike/
 - A 通过、B 失败：记录不可跨越的微信运行时或 Pixi 兼容障碍，停止扩展功能。
 - A、B 通过、C 失败：只处理真机平台差异；在真机通过前不宣布可行。
 - 静态化后仍需大规模重写原版 AI、物理或规则才能运行：路线 2 判定失败，切换为“提取原版逻辑核心 + Cocos 表现层”的后备路线，不继续伪装成原版整体移植。
+
+以下任一情况直接判定本次整体静态移植失败，不继续无限补桩：
+
+- 无法在不保留动态代码的前提下等价替换 `core/states`；
+- Pixi 只能在离屏 Canvas 绘制，无法稳定绑定微信主 Canvas；
+- 为获得首帧需要修改原版 AI、物理、规则或比赛状态机业务语义；
+- 完成最小两队资源裁剪后仍无法满足包体预算；
+- 开发者工具能运行但 iOS、Android 任一平台连续无法通过真机首帧。
 
 ## 11. 实施边界
 
