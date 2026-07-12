@@ -243,7 +243,11 @@ function startAnimalFootballApp() {
       const showReadyHome = () => {
         const friendState = friendCoordinator && friendCoordinator.diagnostics();
         if (!friendState || (!friendState.role && !friendState.roomId && !friendState.pendingIntent)) {
-          shell.showHome(defaults());
+          if (shell.hasSeenTutorial && !shell.hasSeenTutorial()) {
+            shell.showTutorial(() => shell.showHome(defaults()));
+          } else {
+            shell.showHome(defaults());
+          }
         }
         console.info("[animal-football-app] HOME_READY", `devAutoStart=${DEV_AUTO_START_AI}`);
         if (DEV_AUTO_START_AI) setTimeout(() => diagnostics.startAi(), 1200);

@@ -838,11 +838,90 @@ function createGameShell(options) {
     lastPointer = null;
   }
 
+  const TUTORIAL_STORAGE_KEY = "animal-football:tutorial-seen-v1";
+
+  function hasSeenTutorial() {
+    try {
+      return !!(wxApi && typeof wxApi.getStorageSync === "function" && wxApi.getStorageSync(TUTORIAL_STORAGE_KEY));
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function markTutorialSeen() {
+    try {
+      if (wxApi && typeof wxApi.setStorageSync === "function") wxApi.setStorageSync(TUTORIAL_STORAGE_KEY, 1);
+    } catch (error) {}
+  }
+
+  // 首次进入的一次性操作引导：矢量画出"左摇杆移动 + 右侧动作键"示意，点"开始踢球"关闭。
+  function showTutorial(onDone) {
+    screen = "tutorial";
+    suspended = false;
+    transitionLocked = false;
+    clearDesign();
+    addBackground();
+
+    const dim = new PIXI.Graphics();
+    dim.beginFill(0x0a1206, 0.42);
+    dim.drawRect(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT);
+    dim.endFill();
+    design.addChild(dim);
+
+    const cardX = 190;
+    const cardY = 92;
+    const cardW = 900;
+    const cardH = 520;
+    rounded(design, cardX + 5, cardY + 9, cardW, cardH, 34, 0x111b0b, 0.34, 0, 0, 0);
+    rounded(design, cardX, cardY, cardW, cardH, 34, 0xfffef8, 1, 0xe6dcc3, 1, 4);
+    design.addChild(center(text("怎么玩", 42, 0x31481f, "900"), 640, 150));
+
+    function guideCircle(cx, cy, r, fill, label, labelSize) {
+      const g = new PIXI.Graphics();
+      g.lineStyle(3, 0x5d9038, 0.9);
+      g.beginFill(fill, 1);
+      g.drawCircle(cx, cy, r);
+      g.endFill();
+      design.addChild(g);
+      design.addChild(center(text(label, labelSize, 0x31481f, "800"), cx, cy));
+    }
+
+    // 左手：移动摇杆
+    design.addChild(center(text("移动 · 跑位", 20, 0xa44734, "800"), 360, 258));
+    guideCircle(360, 344, 66, 0xf1f8e8, "摇杆", 22);
+    design.addChild(center(text("拖住左侧摇杆跑动", 17, 0x7c8a63, "700"), 360, 434));
+
+    // 右手：动作键
+    design.addChild(center(text("动作 · 踢球", 20, 0x315a9b, "800"), 900, 200));
+    guideCircle(900, 272, 33, 0xf1f8e8, "挑传", 15);
+    guideCircle(824, 344, 33, 0xf1f8e8, "传球", 15);
+    guideCircle(976, 344, 33, 0xf1f8e8, "射门", 15);
+    guideCircle(900, 416, 33, 0xf1f8e8, "铲球", 15);
+    guideCircle(900, 344, 40, 0xfde7c8, "冲刺", 17);
+    design.addChild(center(text("点右侧按钮传球、射门", 17, 0x7c8a63, "700"), 900, 462));
+
+    design.addChild(center(text("把球踢进对面球门就得分！", 23, 0x31481f, "900"), 640, 510));
+
+    const btnW = 260;
+    const btnH = 56;
+    const btnX = 640 - btnW / 2;
+    const btnY = 546;
+    rounded(design, btnX + 2, btnY + 4, btnW, btnH, 28, 0x253314, 0.16, 0, 0, 0);
+    rounded(design, btnX, btnY, btnW, btnH, 28, 0x5d9038, 1, 0x426d2a, 0.9, 3);
+    design.addChild(center(text("开始踢球 →", 22, 0xfff7e2, "900"), 640, btnY + btnH / 2));
+    addHit(btnX, btnY, btnW, btnH, () => {
+      markTutorialSeen();
+      if (typeof onDone === "function") onDone();
+    }, true);
+  }
+
   attachTouch();
   showLoading();
   loop();
 
   return {
+    showTutorial,
+    hasSeenTutorial,
     renderer,
     stage,
     get screen() { return screen; },

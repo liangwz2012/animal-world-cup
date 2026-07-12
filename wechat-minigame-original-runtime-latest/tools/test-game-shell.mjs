@@ -181,6 +181,13 @@ canvasListeners.mousedown({ clientX: 530, clientY: 258 });
 await new Promise((resolve) => setTimeout(resolve, 130));
 assert.equal(action, "queue-friend-after-warmup", "好友上线后房主必须可选择踢完当前热身局");
 
+// 新手引导：首次未看过 → showTutorial 必须切到引导遮罩
+assert.equal(shell.hasSeenTutorial(), false, "首次进入应未看过新手引导");
+let tutorialDone = false;
+shell.showTutorial(() => { tutorialDone = true; });
+assert.equal(shell.screen, "tutorial", "showTutorial 必须切到引导遮罩");
+assert.equal(tutorialDone, false, "未点开始前不应触发完成回调");
+
 shell.destroy();
 assert.equal(touchStart, null, "销毁页面必须注销真机触摸监听");
 assert.equal(mouseDown, null, "销毁页面必须注销 PC 鼠标监听");
