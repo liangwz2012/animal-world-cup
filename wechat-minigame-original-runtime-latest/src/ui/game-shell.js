@@ -376,8 +376,12 @@ function createGameShell(options) {
     design.addChild(fallback);
     const portrait = sprite(portraitPaths[team.id] || `shell-assets/portraits/${team.id}.png`, x + cardW / 2, y + 36, 66, 66);
     portrait.alpha = disabled ? 0.26 : 1;
-    const label = center(text(team.name, 17, disabled ? 0x7d856f : 0x31481f, "900"), x + cardW / 2, y + 82);
+    const label = center(text(team.name, 16, disabled ? 0x7d856f : 0x31481f, "900"), x + cardW / 2, y + 78);
     design.addChild(label);
+    if (team.country) {
+      const subtitle = center(text(team.country, 10, disabled ? 0x9aa189 : 0x7c8a63, "700"), x + cardW / 2, y + 93);
+      design.addChild(subtitle);
+    }
     addHit(x, y, cardW, cardH, () => {
       if (disabled) return;
       if (side === "red") config.redTeam = team.id;

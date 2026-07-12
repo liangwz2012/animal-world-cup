@@ -1,14 +1,14 @@
-// 队名用拟人动物（去真实国名，规避内容审核敏感项，同时兑现"动物"萌点）。
+// 主名用拟人动物(name)、副标题显示国名(country)、国旗已隐藏。
 // id 保留英文键以对接引擎球衣/头像资源；animal 为物种描述备用。
 const TEAMS = [
-  { id: "england", name: "雄狮", animal: "狮子", color: 0xc54539 },
-  { id: "france", name: "雄鸡", animal: "公鸡", color: 0x2858ad },
-  { id: "germany", name: "黑鹰", animal: "黑鹰", color: 0x29231d },
-  { id: "spain", name: "蛮牛", animal: "公牛", color: 0xc83f35 },
-  { id: "portugal", name: "苍狼", animal: "狼", color: 0x176d49 },
-  { id: "brazil", name: "美洲豹", animal: "美洲豹", color: 0xedcf49 },
-  { id: "argentina", name: "美洲狮", animal: "美洲狮", color: 0x8ed3f3 },
-  { id: "usa", name: "白头鹰", animal: "白头鹰", color: 0x263f7b },
+  { id: "england", name: "雄狮", country: "英格兰", animal: "狮子", color: 0xc54539 },
+  { id: "france", name: "雄鸡", country: "法国", animal: "公鸡", color: 0x2858ad },
+  { id: "germany", name: "黑鹰", country: "德国", animal: "黑鹰", color: 0x29231d },
+  { id: "spain", name: "蛮牛", country: "西班牙", animal: "公牛", color: 0xc83f35 },
+  { id: "portugal", name: "苍狼", country: "葡萄牙", animal: "狼", color: 0x176d49 },
+  { id: "brazil", name: "美洲豹", country: "巴西", animal: "美洲豹", color: 0xedcf49 },
+  { id: "argentina", name: "美洲狮", country: "阿根廷", animal: "美洲狮", color: 0x8ed3f3 },
+  { id: "usa", name: "白头鹰", country: "美国", animal: "白头鹰", color: 0x263f7b },
 ];
 
 // 已随包发布（已过审）的默认队列快照，作为远程配置的兜底基线。
@@ -36,6 +36,7 @@ function applyTeamOverrides(remoteTeams) {
     const patch = byId.get(base.id) || {};
     const next = Object.assign({}, base);
     if (typeof patch.name === "string" && patch.name.trim()) next.name = patch.name.trim().slice(0, 12);
+    if (typeof patch.country === "string" && patch.country.trim()) next.country = patch.country.trim().slice(0, 12);
     if (typeof patch.animal === "string" && patch.animal.trim()) next.animal = patch.animal.trim().slice(0, 12);
     const color = parseColor(patch.color);
     if (color != null) next.color = color;
@@ -49,7 +50,7 @@ function applyTeamOverrides(remoteTeams) {
   if (active.length < 2) return false;
   TEAMS.length = 0;
   for (const team of active) {
-    TEAMS.push({ id: team.id, name: team.name, animal: team.animal, color: team.color });
+    TEAMS.push({ id: team.id, name: team.name, country: team.country, animal: team.animal, color: team.color });
   }
   return true;
 }

@@ -8,14 +8,17 @@ const { initTeamConfig, isValidConfig } = require("../src/net/remote-config");
 const ids = () => TEAMS.map((t) => t.id);
 const byId = (id) => TEAMS.find((t) => t.id === id);
 
-// 基线：默认队列为 8 支动物队
+// 基线：默认队列为 8 支动物队，动物主名 + 国名副标题
 assert.equal(DEFAULT_TEAMS.length, 8);
 assert.equal(byId("england").name, "雄狮");
+assert.equal(byId("england").country, "英格兰");
 
-// 1) 覆盖已有队伍的 name/color（hex 字符串 → 数值）
-assert.equal(applyTeamOverrides([{ id: "england", name: "巨狮", color: "#ffffff" }]), true);
+// 1) 覆盖已有队伍的 name/country/color（hex 字符串 → 数值）
+assert.equal(applyTeamOverrides([{ id: "england", name: "巨狮", country: "大不列颠", color: "#ffffff" }]), true);
 assert.equal(byId("england").name, "巨狮");
+assert.equal(byId("england").country, "大不列颠");
 assert.equal(byId("england").color, 0xffffff);
+assert.equal(byId("france").country, "法国", "未覆盖的队伍国名保留默认");
 assert.equal(TEAMS.length, 8, "覆盖单队不改变总数");
 
 // 2) 合规守卫：本地不存在的新 id 一律忽略（不接受云端下发未审核新队），
