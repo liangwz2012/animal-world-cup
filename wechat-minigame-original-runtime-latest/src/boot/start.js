@@ -114,15 +114,38 @@ function loadRuntimeSubpackage(wxApi, onProgress) {
   });
 }
 
+// 全局钩子（wx.onError / unhandledrejection / window.error）是最后的安全网，
+// 会捕获整个运行期的所有异步错误。若无差别升级为阻塞式致命弹窗，切后台回前台
+// 的 GL 上下文重建、音频/网络桩偶发 reject 等本可自恢复的错误，都会误杀一整局。
+// 这里按阶段分级：比赛已可见运行后只记录不弹框；仍在引导阶段才当启动失败上报。
+function reportBackgroundError(error) {
+  const root = gameGlobal();
+  const normalized = error instanceof Error
+    ? error
+    : new Error((error && (error.message || error.errMsg)) || String(error));
+  // 可恢复的纹理缓存错误交给 reportFatal 走静默重试（它本身不弹框）。
+  if (isRecoverableTextureCacheError(normalized)) {
+    reportFatal(normalized);
+    return;
+  }
+  if (root.__ORIGINAL_RUNTIME_ACTIVE__ === true) {
+    root.__ORIGINAL_RUNTIME_LAST_BACKGROUND_ERROR__ = normalized.message;
+    console.warn("[original-runtime-latest] 运行期异步错误（已忽略，不中断比赛）", normalized.stack || normalized.message);
+    return;
+  }
+  // 仍在引导阶段（比赛尚未可见）：视为启动失败。
+  reportFatal(normalized);
+}
+
 function installGlobalFailureHooks(root) {
   if (root.__ORIGINAL_RUNTIME_LATEST_FAILURE_HOOKS__) return;
   root.__ORIGINAL_RUNTIME_LATEST_FAILURE_HOOKS__ = true;
   if (root.addEventListener) {
-    root.addEventListener("error", (event) => reportFatal(event && (event.error || event.message || event)));
-    root.addEventListener("unhandledrejection", (event) => reportFatal(event && (event.reason || event)));
+    root.addEventListener("error", (event) => reportBackgroundError(event && (event.error || event.message || event)));
+    root.addEventListener("unhandledrejection", (event) => reportBackgroundError(event && (event.reason || event)));
   }
-  if (typeof wx !== "undefined" && wx.onError) wx.onError((message) => reportFatal(message));
-  if (typeof wx !== "undefined" && wx.onUnhandledRejection) wx.onUnhandledRejection((event) => reportFatal(event && event.reason));
+  if (typeof wx !== "undefined" && wx.onError) wx.onError((message) => reportBackgroundError(message));
+  if (typeof wx !== "undefined" && wx.onUnhandledRejection) wx.onUnhandledRejection((event) => reportBackgroundError(event && event.reason));
 }
 
 function mirrorTouchTelemetry(root, inputHost) {
@@ -189,8 +212,12 @@ function detectPhysicalMobileDevice(wxApi) {
     else if (typeof wxApi.getSystemInfoSync === "function") info = wxApi.getSystemInfoSync();
   } catch (error) {}
   const platform = String(info && (info.platform || info.system) || "").toLowerCase();
-  if (!platform || platform === "devtools") return false;
-  return /ios|iphone|ipad|android|ohos|harmony/.test(platform);
+  // 反转为白名单：只有明确是开发者工具时才走桌面高内存动态观众烘焙路径；
+  // 其余一律按真机低内存降级（含平台名缺失/异常的定制安卓、鸿蒙 next 变体）。
+  // 旧逻辑用移动端黑名单正则，异常平台名会被误判为桌面 → 在低端机上跑高内存
+  // 观众烘焙导致卡死/崩溃，正是最该避免的路径。
+  if (platform === "devtools") return false;
+  return true;
 }
 
 function waitForBaseTexture(baseTexture, timeoutMs) {
