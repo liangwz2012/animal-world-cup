@@ -1,4 +1,5 @@
 const { TEAMS } = require("../data/game-options");
+const { matchShareTitle, matchShareCaption, generateMatchShareCard } = require("./share-card");
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -161,6 +162,7 @@ function createMatchChrome(options) {
   let lastBallSpeed = 0;
   let lastKickAt = 0;
   let lastScreenshot = "";
+  let lastShareCard = "";
   let lastStatsDrawAt = 0;
   let mouseAttached = false;
   let canvasMouseAttached = false;
@@ -197,6 +199,11 @@ function createMatchChrome(options) {
   function teamName(teamId) {
     const team = TEAMS.find((item) => item.id === teamId);
     return team ? team.name : String(teamId || "球队");
+  }
+
+  function teamCountry(teamId) {
+    const team = TEAMS.find((item) => item.id === teamId);
+    return team ? team.country || "" : "";
   }
 
   function rounded(parent, x, y, w, h, radius, fill, alpha, stroke, strokeWidth) {
@@ -348,9 +355,14 @@ function createMatchChrome(options) {
   function shareMatch() {
     const pitch = game.pitch;
     const score = pitch && pitch.redTeam ? [pitch.redTeam.score | 0, pitch.blueTeam.score | 0] : [0, 0];
+    const localIsBlue = config.localRole === "guest" && config.friendPhase === "friend";
+    const myScore = localIsBlue ? score[1] : score[0];
+    const foeScore = localIsBlue ? score[0] : score[1];
+    const myTeamId = localIsBlue ? config.blueTeam : config.redTeam;
+    const foeTeamId = localIsBlue ? config.redTeam : config.blueTeam;
     const payload = {
-      title: `动物足球赛 ${score[0]} : ${score[1]}`,
-      imageUrl: lastScreenshot || undefined,
+      title: matchShareTitle({ myName: teamName(myTeamId), foeName: teamName(foeTeamId), myScore, foeScore }),
+      imageUrl: lastShareCard || lastScreenshot || undefined,
       query: `red=${config.redTeam}&blue=${config.blueTeam}`,
     };
     if (wxApi && typeof wxApi.shareAppMessage === "function") {
@@ -462,6 +474,29 @@ function createMatchChrome(options) {
     const verdict = score[0] === score[1] ? "双方战平" : localWon ? "我的球队获胜" : "对手获胜";
     const verdictText = center(text(verdict, 23, 0xa44734, "900"), width / 2, y + 198 * scale);
     resultLayer.addChild(verdictText);
+
+    // 生成战报分享卡（离屏绘制，异步；失败时分享回落截图/裸标题）
+    const myScore = localIsBlue ? score[1] : score[0];
+    const foeScore = localIsBlue ? score[0] : score[1];
+    const myTeamId = localIsBlue ? config.blueTeam : config.redTeam;
+    const foeTeamId = localIsBlue ? config.redTeam : config.blueTeam;
+    generateMatchShareCard(wxApi, {
+      score,
+      redName: teamName(config.redTeam),
+      blueName: teamName(config.blueTeam),
+      redCountry: teamCountry(config.redTeam),
+      blueCountry: teamCountry(config.blueTeam),
+      caption: matchShareCaption(myScore, foeScore),
+    }).then((path) => {
+      if (!path) return;
+      lastShareCard = path;
+      if (inputHost) {
+        inputHost.__ANIMAL_FOOTBALL_LAST_SHARE_CARD__ = path;
+        inputHost.__ANIMAL_FOOTBALL_LAST_SHARE_TITLE__ = matchShareTitle({
+          myName: teamName(myTeamId), foeName: teamName(foeTeamId), myScore, foeScore,
+        });
+      }
+    });
 
     const stats = readStats();
     const summary = [

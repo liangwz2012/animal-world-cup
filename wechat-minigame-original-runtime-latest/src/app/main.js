@@ -138,8 +138,9 @@ function startAnimalFootballApp() {
       if (context.wxApi && context.wxApi.onShareAppMessage) {
         context.wxApi.onShareAppMessage(() => {
           const base = {
-            title: "动物足球赛 · 选择你的动物球队",
-            imageUrl: context.inputHost.__ANIMAL_FOOTBALL_LAST_SCREENSHOT__ || undefined,
+            title: context.inputHost.__ANIMAL_FOOTBALL_LAST_SHARE_TITLE__ || "动物足球赛 · 选择你的动物球队",
+            imageUrl: context.inputHost.__ANIMAL_FOOTBALL_LAST_SHARE_CARD__
+              || context.inputHost.__ANIMAL_FOOTBALL_LAST_SCREENSHOT__ || undefined,
           };
           return friendCoordinator ? friendCoordinator.sharePayload(base) : base;
         });
