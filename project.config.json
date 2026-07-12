@@ -1,0 +1,34 @@
+{
+  "setting": {
+    "es6": true,
+    "postcss": false,
+    "minified": true,
+    "uglifyFileName": false,
+    "enhance": false,
+    "packNpmRelationList": [],
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "useCompilerPlugins": false
+  },
+  "compileType": "game",
+  "libVersion": "3.15.2",
+  "projectname": "animal-cup-wechat-minigame",
+  "miniprogramRoot": "wechat-minigame-original-runtime-latest/",
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [
+      { "value": "tools", "type": "folder" },
+      { "value": "server", "type": "folder" },
+      { "value": "README.md", "type": "file" },
+      { "value": "package.json", "type": "file" },
+      { "value": ".gitignore", "type": "file" }
+    ],
+    "include": []
+  },
+  "isGameTourist": false,
+  "appid": "wx6755751392105ee3",
+  "editorSetting": {}
+}

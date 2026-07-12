@@ -1,0 +1,8 @@
+generated/
+runtime-assets/
+shell-assets/
+.generated-build/
+.runtime-assets-build/
+.shell-assets-build/
+# 微信开发者工具本地私有配置（每台机器不同，不入库）
+project.private.config.json
