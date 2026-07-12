@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-12",
+  "note": "小游戏远程队列配置。可远程调整已随包发布队伍的 name/animal/color/enabled/order；只能覆盖已存在的 id，新增带美术的队伍须随版本重新提审。修改后玩家下次冷启动生效。",
+  "teams": [
+    { "id": "england", "name": "雄狮", "animal": "狮子", "color": "#c54539", "enabled": true, "order": 1 },
+    { "id": "france", "name": "雄鸡", "animal": "公鸡", "color": "#2858ad", "enabled": true, "order": 2 },
+    { "id": "germany", "name": "黑鹰", "animal": "黑鹰", "color": "#29231d", "enabled": true, "order": 3 },
+    { "id": "spain", "name": "蛮牛", "animal": "公牛", "color": "#c83f35", "enabled": true, "order": 4 },
+    { "id": "portugal", "name": "苍狼", "animal": "狼", "color": "#176d49", "enabled": true, "order": 5 },
+    { "id": "brazil", "name": "美洲豹", "animal": "美洲豹", "color": "#edcf49", "enabled": true, "order": 6 },
+    { "id": "argentina", "name": "美洲狮", "animal": "美洲狮", "color": "#8ed3f3", "enabled": true, "order": 7 },
+    { "id": "usa", "name": "白头鹰", "animal": "白头鹰", "color": "#263f7b", "enabled": true, "order": 8 }
+  ]
+}

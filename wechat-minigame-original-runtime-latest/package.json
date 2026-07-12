@@ -18,9 +18,10 @@
     "test:friend-server": "node tools/test-friend-room-server.mjs",
     "test:match-sync": "node tools/test-match-sync.mjs",
     "test:friend-flow": "node tools/test-friend-match-coordinator.mjs",
+    "test:remote-config": "node tools/test-remote-config.mjs",
     "server": "node server/friend-room-server.mjs",
     "server:dev": "DEV_AUTH=1 HOST=127.0.0.1 PORT=18787 node server/friend-room-server.mjs",
-    "check": "npm run build && npm run verify && npm run test:game-options && npm run test:touch && npm run test:controls-ui && npm run test:game-shell && npm run test:match-chrome-input && npm run test:platform && npm run test:critical-textures && npm run test:friend-invite && npm run test:friend-input && npm run test:room-client && npm run test:friend-server && npm run test:match-sync && npm run test:friend-flow",
+    "check": "npm run build && npm run verify && npm run test:game-options && npm run test:touch && npm run test:controls-ui && npm run test:game-shell && npm run test:match-chrome-input && npm run test:platform && npm run test:critical-textures && npm run test:friend-invite && npm run test:friend-input && npm run test:room-client && npm run test:friend-server && npm run test:match-sync && npm run test:friend-flow && npm run test:remote-config",
     "release:check": "npm run check && node tools/release-check.mjs"
   },
   "dependencies": {

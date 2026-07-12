@@ -4,6 +4,7 @@ const { createMatchChrome } = require("../ui/match-chrome");
 const { defaults, formation, normalizeConfig } = require("../data/game-options");
 const { SoundBank } = require("../audio/sound-bank");
 const { createFriendMatchCoordinator } = require("./friend-match-coordinator");
+const { initTeamConfig } = require("../net/remote-config");
 
 // 仅用于开发者工具无法把鼠标转换成 wx.onTouch 的衔接验收；提交前保持 false。
 const DEV_AUTO_START_AI = false;
@@ -11,6 +12,8 @@ const DEV_AUTO_SHOW_RESULT = false;
 const DEV_AUTO_RETURN_HOME_REMATCH = false;
 
 function startAnimalFootballApp() {
+  // 远程队列配置：缓存即时生效（早于 shell 渲染），后台拉新供下次启动；失败回落本地。
+  initTeamConfig(typeof wx !== "undefined" ? wx : null, typeof globalThis !== "undefined" ? globalThis : null);
   let shell = null;
   let runtime = null;
   let activeChrome = null;
