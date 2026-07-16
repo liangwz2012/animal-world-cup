@@ -59,7 +59,7 @@ function point(touch) {
   };
 }
 
-const BUILD_TAG = "SRCFIX-12";
+const BUILD_TAG = "SRCFIX-13";
 
 function createGameShell(options) {
   const PIXI = options.PIXI;

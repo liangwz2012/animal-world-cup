@@ -83,7 +83,7 @@ function defaults() {
     redFormation: FORMATIONS[0].name,
     blueFormation: FORMATIONS[1].name,
     side: "home",
-    ai: 1,
+    ai: 0,
     time: 6,
     mode: "ai",
     roomId: "",
