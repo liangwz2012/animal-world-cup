@@ -104,7 +104,10 @@ async function main() {
   if (!bootSource.includes("B1_CRITICAL_TEXTURES_READY")) throw new Error("关键图集未在比赛启动前硬预载");
   if (!bootSource.includes("B2_TEXTURE_CACHE_RESTORED")) throw new Error("关键纹理缓存缺少静默自恢复路径");
   if (!bootSource.includes("__ORIGINAL_RUNTIME_GET_CRITICAL_TEXTURE__")) throw new Error("关键纹理私有引用读取器缺失");
-  if (!bootSource.includes("physical-mobile-safe-fans")) throw new Error("真机设备画像未启用低内存观众策略");
+  // 2026-07-16 起真机默认开启动态观众（视线跟球/进球欢呼）；低端机保底由
+  // standalone 的 fans.load 12 秒超时旗标（fans.load timeout 分支）承担。
+  if (!bootSource.includes("dynamic-fans-on")) throw new Error("真机设备画像未启用动态观众策略");
+  if (!bootSource.includes("const mobileSafeFans = false")) throw new Error("动态观众默认开关缺失");
   if ((bootSource.match(/bindMatchSyncState\(root, inputHost, matchSync\)/g) || []).length < 3) throw new Error("第二玩家输入缺少加载前、加载后及开赛前 runtime window 重绑定");
   if (!bootSource.includes("B1_TOUCH2_DEGRADED")) throw new Error("单机缺少 touchInput2 非致命降级保护");
   if (!appSource.includes("createFriendMatchCoordinator")) throw new Error("应用层未接入好友房协调器");

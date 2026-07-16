@@ -147,27 +147,41 @@ const collectTexts = (node) => {
 collectTexts(chrome.root);
 assert.ok(allTexts.includes("比赛数据"), "点击比分栏后必须展开射门、传球、抢断等比赛数据");
 
-// Top toolbar home icon center is renderer position (187, 38).
-listeners.mousedown({ clientX: 20 + 187 / 2, clientY: 10 + 38 / 2 });
+// HUD 尺寸随 match-chrome 的 scale 公式（height/720*1.18，封顶 2.6）。
+// 坐标全部按公式推导，避免 HUD 布局调整后测试坐标失效。
+const S = Math.max(0.58, Math.min(720 / 720 * 1.18, 2.6));
+// 顶部工具栏第 4 个按钮（home）中心：起点 12、按钮宽 44、间距 7、命中区 y 17..61。
+const homeToolCx = (12 + 3 * (44 + 7) + 22) * S;
+const homeToolCy = (17 + 22) * S;
+listeners.mousedown({ clientX: 20 + homeToolCx / 2, clientY: 10 + homeToolCy / 2 });
 assert.equal(homeCount, 1, "开发者工具点击主页图标必须立即调用返回主页");
 
 chrome.showResult({ score: [1, 3] });
-// Result rematch center is (535.5, 574); use logical CSS mouse coordinates.
-canvasListeners.mousedown({ clientX: 20 + 535.5 / 2, clientY: 10 + 574 / 2 });
+// 赛果卡按钮几何（与 showResult 中公式一致）。
+const cardH = Math.min(720 * 0.78, 510 * S);
+const cardY = (720 - cardH) / 2;
+const resultButtonY = cardY + cardH - 65 * S;
+const resultButtonW = 185 * S;
+const resultGap = 24 * S;
+const rematchCx = 640 - resultButtonW - resultGap / 2 + resultButtonW / 2;
+const homeResultCx = 640 + resultGap / 2 + resultButtonW / 2;
+const resultBtnCy = resultButtonY + 24 * S;
+// 再来一局：开发者工具逻辑 CSS 鼠标坐标。
+canvasListeners.mousedown({ clientX: 20 + rematchCx / 2, clientY: 10 + resultBtnCy / 2 });
 assert.equal(rematchCount, 1, "赛果页再来一局必须可点击");
-// Result home center is (744.5, 574); use 3x physical touch coordinates.
-listeners.touchstart({ touches: [{ clientX: (20 + 744.5 / 2) * 3, clientY: (10 + 574 / 2) * 3 }] });
+// 返回主页：真机 3 倍物理像素触点。
+listeners.touchstart({ touches: [{ clientX: (20 + homeResultCx / 2) * 3, clientY: (10 + resultBtnCy / 2) * 3 }] });
 assert.equal(homeCount, 2, "赛果页返回主页必须兼容真机物理像素触点");
 
 const mapped = mapMatchPointerCandidates({
-  raw: { x: (20 + 744.5 / 2) * 3, y: (10 + 574 / 2) * 3 },
+  raw: { x: (20 + homeResultCx / 2) * 3, y: (10 + resultBtnCy / 2) * 3 },
   width: 1280,
   height: 720,
   canvas,
   devicePixelRatio: 3,
   resolution: 2,
 });
-assert.ok(mapped.some((entry) => Math.abs(entry.point.x - 744.5) < 0.1 && Math.abs(entry.point.y - 574) < 0.1));
+assert.ok(mapped.some((entry) => Math.abs(entry.point.x - homeResultCx) < 0.1 && Math.abs(entry.point.y - resultBtnCy) < 0.1));
 
 chrome.destroy();
 assert.equal(listeners.touchstart, undefined, "销毁 HUD 必须注销真机触摸监听");

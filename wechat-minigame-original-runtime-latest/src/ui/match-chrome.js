@@ -137,7 +137,10 @@ function createMatchChrome(options) {
 
   const width = Number(game.renderer.screen && game.renderer.screen.width) || Number(game.renderer.width) || 1280;
   const height = Number(game.renderer.screen && game.renderer.screen.height) || Number(game.renderer.height) || 720;
-  const scale = clamp(height / 720, 0.58, 1);
+  // 比赛渲染器以物理像素满幅运行（SRCFIX-6），HUD 尺寸必须随画布高度等比放大，
+  // 否则 1080p 真机上记分牌/工具图标只有设计稿 2/3 大。上限 1 → 2.6，并加 1.18
+  // 倍增益（用户要求记分牌与左上角图标更大更清晰）。
+  const scale = clamp(height / 720 * 1.18, 0.58, 2.6);
   const root = new PIXI.Container();
   root.name = "animal-football-match-chrome";
   const toolLayer = new PIXI.Container();

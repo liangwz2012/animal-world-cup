@@ -6,9 +6,20 @@ const { createTouchControlsOverlay } = require("../ui/touch-controls");
 const IDENTITY = "original-runtime-latest";
 const CRITICAL_INDICATOR_ATLAS = "/match-runtime-min/images/indicators.json";
 const CRITICAL_INDICATOR_IMAGE = "runtime-assets/match-runtime-min/images/indicators.png";
-// 真机偶发单张图片 onload 迟迟不触发；给足单次超时并允许带缓存清除的多次重试。
-const CRITICAL_ATLAS_ATTEMPT_TIMEOUT_MS = 15000;
-const CRITICAL_ATLAS_MAX_ATTEMPTS = 3;
+// 关键指示器图集 4.3KB，内联为主包内 base64 data URI。真机上分包文件路径经
+// wx.createImage() 加载偶发 onload 永不触发 → 整局卡在加载页。改用主包内联 base64：
+// 立即可用、无分包文件 I/O、data URI 解码后 onload 稳定触发。见 generated/critical-atlas.static.js。
+let CRITICAL_INDICATOR_DATA_URI = null;
+try {
+  CRITICAL_INDICATOR_DATA_URI = require("../../generated/critical-atlas.static");
+} catch (error) {
+  CRITICAL_INDICATOR_DATA_URI = null;
+}
+// 真机偶发单张图片 onload 迟迟不触发。主路径已是主包内联 base64（不依赖分包文件 I/O），
+// 分包文件路径仅作最后兜底——因此把它压到「单次尝试 + 短超时」，一旦不稳就快速降级为
+// 空图集让比赛照常开场，绝不再让整局在加载页干等几十秒后弹 FATAL。
+const CRITICAL_ATLAS_ATTEMPT_TIMEOUT_MS = 6000;
+const CRITICAL_ATLAS_MAX_ATTEMPTS = 1;
 let fatalReported = false;
 let criticalIndicatorLoad = null;
 
@@ -84,7 +95,8 @@ function reportFatal(error) {
   if (typeof wx !== "undefined" && wx.showModal) {
     wx.showModal({
       title: "原版引擎移植失败",
-      content: `${root.__ORIGINAL_RUNTIME_LATEST_STAGE__}: ${normalized.message}`.slice(0, 500),
+      // 附 build 号与音频模式：真机截图即可确认包版本与音频降级路径
+      content: `[SRCFIX-10 音频:${root.__ANIMAL_AUDIO_MODE__ || "未初始化"}] ${root.__ORIGINAL_RUNTIME_LATEST_STAGE__}: ${normalized.message}`.slice(0, 500),
       showCancel: false,
     });
   }
@@ -123,6 +135,14 @@ function reportBackgroundError(error) {
   const normalized = error instanceof Error
     ? error
     : new Error((error && (error.message || error.errMsg)) || String(error));
+  // 音频类运行期错误一律非致命：真机 wx WebAudio 原生绑定存在参数校验 bug
+  // （如 BindingWXAudioListener.setOrientation 拒绝合法参数）。音频问题最多
+  // “没声”，绝不允许把一整局打崩。适配层已在源头兜住，这里是最后保险。
+  if (/WXAudio|WebAudio|AudioListener|AudioParam|AudioNode|AudioContext/i.test(normalized.message || "")) {
+    root.__ORIGINAL_RUNTIME_LAST_BACKGROUND_ERROR__ = normalized.message;
+    console.warn("[original-runtime-latest] 音频运行期错误（已忽略，不中断比赛）", normalized.stack || normalized.message);
+    return;
+  }
   // 可恢复的纹理缓存错误交给 reportFatal 走静默重试（它本身不弹框）。
   if (isRecoverableTextureCacheError(normalized)) {
     reportFatal(normalized);
@@ -308,11 +328,81 @@ function purgeCriticalAtlasCache(PIXI, staleBaseTexture) {
   }
 }
 
-// 关键图集加载重试：真机下载完 9.77MiB 分包后立即解码，偶发单次 onload 不触发。
-// 每次都先清缓存再重新 fromImage，绝大多数瞬时超时会在第 2/3 次成功，避免整局卡死。
+// 自建 Image 加载 base64 data URI：不依赖 PIXI 内部 loader，也不依赖分包文件路径。
+// data URI 由 wx 直接解码，onload 稳定触发；解码后的图片元素交给 PIXI 构造 BaseTexture，
+// 此时图片已 complete，PIXI 无需再等待任何加载事件。
+function loadImageFromDataUri(dataUri, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const ImageCtor = (typeof Image !== "undefined" && Image)
+      || (typeof globalThis !== "undefined" && globalThis.Image)
+      || (typeof window !== "undefined" && window.Image);
+    if (typeof ImageCtor !== "function") {
+      reject(new Error("关键图集内联加载失败：Image 构造函数不可用"));
+      return;
+    }
+    let settled = false;
+    const img = new ImageCtor();
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve(img);
+    };
+    const timer = setTimeout(
+      () => finish(new Error(`关键图集内联加载超时（base64 data URI）`)),
+      timeoutMs || CRITICAL_ATLAS_ATTEMPT_TIMEOUT_MS,
+    );
+    img.onload = () => finish();
+    img.onerror = (event) => finish(new Error(`关键图集内联加载失败：${event && (event.message || event.errMsg) || "onerror"}`));
+    img.src = dataUri;
+  });
+}
+
+// 关键图集加载：优先用主包内联 base64（真机稳定），失败或缺失再回退到分包文件路径重试。
 async function loadCriticalAtlasTexture(PIXI, options) {
   const maxAttempts = (options && options.maxAttempts) || CRITICAL_ATLAS_MAX_ATTEMPTS;
   const perAttemptTimeout = (options && options.timeoutMs) || CRITICAL_ATLAS_ATTEMPT_TIMEOUT_MS;
+
+  // 首选路径：主包内联 base64 data URI，真机上不依赖分包文件 I/O。
+  // 关键：微信 image 没有 .complete 属性，PIXI v4 无法据此判定“已加载”而会
+  // 挂起等待一个已经触发过的 load 事件。因此把已解码的图片画进 wx canvas，
+  // 再用 canvas（带 getContext）建 BaseTexture —— PIXI 判定为立即可用，绝不挂起。
+  if (CRITICAL_INDICATOR_DATA_URI) {
+    try {
+      const image = await loadImageFromDataUri(CRITICAL_INDICATOR_DATA_URI, perAttemptTimeout);
+      const width = image.width || 512;
+      const height = image.height || 128;
+      const wxApi = typeof wx !== "undefined" ? wx : null;
+      let source = image;
+      if (wxApi && typeof wxApi.createCanvas === "function") {
+        const canvas = wxApi.createCanvas();
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(image, 0, 0, width, height);
+        source = canvas;
+      }
+      const baseTexture = new PIXI.BaseTexture(source);
+      // 双保险：显式标记已加载，防止个别环境未走 getContext 快路径。
+      if (!baseTexture.hasLoaded) {
+        baseTexture.hasLoaded = true;
+        baseTexture.width = width;
+        baseTexture.height = height;
+        baseTexture.realWidth = width;
+        baseTexture.realHeight = height;
+        if (typeof baseTexture.emit === "function") baseTexture.emit("loaded", baseTexture);
+      }
+      const atlasTexture = new PIXI.Texture(baseTexture);
+      console.info("[original-runtime-latest] 关键图集已通过主包内联 base64 加载", `${width}x${height}`);
+      return atlasTexture;
+    } catch (error) {
+      console.warn(`[original-runtime-latest] 内联 base64 关键图集加载失败，回退到分包文件路径：${error && error.message || error}`);
+    }
+  }
+
+  // 回退路径：分包文件路径 + 带缓存清除的多次重试。
   let lastError = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     purgeCriticalAtlasCache(PIXI);
@@ -334,6 +424,47 @@ async function loadCriticalAtlasTexture(PIXI, options) {
   throw lastError || new Error(`关键图集加载失败: ${CRITICAL_INDICATOR_IMAGE}`);
 }
 
+// 兜底：当所有真实加载路径都失败时，用 wx canvas 造一张有效的空图集（尺寸覆盖所有 frame）。
+// canvas 自带 getContext → PIXI 判定为立即可用、绝不挂起。这样即使图集加载失败，
+// 比赛也照常开场（指示器暂时透明），永远不再卡加载页弹 FATAL。
+function createBlankAtlasTexture(PIXI, atlas) {
+  let width = 2;
+  let height = 2;
+  const frames = (atlas && atlas.frames) || {};
+  for (const frameName of Object.keys(frames)) {
+    const descriptor = frames[frameName];
+    const frame = descriptor && (descriptor.frame || descriptor);
+    if (frame && Number.isFinite(frame.x) && Number.isFinite(frame.w)) width = Math.max(width, frame.x + frame.w);
+    if (frame && Number.isFinite(frame.y) && Number.isFinite(frame.h)) height = Math.max(height, frame.y + frame.h);
+  }
+  const meta = atlas && atlas.meta && atlas.meta.size;
+  if (meta && Number.isFinite(meta.w)) width = Math.max(width, meta.w);
+  if (meta && Number.isFinite(meta.h)) height = Math.max(height, meta.h);
+  width = Math.max(2, Math.ceil(width));
+  height = Math.max(2, Math.ceil(height));
+
+  const wxApi = typeof wx !== "undefined" ? wx : null;
+  let source = null;
+  if (wxApi && typeof wxApi.createCanvas === "function") {
+    const canvas = wxApi.createCanvas();
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, width, height);
+    source = canvas;
+  }
+  const baseTexture = source ? new PIXI.BaseTexture(source) : new PIXI.BaseTexture();
+  if (!baseTexture.hasLoaded) {
+    baseTexture.hasLoaded = true;
+    baseTexture.width = width;
+    baseTexture.height = height;
+    baseTexture.realWidth = width;
+    baseTexture.realHeight = height;
+    if (typeof baseTexture.emit === "function") baseTexture.emit("loaded", baseTexture);
+  }
+  return new PIXI.Texture(baseTexture);
+}
+
 async function ensureCriticalIndicatorTextures(PIXI, targets, options) {
   if (!PIXI || !PIXI.Texture || !PIXI.Rectangle) {
     throw new Error("关键图集预加载失败：Pixi Texture/Rectangle 不可用");
@@ -350,7 +481,14 @@ async function ensureCriticalIndicatorTextures(PIXI, targets, options) {
     const atlasSource = textAssets && textAssets[CRITICAL_INDICATOR_ATLAS];
     if (!atlasSource) throw new Error(`关键图集索引缺失: ${CRITICAL_INDICATOR_ATLAS}`);
     const atlas = JSON.parse(atlasSource);
-    const atlasTexture = await loadCriticalAtlasTexture(PIXI, options);
+    let atlasTexture;
+    try {
+      atlasTexture = await loadCriticalAtlasTexture(PIXI, options);
+    } catch (error) {
+      // 所有真实加载路径都失败：降级为空图集，让比赛照常开场而不是卡加载页弹 FATAL。
+      console.warn("[original-runtime-latest] 关键图集全部加载路径失败，降级为空图集（比赛照常开场）", error && error.stack || error && error.message || error);
+      atlasTexture = createBlankAtlasTexture(PIXI, atlas);
+    }
     const baseTexture = atlasTexture && (atlasTexture.baseTexture || atlasTexture);
 
     const textures = {};
@@ -393,12 +531,16 @@ async function bootOriginalRuntime(options) {
   const platform = installMiniWindow({ canvas: screenCanvas });
   installGlobalFailureHooks(root);
   const inputHost = typeof globalThis !== "undefined" ? globalThis : root;
-  const mobileSafeFans = detectPhysicalMobileDevice(wxApi);
+  const physicalDevice = detectPhysicalMobileDevice(wxApi);
+  // 动态观众（视线跟球、进球欢呼）真机也开启 —— 引导链路已修复稳定（SRCFIX 系列），
+  // 不再一刀切禁用。保底仍在：standalone 的 fans.load 12 秒超时会把该旗标置回 true
+  // 并跳过观众继续开赛，低端机烘不动时比赛照常进行，只是没有观众。
+  const mobileSafeFans = false;
   const deviceTargets = [root, root.window, inputHost, inputHost.window];
   for (const target of deviceTargets) {
     if (target) target.__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__ = mobileSafeFans;
   }
-  console.info("[original-runtime-latest] DEVICE_PROFILE", mobileSafeFans ? "physical-mobile-safe-fans" : "desktop-or-devtools");
+  console.info("[original-runtime-latest] DEVICE_PROFILE", physicalDevice ? "physical-mobile(dynamic-fans-on)" : "desktop-or-devtools");
 
   // Pixi 本身位于主包，可以在 9.77 MiB 资源分包下载前先绘制品牌加载页。
   const PIXIExport = require("../../generated/pixi.static");
@@ -682,9 +824,14 @@ async function bootOriginalRuntime(options) {
       if (!root.__ORIGINAL_RUNTIME_ACTIVE__) {
         const game = root.__matchGame;
         const renderer = game && game.renderer;
-        reportFatal(new Error(`B2 超时：90 秒内未出现原版比赛首帧；renderer=${!!renderer}, gl=${!!(renderer && renderer.gl)}, progress=${root.__loadProgress || 0}`));
+        const s = root.__ANIMAL_IMG_STATS__ || {};
+        const imgTail = s.lastStuck
+          ? " 卡:" + String(s.lastStuck).split("/").pop()
+          : (s.lastMiss ? " 缺:" + String(s.lastMiss).split("/").pop() : "");
+        const imgInfo = `img请求=${s.req || 0} 命中=${s.dataUriHit || 0} 未命中=${s.dataUriMiss || 0} 成功=${s.loaded || 0} 失败=${s.failed || 0} 补送=${s.rescued || 0} 卡死=${s.stuck || 0}${imgTail}`;
+        reportFatal(new Error(`B2 超时：30 秒未出首帧；renderer=${!!renderer}, gl=${!!(renderer && renderer.gl)}, progress=${root.__loadProgress || 0}; ${imgInfo}`));
       }
-    }, 90000);
+    }, 30000);
   }
 
   const api = {

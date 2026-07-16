@@ -332,6 +332,72 @@ function publicUrlForLocalPath(localPath) {
   return path;
 }
 
+// 真机关键修复：把「分包内的本地图片文件路径」读成 base64 data URI 再交给 wx.createImage。
+// 原因：真机上 wx.createImage() 直接加载分包文件路径时，onload 偶发永不触发 → 图片加载器
+// 卡住（进度停在个位数）→ 90 秒后 B2 超时弹「引擎移植失败」。而 data URI 由 wx 直接解码，
+// onload 稳定触发（关键指示器图集早已用此法内联）。这里把该做法推广到所有本地图片。
+// DevTools 同样走 data URI，行为与真机一致，避免"模拟器正常、真机炸"的分叉。
+const IMAGE_DATA_URI_CACHE = Object.create(null);
+const IMAGE_DATA_URI_MAX_BYTES = 6 * 1024 * 1024; // 超大图不内联，避免主线程 base64 卡顿/内存尖峰
+// 真机诊断计数：img 请求数、data URI 命中/未命中、load/error 送达数、探针补送数、
+// 卡死数与最后一个卡死/未命中的路径。若资源仍卡加载页，这些数字会被并进 B2 超时
+// 弹框，一张截图即可定位问题。
+const IMG_STATS = {
+  req: 0, dataUriHit: 0, dataUriMiss: 0,
+  loaded: 0, failed: 0, rescued: 0, stuck: 0,
+  lastSrc: "", lastMiss: "", lastStuck: "",
+};
+function localImageDataUri(localPath, wxApi) {
+  const path = String(localPath || "");
+  if (!path || /^data:/i.test(path) || /^https?:\/\//i.test(path) || path.indexOf("blob:") === 0) return null;
+  if (Object.prototype.hasOwnProperty.call(IMAGE_DATA_URI_CACHE, path)) return IMAGE_DATA_URI_CACHE[path];
+  const fs = wxApi && wxApi.getFileSystemManager ? wxApi.getFileSystemManager() : null;
+  if (!fs || typeof fs.readFileSync !== "function") { IMAGE_DATA_URI_CACHE[path] = null; return null; }
+  const ext = (path.split(".").pop() || "").toLowerCase();
+  if (["png", "jpg", "jpeg", "webp", "gif", "bmp"].indexOf(ext) === -1) { IMAGE_DATA_URI_CACHE[path] = null; return null; }
+  const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg"
+    : ext === "webp" ? "image/webp"
+    : ext === "gif" ? "image/gif"
+    : ext === "bmp" ? "image/bmp"
+    : "image/png";
+  const candidates = [path, `/${path}`];
+  for (const key of candidates) {
+    try {
+      if (typeof fs.statSync === "function") {
+        try { const st = fs.statSync(key); const size = st && (st.size != null ? st.size : (st.stats && st.stats.size)); if (size != null && size > IMAGE_DATA_URI_MAX_BYTES) { IMAGE_DATA_URI_CACHE[path] = null; return null; } } catch (statErr) {}
+      }
+      const b64 = fs.readFileSync(key, "base64");
+      if (b64) { const uri = `data:${mime};base64,${b64}`; IMAGE_DATA_URI_CACHE[path] = uri; return uri; }
+    } catch (err) {}
+  }
+  IMAGE_DATA_URI_CACHE[path] = null;
+  return null;
+}
+
+// ⛔ 真机根因（勿再回退到任何「拦截原生 src」的设计）：
+// 真机上 wx.createImage() 的 src 是「原生数据属性」—— getOwnPropertyDescriptor 只能
+// 看到 {value, writable}（没有可抓的 setter），但赋值其实由引擎内部的原生回调拦截以
+// 触发图片加载。对它做 Object.defineProperty / delete 会把这个原生回调**永久摧毁**：
+// 此后 img.src=xxx 只是写一个普通 JS 属性，加载永远不会开始，onload/onerror 都不
+// 触发（静默卡死）—— 正是「真机全部图片不显示 + 加载停在个位数 + B2 超时弹 FATAL、
+// 而 DevTools 一切正常」的元凶（DevTools 里 src 是 HTMLImageElement 原型上的访问器，
+// 怎么折腾实例都不影响，故 bug 只在真机复现）。
+// 修复原则：**永不触碰原生 src 属性描述符**。路径归一化 / data URI 转换放进全新的
+// __acSrc 访问器（添加新属性是安全的），最终用普通赋值 img.src=最终值 交给原生。
+// 构建期会把打包产物里的所有 `.src=` 赋值改写为 `.__acSrc=`（见 tools/build.mjs），
+// 非图片对象则由 Object.prototype 上的 __acSrc 兜底访问器原样转发回 .src。
+function installAcSrcFallback() {
+  try {
+    if (Object.getOwnPropertyDescriptor(Object.prototype, "__acSrc")) return;
+    Object.defineProperty(Object.prototype, "__acSrc", {
+      configurable: true,
+      enumerable: false,
+      get() { return this.src; },
+      set(value) { this.src = value; },
+    });
+  } catch (err) {}
+}
+
 function patchImage(img, global) {
   if (!img || img.__animalCupPatched) return img;
   safeSetGlobal(img, "__animalCupPatched", true);
@@ -356,42 +422,98 @@ function patchImage(img, global) {
     for (const cb of (listeners[type] || []).slice()) cb.call(img, event);
   };
   let currentSrc = "";
-  // wx.createImage() 的 src 是数据属性（非访问器），直接 defineProperty 覆盖会让原生加载失效。
-  // 改为：每次 set 时先删除访问器→原生赋值触发加载→再重装访问器，保证读返回规范化的 currentSrc。
-  const installSrcAccessor = () => {
-    Object.defineProperty(img, "src", {
-      configurable: true,
-      enumerable: true,
-      get() { return currentSrc; },
-      set(value) {
-        currentSrc = normalizeAssetPath(value);
-        img.fakeSrc = publicUrlForLocalPath(currentSrc);
-        try {
-          delete img.src;                 // 移除访问器，恢复原生数据属性
-          img.src = currentSrc;           // 原生赋值 → 触发 wx 图片加载 → onload
-        } catch (err) {
-          setTimeout(() => fire("error"), 0);
-        } finally {
-          installSrcAccessor();           // 重新装回访问器
-        }
-      },
-    });
+  let settled = true;    // 当前这次 src 赋值的 load/error 是否已送达
+  let probeToken = 0;
+
+  const markSettled = (isLoad) => {
+    if (settled) return;
+    settled = true;
+    if (isLoad) {
+      IMG_STATS.loaded += 1;
+      // 真机 wx image 没有 complete 属性，而 PIXI v4 依赖 source.complete 判定
+      // 「图片已就绪」（loader 完成后再建 BaseTexture 时走立即可用捷径）。
+      // 补一个普通属性 —— 添加新属性安全，不碰原生描述符；DevTools 里 complete
+      // 是原型只读访问器，普通赋值静默无效，恰好不产生分叉。
+      try { if (img.complete !== true) img.complete = true; } catch (err) {}
+    } else {
+      IMG_STATS.failed += 1;
+    }
   };
-  installSrcAccessor();
+
+  // 真机保险丝：万一 onload 事件丢失但图片其实已解码（width>0），手动补送 load。
+  // PIXI 的 onload 处理器触发后会把 img.onload 置 null —— 因此「onload 仍是函数」
+  // 即代表事件尚未送达，手动调用是安全的（本包装器与 PIXI 处理器都自带幂等保护）。
+  const scheduleLoadProbe = () => {
+    const token = ++probeToken;
+    let ticks = 0;
+    const check = () => {
+      if (settled || token !== probeToken) return;
+      const width = Number(img.naturalWidth || img.width) || 0;
+      if (width > 0) {
+        const handler = img.onload;
+        if (typeof handler === "function") {
+          IMG_STATS.rescued += 1;
+          try { handler.call(img, { type: "load", target: img }); } catch (err) {}
+          markSettled(true);   // handler 非本包装器时补记
+        } else {
+          settled = true;      // onload 已被消费方置 null → 事件其实已送达
+        }
+        return;
+      }
+      ticks += 1;
+      if (ticks < 20) setTimeout(check, 600);
+      else { IMG_STATS.stuck += 1; IMG_STATS.lastStuck = img.fakeSrc || currentSrc; }
+    };
+    setTimeout(check, 400);
+  };
+
+  const applySrc = (value) => {
+    currentSrc = normalizeAssetPath(value);
+    img.fakeSrc = publicUrlForLocalPath(currentSrc);
+    // 本地图片一律读成 base64 data URI 再交给 wx：分包文件路径的解码时序在真机上
+    // 不如 data URI 稳定；且 DevTools 同样走 data URI，行为与真机一致。
+    let loadTarget = currentSrc;
+    IMG_STATS.req += 1;
+    IMG_STATS.lastSrc = currentSrc;
+    const dataUri = localImageDataUri(currentSrc, global.wx);
+    if (dataUri) { loadTarget = dataUri; IMG_STATS.dataUriHit += 1; }
+    else if (currentSrc && !/^data:|^https?:\/\/|^blob:/i.test(currentSrc)) { IMG_STATS.dataUriMiss += 1; IMG_STATS.lastMiss = currentSrc; }
+    settled = false;
+    try {
+      img.src = loadTarget;   // 普通赋值：原生属性从未被动过 → 真正触发 wx 加载
+    } catch (err) {
+      markSettled(false);
+      setTimeout(() => fire("error"), 0);
+      return;
+    }
+    scheduleLoadProbe();
+  };
+  try {
+    Object.defineProperty(img, "__acSrc", {
+      configurable: true,
+      enumerable: false,
+      get() { return currentSrc; },
+      set: applySrc,
+    });
+  } catch (err) {
+    // 极端环境定义失败：落回 Object.prototype 兜底（直写原生 src，不做归一化）。
+  }
   const oldOnload = img.onload;
   const oldOnerror = img.onerror;
   img.onload = function onload(event) {
+    markSettled(true);
     if (typeof oldOnload === "function") oldOnload.call(img, event);
     // 这里已经是原生 onload 回调；只通知 addEventListener 监听器。
     // 如果再次读取并调用 img.onload，会形成 onload -> fire -> onload 的无限递归。
     fire("load", false);
   };
   img.onerror = function onerror(event) {
+    markSettled(false);
     if (typeof oldOnerror === "function") oldOnerror.call(img, event);
     fire("error", false);
   };
   safeSetGlobal(img, "setAttribute", function setAttribute(name, value) {
-    if (name === "src") img.src = value;
+    if (name === "src") applySrc(value);
     else img[name] = value;
   });
   safeSetGlobal(img, "getAttribute", function getAttribute(name) {
@@ -530,14 +652,36 @@ function createXMLHttpRequest(global, fs) {
 // ---- 浏览器 API 桩：match.rebuilt.js 在加载阶段就会用到这些，微信小游戏环境不提供 ----
 function installBrowserApis(global, wxApi) {
   // Web Audio：运行时一加载就 `new (window.AudioContext||window.webkitAudioContext)()`，
-  // 并调用 ctx.listener.setOrientation(...) 等。用 no-op 实现，音频静默不影响渲染。
-  if (!global.AudioContext) {
-    function makeAudioParam() { return { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, cancelScheduledValues() {} }; }
+  // 然后 ctx.listener.setOrientation(...)、createGain/createPanner、回调式 decodeAudioData。
+  // 环境差异（真机曾因此卡 98% 弹 `createPanner is not a function` FATAL）：
+  //   - DevTools：Chromium 完整原生 AudioContext；
+  //   - 部分真机运行时：**会暴露全局 AudioContext 但不完整**（缺 PannerNode/listener 等）——
+  //     所以绝不能用 `if (!global.AudioContext)` 一跳了之，必须逐实例验完整性；
+  //   - 其余真机：完全没有，只有 wx.createWebAudioContext() 或什么都没有。
+  // 策略（AudioContextShim 逐级降级，全部 try/catch，音频问题最多“没声”绝不打崩引导）：
+  //   1) 环境自带 AudioContext：实例化后验完整性 —— 完整就原样返回（DevTools 零变化）；
+  //      不完整就包装补缺（真实发声，PannerNode 用真实 GainNode 直通替代）；
+  //   2) wx.createWebAudioContext()：包装补缺，真实发声；
+  //   3) 静默全桩 —— 任何 create* 都有实现。
+  {
+    const NativeAudioContext = (typeof global.AudioContext === "function" && global.AudioContext)
+      || (typeof global.webkitAudioContext === "function" && global.webkitAudioContext)
+      || null;
+    if (NativeAudioContext && NativeAudioContext.__animalCupAudioShim) {
+      // 热重载等场景下已装过本 shim，跳过
+    } else {
+    function makeAudioParam() { return { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {} }; }
     function makeAudioNode() {
       return {
         connect() { return this; }, disconnect() {},
-        gain: makeAudioParam(), frequency: makeAudioParam(), playbackRate: makeAudioParam(), Q: makeAudioParam(),
-        start() {}, stop() {}, noteOn() {}, noteOff() {}, buffer: null, loop: false, loopStart: 0, loopEnd: 0, detune: 0,
+        gain: makeAudioParam(), frequency: makeAudioParam(), playbackRate: makeAudioParam(), Q: makeAudioParam(), pan: makeAudioParam(), detune: 0,
+        start() {}, stop() {}, noteOn() {}, noteOff() {}, buffer: null, loop: false, loopStart: 0, loopEnd: 0,
+        // PannerNode 形状（噪声容忍：字段可随意赋值，方法全 no-op）
+        setPosition() {}, setOrientation() {}, setVelocity() {},
+        panningModel: "HRTF", distanceModel: "inverse",
+        refDistance: 1, maxDistance: 10000, rolloffFactor: 1,
+        coneInnerAngle: 360, coneOuterAngle: 0, coneOuterGain: 0,
+        onended: null, addEventListener() {}, removeEventListener() {},
       };
     }
     class MiniAudioContext {
@@ -552,17 +696,248 @@ function installBrowserApis(global, wxApi) {
       createGain() { return makeAudioNode(); }
       createBufferSource() { return makeAudioNode(); }
       createOscillator() { return makeAudioNode(); }
+      createPanner() { return makeAudioNode(); }
+      createStereoPanner() { return makeAudioNode(); }
+      createBiquadFilter() { return makeAudioNode(); }
+      createDelay() { return Object.assign(makeAudioNode(), { delayTime: makeAudioParam() }); }
+      createConvolver() { return makeAudioNode(); }
+      createWaveShaper() { return Object.assign(makeAudioNode(), { curve: null, oversample: "none" }); }
+      createChannelMerger() { return makeAudioNode(); }
+      createChannelSplitter() { return makeAudioNode(); }
+      createConstantSource() { return Object.assign(makeAudioNode(), { offset: makeAudioParam() }); }
+      createScriptProcessor() { return Object.assign(makeAudioNode(), { onaudioprocess: null, bufferSize: 4096 }); }
+      createMediaElementSource() { return makeAudioNode(); }
+      createMediaStreamSource() { return makeAudioNode(); }
+      createPeriodicWave() { return {}; }
       createDynamicsCompressor() { return makeAudioNode(); }
-      createAnalyser() { return Object.assign(makeAudioNode(), { getByteFrequencyData() {}, getFloatFrequencyData() {} }); }
+      createAnalyser() { return Object.assign(makeAudioNode(), { fftSize: 2048, frequencyBinCount: 1024, getByteFrequencyData() {}, getFloatFrequencyData() {}, getByteTimeDomainData() {} }); }
       createBuffer(channels, length) { return { numberOfChannels: channels || 1, length: length || 0, sampleRate: 44100, getChannelData() { return new Float32Array(length || 0); }, duration: 0 }; }
-      decodeAudioData() { return Promise.resolve(this.createBuffer(1, 1, 44100)); }
+      // 引擎用回调式签名 decodeAudioData(data, success, error)；必须触发回调，否则
+      // 音效永远停在“解码中”。静默桩给一个空 buffer 让流程走通。
+      decodeAudioData(data, success, error) {
+        const buffer = this.createBuffer(1, 1, 44100);
+        if (typeof success === "function") setTimeout(() => { try { success(buffer); } catch (err) {} }, 0);
+        return Promise.resolve(buffer);
+      }
       resume() { this.state = "running"; return Promise.resolve(); }
       suspend() { this.state = "suspended"; return Promise.resolve(); }
       close() { this.state = "closed"; return Promise.resolve(); }
     }
-    global.AudioContext = MiniAudioContext;
-    global.webkitAudioContext = MiniAudioContext;
-    global.OfflineAudioContext = MiniAudioContext;
+
+    // 真机：包装 wx.createWebAudioContext()，输出真实声音。
+    // ⛔ 设计前提（真机实测教训）：wx WebAudio 的原生绑定**不可信** —— 方法存在但可能
+    // 对合法参数抛异常（已证实 BindingWXAudioListener.setOrientation 拒绝标准参数
+    // (0,0,-1,0,1,0)；connect/start/AudioParam 均属同类风险面）。因此所有真实节点/
+    // 参数/监听者一律套安全代理：方法调用吞掉一切异常、节点参数自动解包再传给原生、
+    // 属性覆盖写入侧表兜底。音频问题最多“没声”，绝不允许把引导期打崩。
+    function wrapRealAudioContext(real) {
+      const audioWarn = (where, err) => {
+        try { console.warn(`[original-runtime-latest] wx WebAudio ${where} 异常（已吞掉，音频降级）`, err && err.message || err); } catch (e) {}
+      };
+      // 传给原生前解包：安全代理 → 真实原生对象（原生 connect 只认原生节点）
+      const unwrapAudioArg = (value) => {
+        if (value && typeof value === "object") {
+          let inner = null;
+          try { inner = value.__acRealAudioNode; } catch (err) {}
+          if (inner) return inner;
+        }
+        return value;
+      };
+      const isAudioParamLike = (value) => {
+        try { return !!value && typeof value === "object" && typeof value.setValueAtTime === "function"; } catch (err) { return false; }
+      };
+      const isAudioNodeLike = (value) => {
+        try { return !!value && typeof value === "object" && typeof value.connect === "function"; } catch (err) { return false; }
+      };
+      // AudioParam 安全代理：value 读写与调度方法全部 try/catch
+      function safeParam(realParam) {
+        return new Proxy({ __acRealAudioNode: realParam }, {
+          get(target, key) {
+            if (key === "__acRealAudioNode") return realParam;
+            let value;
+            try { value = realParam[key]; } catch (err) { return key === "value" ? 0 : noop; }
+            if (typeof value === "function") {
+              return function safeParamCall() {
+                const args = Array.prototype.slice.call(arguments).map(unwrapAudioArg);
+                try { return value.apply(realParam, args); } catch (err) { audioWarn(`AudioParam.${String(key)}()`, err); return undefined; }
+              };
+            }
+            return value;
+          },
+          set(target, key, value) {
+            try { realParam[key] = value; } catch (err) { audioWarn(`AudioParam.${String(key)}=`, err); }
+            return true;
+          },
+        });
+      }
+      // 音频节点安全代理。代理目标是普通对象（侧表），避开原生对象的 Proxy 不变量限制：
+      //   读：侧表覆盖优先（flat panner 的 setPosition 等），其次转发真实节点；
+      //   写：先记侧表（保证之后一定读得回来），再尽力写真实节点（source.buffer 等要生效）；
+      //   方法：参数解包 → 调用真实节点 → 异常吞掉（connect 失败返回原参数保持链式调用）。
+      function safeNode(realNode) {
+        if (!realNode || typeof realNode !== "object") return makeAudioNode();
+        const overrides = { __acRealAudioNode: realNode };
+        return new Proxy(overrides, {
+          get(target, key) {
+            if (Object.prototype.hasOwnProperty.call(target, key)) return target[key];
+            let value;
+            try { value = realNode[key]; } catch (err) { return noop; }
+            if (typeof value === "function") {
+              return function safeNodeCall() {
+                const args = Array.prototype.slice.call(arguments).map(unwrapAudioArg);
+                try {
+                  const result = value.apply(realNode, args);
+                  return isAudioNodeLike(result) ? safeNode(result) : result;
+                } catch (err) {
+                  audioWarn(`AudioNode.${String(key)}()`, err);
+                  return key === "connect" ? arguments[0] : undefined;
+                }
+              };
+            }
+            if (isAudioParamLike(value)) return safeParam(value);
+            return value;
+          },
+          set(target, key, value) {
+            if (key !== "__acRealAudioNode") target[key] = value;   // 侧表兜底，读回必中
+            try { realNode[key] = unwrapAudioArg(value); } catch (err) { audioWarn(`AudioNode.${String(key)}=`, err); }
+            return true;
+          },
+        });
+      }
+      const makeFlatPanner = () => {
+        let node = null;
+        try { node = real.createGain(); } catch (err) { audioWarn("createGain(panner替身)", err); }
+        if (!node) return makeAudioNode();
+        // wx WebAudio 没有 PannerNode：用真实 GainNode 直通替代（不做空间化，正常出声）。
+        // 3D 方法/属性写在安全代理的侧表上，不碰原生对象。
+        const panner = safeNode(node);
+        panner.setPosition = noop; panner.setOrientation = noop; panner.setVelocity = noop;
+        panner.panningModel = "HRTF"; panner.distanceModel = "inverse";
+        panner.refDistance = 1; panner.maxDistance = 10000; panner.rolloffFactor = 1;
+        panner.coneInnerAngle = 360; panner.coneOuterAngle = 0; panner.coneOuterGain = 0;
+        return panner;
+      };
+      // listener 绝不裸用：真机 wx 的 BindingWXAudioListener.setOrientation() 会对
+      // **合法标准参数** (0,0,-1,0,1,0) 抛 "Property 'x,y,z' or 'upX,upY,upZ' invalid"。
+      // 没有 PannerNode 的环境里听者朝向本来就无可闻效果，异常丢弃是无损的。
+      const realListener = (() => {
+        let inner = null;
+        try { inner = real.listener || null; } catch (err) {}
+        return new Proxy({}, {
+          get(target, key) {
+            let value = null;
+            try { value = inner ? inner[key] : null; } catch (err) {}
+            if (typeof value === "function") {
+              return function safeListenerCall() {
+                try { return value.apply(inner, arguments); } catch (err) { audioWarn(`listener.${String(key)}()`, err); return undefined; }
+              };
+            }
+            if (value != null) return value;
+            return noop;
+          },
+          set(target, key, value) {
+            try { if (inner) inner[key] = value; } catch (err) {}
+            return true;
+          },
+        });
+      })();
+      const wrapper = {
+        listener: realListener,
+        get destination() { try { return real.destination ? safeNode(real.destination) : makeAudioNode(); } catch (err) { return makeAudioNode(); } },
+        get currentTime() { try { return real.currentTime || 0; } catch (err) { return 0; } },
+        get sampleRate() { try { return real.sampleRate || 44100; } catch (err) { return 44100; } },
+        get state() { try { return real.state || "running"; } catch (err) { return "running"; } },
+        createPanner() {
+          try { if (typeof real.createPanner === "function") return safeNode(real.createPanner()); } catch (err) { audioWarn("createPanner()", err); }
+          return makeFlatPanner();
+        },
+        decodeAudioData(data, success, error) {
+          let settled = false;
+          const once = (fn) => (value) => {
+            if (settled) return;
+            settled = true;
+            if (typeof fn === "function") { try { fn(value); } catch (err) {} }
+          };
+          const ok = once(success);
+          const bad = once(error);
+          try {
+            const result = real.decodeAudioData(unwrapAudioArg(data), ok, bad);
+            if (result && typeof result.then === "function") result.then(ok, bad);
+            return result;
+          } catch (err) { audioWarn("decodeAudioData()", err); bad(err); }
+        },
+        resume() { try { return real.resume ? real.resume() : Promise.resolve(); } catch (err) { return Promise.resolve(); } },
+        suspend() { try { return real.suspend ? real.suspend() : Promise.resolve(); } catch (err) { return Promise.resolve(); } },
+        close() { try { return real.close ? real.close() : Promise.resolve(); } catch (err) { return Promise.resolve(); } },
+      };
+      for (const name of [
+        "createGain", "createBufferSource", "createOscillator", "createDynamicsCompressor",
+        "createAnalyser", "createBiquadFilter", "createDelay", "createConvolver",
+        "createWaveShaper", "createChannelMerger", "createChannelSplitter", "createStereoPanner",
+        "createConstantSource", "createScriptProcessor", "createMediaElementSource",
+        "createMediaStreamSource", "createPeriodicWave", "createBuffer",
+      ]) {
+        wrapper[name] = typeof real[name] === "function"
+          ? function forwardAudioApi() {
+            const args = Array.prototype.slice.call(arguments).map(unwrapAudioArg);
+            let result = null;
+            try { result = real[name].apply(real, args); } catch (err) { audioWarn(`${name}()`, err); return makeAudioNode(); }
+            // createBuffer/createPeriodicWave 返回的不是节点，原样返回；节点才包安全代理
+            return isAudioNodeLike(result) ? safeNode(result) : (result == null ? makeAudioNode() : result);
+          }
+          : function fallbackAudioApi() { return makeAudioNode(); };
+      }
+      return wrapper;
+    }
+    // 引擎音效播放的最小可用面：真实发声必须齐这些，否则宁可静默桩
+    const isUsableAudioContext = (ctx) => {
+      try {
+        return !!ctx
+          && typeof ctx.createGain === "function"
+          && typeof ctx.createBufferSource === "function"
+          && typeof ctx.decodeAudioData === "function"
+          && !!ctx.destination;
+      } catch (err) { return false; }
+    };
+    // 完整面：引擎直接调用的全部 API 都是原生实现，才允许“原样返回不包装”
+    const isCompleteAudioContext = (ctx) => {
+      try {
+        return isUsableAudioContext(ctx)
+          && typeof ctx.createPanner === "function"
+          && !!ctx.listener
+          && typeof ctx.listener.setOrientation === "function";
+      } catch (err) { return false; }
+    };
+    const setAudioMode = (mode) => {
+      safeSetGlobal(global, "__ANIMAL_AUDIO_MODE__", mode);
+      console.info(`[original-runtime-latest] 音频模式: ${mode}`);
+    };
+    function AudioContextShim() {
+      // 1) 环境自带 AudioContext（DevTools 完整；个别真机运行时不完整）
+      if (NativeAudioContext) {
+        let native = null;
+        try { native = new NativeAudioContext(); } catch (err) {}
+        if (isCompleteAudioContext(native)) { setAudioMode("native"); return native; }
+        if (isUsableAudioContext(native)) { setAudioMode("native-wrapped"); return wrapRealAudioContext(native); }
+      }
+      // 2) wx WebAudio
+      if (wxApi && typeof wxApi.createWebAudioContext === "function") {
+        try {
+          const real = wxApi.createWebAudioContext();
+          if (isUsableAudioContext(real)) { setAudioMode("wx-webaudio"); return wrapRealAudioContext(real); }
+        } catch (err) {
+          console.warn("[original-runtime-latest] wx WebAudio 不可用，音频降级为静默", err && err.message || err);
+        }
+      }
+      // 3) 静默全桩
+      setAudioMode("silent-stub");
+      return new MiniAudioContext();
+    }
+    AudioContextShim.__animalCupAudioShim = true;
+    safeSetGlobal(global, "AudioContext", AudioContextShim);
+    safeSetGlobal(global, "webkitAudioContext", AudioContextShim);
+    if (!global.OfflineAudioContext) safeSetGlobal(global, "OfflineAudioContext", MiniAudioContext);
+    }
   }
 
   // KeyboardEvent：运行时用到静态常量 DOM_KEY_LOCATION_*，以及构造器
@@ -727,6 +1102,7 @@ function installMiniWindow(options) {
   installBase64(global);
   installTextCodec(global);
   installBrowserApis(global, wxApi);
+  installAcSrcFallback();
 
   if (screenCanvas) {
     screenCanvas.width = logicalWidth * pixelRatio;
@@ -843,6 +1219,7 @@ function installMiniWindow(options) {
   global.__animalCupScreenCanvas = screenCanvas;
   global.__bundleTextOnly = true;
   global.__wxMiniGameRuntime = true;
+  global.__ANIMAL_IMG_STATS__ = IMG_STATS;
 
   return { canvas: screenCanvas, fs, info, window: runtimeWindow, resolvePath: normalizeAssetPath };
 }

@@ -183,13 +183,18 @@ function createTouchControlsOverlay(options) {
     hintRoot.visible = false;
     setPoint(hintRoot.position, layout.hint.x, layout.hint.y);
     hintBackground = new PIXI.Graphics();
+    // 触控层整体会被 root.scale 放大到舞台物理尺寸（可达 3 倍）。文字纹理若按布局
+    // 逻辑字号渲染再放大会糊；把放大倍数烘进字号、再等比缩回，得到逐物理像素的清晰文字。
+    const stageSize = visibleStageSize(game, layout.width, layout.height);
+    const upscale = Math.max(1, stageSize.width / layout.width);
     hintText = new PIXI.Text("", {
       fontFamily: "Arial, PingFang SC, Microsoft YaHei, sans-serif",
-      fontSize: Math.max(11, Math.round(15 * layout.scale)),
+      fontSize: Math.max(11, Math.round(16 * layout.scale)) * Math.ceil(upscale),
       fontWeight: "800",
       fill: 0xfff7e2,
       align: "center",
     });
+    hintText.scale.set(1 / Math.ceil(upscale), 1 / Math.ceil(upscale));
     if (hintText.anchor && hintText.anchor.set) hintText.anchor.set(0.5, 0.5);
     setPoint(hintText.position, 0, 0);
     hintRoot.addChild(hintBackground);
@@ -197,7 +202,7 @@ function createTouchControlsOverlay(options) {
     root.addChild(hintRoot);
   };
 
-  const setHintLabel = (label) => {
+  const setHintLabel = (label, action) => {
     const value = String(label || "");
     if (!hintRoot || !hintBackground || !hintText) return;
     hintText.text = value;
@@ -208,6 +213,18 @@ function createTouchControlsOverlay(options) {
     hintBackground.beginFill(0x203018, 0.82);
     hintBackground.drawRoundedRect(-width / 2, -height / 2, width, height, height / 2);
     hintBackground.endFill();
+    // 提示气泡出现在对应按钮的左侧（按钮群在右下角，向场内一侧展开），
+    // 而不是固定在底部；组合技等无具体按钮时，挂在按钮群中心键左侧。
+    const circle = (layout.actions && layout.actions[action]) || (layout.actions && layout.actions.sprint) || null;
+    if (circle) {
+      setPoint(
+        hintRoot.position,
+        circle.x - circle.radius - 14 * layout.scale - width / 2,
+        circle.y,
+      );
+    } else {
+      setPoint(hintRoot.position, layout.hint.x, layout.hint.y);
+    }
   };
 
   const update = () => {
@@ -241,19 +258,19 @@ function createTouchControlsOverlay(options) {
       const comboKey = `combo:${visual.comboText}`;
       if (hintedAction !== comboKey) {
         hintedAction = comboKey;
-        setHintLabel(visual.comboText);
+        setHintLabel(visual.comboText, visual.comboAction || null);
       }
       hintUntil = Math.max(hintUntil, Number(visual.comboUntil) || now);
     } else {
       if (Number(visual.lastActionAt) > lastActionAt) {
         lastActionAt = Number(visual.lastActionAt);
         hintedAction = visual.lastAction || pressedAction || "";
-        setHintLabel(ACTION_LABELS[hintedAction] || hintedAction);
+        setHintLabel(ACTION_LABELS[hintedAction] || hintedAction, hintedAction);
         hintUntil = now + 1200;
       } else if (pressedAction) {
         if (hintedAction !== pressedAction) {
           hintedAction = pressedAction;
-          setHintLabel(ACTION_LABELS[pressedAction] || pressedAction);
+          setHintLabel(ACTION_LABELS[pressedAction] || pressedAction, pressedAction);
         }
         hintUntil = now + 700;
       }

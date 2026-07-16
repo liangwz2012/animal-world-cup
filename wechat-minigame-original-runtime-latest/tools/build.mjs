@@ -51,6 +51,21 @@ function disableSwigRuntimeCompiler(source, label) {
   return source.slice(0, assignmentStart) + replacement + source.slice(catchIndex);
 }
 
+// ⛔ 真机根因修复（配合 src/platform/adapter.js 的 patchImage）：真机上 wx image 的
+// 原生 src 属性绝不能被 defineProperty/delete（会永久摧毁原生加载回调，导致所有图片
+// 静默加载失败——DevTools 正常、真机全挂）。适配层因此不再拦截 src，改为提供全新的
+// __acSrc 访问器做路径归一化 + data URI 转换后普通赋值给原生 src。这里把打包产物中
+// 所有 `.src=` 赋值改写为走该访问器。`.src==` 比较（负向前瞻排除）、字符串常量
+// （base64 不含 "."）、`.srcset=`/`.fakeSrc=`（属性名不同）均不受影响。
+function rewriteImageSrcAssignments(source, label, expectAtLeast = 0) {
+  const matches = source.match(/\.src\s*=(?!=)/g) || [];
+  if (matches.length < expectAtLeast) {
+    throw new Error(`${label} 预期至少 ${expectAtLeast} 处 .src= 赋值，实际 ${matches.length}`);
+  }
+  console.log(`[build] ${label}: 已改写 ${matches.length} 处 .src= 赋值 → .__acSrc=`);
+  return source.replace(/\.src\s*=(?!=)/g, ".__acSrc=");
+}
+
 function assertNoDynamicCode(source, label) {
   const newFunction = source.match(/\bnew\s+Function\s*\(/g) || [];
   const directEval = source.match(/(^|[^\w$])eval\s*\(/g) || [];
@@ -73,6 +88,43 @@ function patchMatch(source) {
     'this._stadium=e,this._stadium.sectors&&M.makeSectors(this._stadium,this.baseTexture),this._stadium.fans&&M.prepare(null,this._stadium,this._redTeam,this._blueTeam,this.baseTexture,this)',
     'this._stadium=e,globalThis.__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__&&(this._stadium.fans=null),this._stadium.sectors&&M.makeSectors(this._stadium,this.baseTexture),this._stadium.fans&&M.prepare(null,this._stadium,this._redTeam,this._blueTeam,this.baseTexture,this)',
     "真机关闭高内存动态观众烘焙",
+  );
+  // 球场地面烘焙映射修正：原引擎把 base 层强制 scale(1,1) 烘进 4096×2048 RenderTexture，
+  // 隐含约定「单张图片原始尺寸 == 烘焙纹理尺寸」。小游戏侧 base 层已改为两块 2048×2048
+  // 瓦片（部分真机 wx 解码器会把 4096 大图降采样到 2048 → 地面又缩回左上角且细节减半；
+  // 2048 瓦片全设备安全解码、保留全部细节）。烘焙按设计坐标系整体映射：
+  // 位置与缩放都乘 0.8（=纹理4096/世界5120），与图片实际解码尺寸解耦；幂等不累乘。
+  // 桌面/网页路径 fans 观众为活动精灵层，不触碰该纹理，行为不变。
+  source = replaceOnce(
+    source,
+    'e._base[i].scale.set(1,1),this.baseTexture.render(e._base[i]);',
+    'this.__acBakeBase(e._base[i]);',
+    "球场 base 层烘焙映射修正(调用)",
+  );
+  // ⛔ 烘焙陷阱（真机血泪教训，勿回退）：v4 弃用版 RenderTexture.render(sprite) 单参
+  // 调用 → legacyRenderer.render(..., skipUpdateTransform=TRUE) → 精灵的 position/scale
+  // 从不参与计算，一律按恒等变换画在 (0,0) 原始像素尺寸。原版"正常"纯属巧合
+  // （4096 图恒等绘制恰好填满 4096 纹理）。必须显式传 updateTransform=true（第 4 参），
+  // 变换才真正生效。另：真机 GPU 不清零新建 FBO，未画满区域会显示显存残影（曾表现为
+  // 选队头像巨幅糊在场地中央）——__acClearBase 先整幅纯色覆盖(clear=true)兜底。
+  source = replaceOnce(
+    source,
+    'this.baseTexture.clear&&this.baseTexture.clear(),e._base)',
+    'this.baseTexture.clear&&this.baseTexture.clear(),this.__acClearBase(),e._base)',
+    "球场烘焙前显存残影清除(调用)",
+  );
+  source = replaceOnce(
+    source,
+    't.prototype.parseWalls=function(t){',
+    't.prototype.__acClearBase=function(){var g=this.__acBaseCover;g||(g=new c.Graphics,g.beginFill(0x67903C,1),g.drawRect(0,0,4096,2048),g.endFill(),this.__acBaseCover=g);this.baseTexture.render(g,null,!0,!0)},t.prototype.__acBakeBase=function(t){t.__acDesign==null&&(t.__acDesign={x:t.position.x,y:t.position.y,sx:t.scale.x,sy:t.scale.y});var d=t.__acDesign;t.position.set(.8*d.x,.8*d.y),t.scale.set(.8*d.sx,.8*d.sy),this.baseTexture.render(t,null,!1,!0)},t.prototype.parseWalls=function(t){',
+    "球场 base 层烘焙映射修正(实现)",
+  );
+  // 真机观众诊断：活动观众实际挂载数量打进 console（真机调试一眼可见）。
+  source = replaceOnce(
+    source,
+    'var B=this._container;B&&B.addChildAt(T,1)',
+    'var B=this._container;console.info("[fans] live fans placed:",T.children.length,"seats:",i.length),B&&B.addChildAt(T,1)',
+    "真机观众数量诊断日志",
   );
   const criticalTextureGetter = '(window.__ORIGINAL_RUNTIME_GET_CRITICAL_TEXTURE__||globalThis.__ORIGINAL_RUNTIME_GET_CRITICAL_TEXTURE__)';
   source = replaceOnce(
@@ -258,6 +310,15 @@ function acP2(){var sync=acMatchSync();return sync&&typeof sync.acceptsRemoteInp
     'rendererOptions:Object.assign({},settings("RENDERER_OPTIONS",{}),{view:window.__animalCupScreenCanvas})',
     "主 Canvas 显式注入",
   );
+  // 真机清晰度：原引擎渲染分辨率封顶 2，dpr=3 的真机上画布 (逻辑宽×2) 被拉伸到
+  // 物理屏幕 (逻辑宽×3)，全局 1.5 倍放大 → 用户可感的模糊。放开到 3（与适配层
+  // wx 屏幕画布的 pixelRatio 上限一致），真机逐物理像素渲染。DevTools 同步变清晰。
+  source = replaceOnce(
+    source,
+    'this.resolution=Math.min(window.devicePixelRatio||1,2)',
+    'this.resolution=Math.min(window.devicePixelRatio||1,3)',
+    "真机渲染分辨率放开到 dpr=3",
+  );
   source = replaceOnce(
     source,
     'blog("FATAL: "+error.message)}}})();',
@@ -381,16 +442,46 @@ async function main() {
   ]);
 
   assertNoDynamicCode(pixiSource, "pixi.static.js");
+
+  // 关键指示器图集 4.3KB 内联为主包内 base64 data URI。真机上分包文件路径经
+  // wx.createImage() 加载偶发 onload 永不触发 → 整局卡在加载页；主包内联后立即可用。
+  const criticalAtlasPng = await fs.readFile(path.join(sourceRuntime, "images/indicators.png"));
+  const criticalAtlasDataUri = `data:image/png;base64,${criticalAtlasPng.toString("base64")}`;
+  const criticalAtlasModule = `// 构建期自动生成：indicators.png 的 base64 内联（主包内，真机不依赖分包文件 I/O）。\nmodule.exports=${JSON.stringify(criticalAtlasDataUri)};\n`;
+
   const outputs = {
-    "pixi.static.js": pixiSource,
-    "swig.static.js": patchSwig(swigSource),
-    "shim.static.js": patchShim(shimSource),
-    "match.static.js": wrapMatch(patchMatch(matchSource)),
-    "standalone.static.js": `${patchStandalone(standaloneSource)}\nmodule.exports={loaded:true};\n`,
+    "pixi.static.js": rewriteImageSrcAssignments(pixiSource, "pixi.static.js", 10),
+    "swig.static.js": rewriteImageSrcAssignments(patchSwig(swigSource), "swig.static.js"),
+    "shim.static.js": rewriteImageSrcAssignments(patchShim(shimSource), "shim.static.js"),
+    "match.static.js": wrapMatch(rewriteImageSrcAssignments(patchMatch(matchSource), "match.static.js", 10)),
+    "standalone.static.js": `${rewriteImageSrcAssignments(patchStandalone(standaloneSource), "standalone.static.js")}\nmodule.exports={loaded:true};\n`,
+    "critical-atlas.static.js": criticalAtlasModule,
   };
 
   for (const [name, content] of Object.entries(outputs)) {
     await fs.writeFile(path.join(generatedStagingDir, name), content);
+  }
+  // 小游戏专属：球场底图换双 2048 瓦片（部分真机解码器把 4096 大图降采样 → 地面
+  // 缩左上角+细节减半）。只改分包与文本索引里的 stadium.json，public 源与网页版不动。
+  {
+    const stadiumJsonKey = "/match-runtime-min/data/stadiums/international/stadium.json";
+    const stagedStadiumDir = path.join(assetsStagingDir, "match-runtime-min/data/stadiums/international");
+    const stadiumData = JSON.parse(textAssets[stadiumJsonKey]);
+    const baseIndex = stadiumData.sprites.findIndex((sp) => sp.layer === "base" && sp.texture === "stadium.jpg");
+    if (baseIndex < 0) throw new Error("stadium.json 未找到单张 base 底图，瓦片替换失败");
+    stadiumData.sprites.splice(
+      baseIndex,
+      1,
+      { texture: "stadium_left.jpg", position: [0, 0], layer: "base", scale: [1.25, 1.25] },
+      { texture: "stadium_right.jpg", position: [2560, 0], layer: "base", scale: [1.25, 1.25] },
+    );
+    textAssets[stadiumJsonKey] = JSON.stringify(stadiumData);
+    await fs.writeFile(path.join(stagedStadiumDir, "stadium.json"), textAssets[stadiumJsonKey]);
+    await fs.rm(path.join(stagedStadiumDir, "stadium.jpg"), { force: true }); // 分包省 1.5MB
+    for (const tile of ["stadium_left.jpg", "stadium_right.jpg"]) {
+      await fs.access(path.join(stagedStadiumDir, tile)); // 瓦片必须存在（public 数据目录随 copyDir 带入）
+    }
+    console.info("[build] 球场底图已替换为双 2048 瓦片（仅小游戏分包）");
   }
   const textModule = `module.exports=${JSON.stringify(textAssets)};\n`;
   await fs.writeFile(path.join(assetsStagingDir, "runtime-text-assets.js"), textModule);

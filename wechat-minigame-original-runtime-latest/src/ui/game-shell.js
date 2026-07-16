@@ -59,13 +59,15 @@ function point(touch) {
   };
 }
 
+const BUILD_TAG = "SRCFIX-10";
+
 function createGameShell(options) {
   const PIXI = options.PIXI;
   const canvas = options.canvas;
   const wxApi = options.wxApi;
   let width = Math.max(1, Number(options.width) || 1280);
   let height = Math.max(1, Number(options.height) || 720);
-  const resolution = Math.max(1, Math.min(2, Number(options.resolution) || 1));
+  const resolution = Math.max(1, Math.min(3, Number(options.resolution) || 1));
   let pixelRatio = Math.max(1, Number(options.pixelRatio) || resolution);
   if (!PIXI || !PIXI.Container || !PIXI.Graphics || !PIXI.Text) {
     throw new Error("启动界面缺少 Pixi Container/Graphics/Text");
@@ -265,7 +267,9 @@ function createGameShell(options) {
     const ball = sprite("shell-assets/football.png", trackX, trackY - 4, 94, 94, loadingOptions.freshAssets);
     const status = center(text(loadingOptions.label || "正在加载游戏资源", 22, 0xf8f3d9, "800"), 640, 494);
     const pct = center(text(`${Math.round(shownProgress)}%`, 25, 0xf8f3d9, "800"), 640, 625);
-    design.addChild(status, pct);
+    // 构建水印：一眼确认手机上跑的是不是最新代码。看到这个 tag = 新代码已生效。
+    const buildStamp = center(text(`build ${BUILD_TAG}`, 15, 0xbcd08a, "700"), 640, 664);
+    design.addChild(status, pct, buildStamp);
     progressParts = { trackX, trackY, trackW, fill, ball, pct, status };
     renderProgress();
     if (!loadingOptions.skipShellRender) renderer.render(stage);
@@ -915,6 +919,63 @@ function createGameShell(options) {
     }, true);
   }
 
+  // 免费场次用完的解锁面板：与整个项目同风格（奶油卡片 + 绿/琥珀双色按钮），
+  // 替代原生 ActionSheet。payload 见 play-gate.requestUnlock：
+  // { title, subtitle, entries: [{ kind: 'share'|'ad', tier: 'single'|'day', label, run }], onCancel }
+  function showUnlockPanel(payload) {
+    const entries = (payload && payload.entries || []).slice(0, 4);
+    if (!entries.length) return false;
+    screen = "unlock";
+    suspended = false;
+    transitionLocked = false;
+    clearDesign();
+    addBackground();
+
+    const dim = new PIXI.Graphics();
+    dim.beginFill(0x0a1206, 0.42);
+    dim.drawRect(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT);
+    dim.endFill();
+    design.addChild(dim);
+
+    const rowH = 62;
+    const rowGap = 16;
+    const cardW = 700;
+    const cardH = 168 + entries.length * (rowH + rowGap) + 58;
+    const cardX = 640 - cardW / 2;
+    const cardY = (DESIGN_HEIGHT - cardH) / 2;
+    rounded(design, cardX + 5, cardY + 9, cardW, cardH, 34, 0x111b0b, 0.34, 0, 0, 0);
+    rounded(design, cardX, cardY, cardW, cardH, 34, 0xfffef8, 1, 0xe6dcc3, 1, 4);
+    design.addChild(center(text(payload.title || "免费场次踢完啦", 36, 0x31481f, "900"), 640, cardY + 54));
+    const subtitle = center(text(payload.subtitle || "转发给好友 或 看个小视频，任选一种继续踢", 17, 0x7c8a63, "700"), 640, cardY + 102);
+    if (subtitle.width > cardW - 70) subtitle.scale.set((cardW - 70) / subtitle.width);
+    design.addChild(subtitle);
+
+    const rowW = cardW - 116;
+    const rowX = 640 - rowW / 2;
+    entries.forEach((entry, index) => {
+      const y = cardY + 138 + index * (rowH + rowGap);
+      const amber = entry.kind === "ad";
+      const solid = entry.tier !== "day";
+      const fill = solid ? (amber ? 0xf1b82d : 0x5d9038) : 0xf7fbee;
+      const strokeColor = amber ? 0xc98a3b : 0x426d2a;
+      const labelColor = solid ? (amber ? 0x3a2d0a : 0xfff7e2) : 0x31481f;
+      rounded(design, rowX + 2, y + 4, rowW, rowH, rowH / 2, 0x253314, 0.14, 0, 0, 0);
+      rounded(design, rowX, y, rowW, rowH, rowH / 2, fill, 1, strokeColor, solid ? 0.9 : 0.8, 3);
+      const label = center(text(entry.label, 21, labelColor, "900"), 640, y + rowH / 2);
+      if (label.width > rowW - 56) label.scale.set((rowW - 56) / label.width);
+      design.addChild(label);
+      addHit(rowX, y, rowW, rowH, () => entry.run(), true);
+    });
+
+    const cancelY = cardY + cardH - 44;
+    const cancelLabel = center(text("先不踢了", 17, 0x9aa383, "700"), 640, cancelY);
+    design.addChild(cancelLabel);
+    addHit(640 - 90, cancelY - 20, 180, 40, () => {
+      if (typeof payload.onCancel === "function") payload.onCancel();
+    }, true);
+    return true;
+  }
+
   attachTouch();
   showLoading();
   loop();
@@ -922,6 +983,7 @@ function createGameShell(options) {
   return {
     showTutorial,
     hasSeenTutorial,
+    showUnlockPanel,
     renderer,
     stage,
     get screen() { return screen; },
