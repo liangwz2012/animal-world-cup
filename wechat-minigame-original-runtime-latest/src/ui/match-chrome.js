@@ -150,6 +150,10 @@ function createMatchChrome(options) {
   const resultLayer = new PIXI.Container();
   root.addChild(scoreLayer, toolLayer, confettiLayer, eventLayer, resultLayer);
   game.stage.addChild(root);
+  // 记分牌与工具按钮跟随摇杆的半透明规格（按钮整体 0.82 + 低不透明度底），
+  // 避免 HUD 遮挡球场；事件卡/彩带/战报层保持原样。
+  scoreLayer.alpha = 0.82;
+  toolLayer.alpha = 0.82;
 
   let destroyed = false;
   let rafId = null;
@@ -240,7 +244,7 @@ function createMatchChrome(options) {
   const barH = 86 * scale;
   const barX = (width - barW) / 2;
   const barY = 10 * scale;
-  rounded(scoreLayer, barX, barY, barW, barH, 22 * scale, 0xfffdf1, 0.94, 0xffffff, 2 * scale);
+  rounded(scoreLayer, barX, barY, barW, barH, 22 * scale, 0xfffdf1, 0.42, 0xffffff, 2 * scale);
   const headSize = 42 * scale;
   sprite(portraitPath(config.redTeam), scoreLayer, barX + 31 * scale, barY + 31 * scale, headSize, headSize);
   sprite(portraitPath(config.blueTeam), scoreLayer, barX + barW - 31 * scale, barY + 31 * scale, headSize, headSize);
@@ -251,7 +255,7 @@ function createMatchChrome(options) {
   const redScoreText = center(text("0", 34, 0xa44734, "900"), barX + barW * 0.41, barY + 31 * scale);
   const blueScoreText = center(text("0", 34, 0x315a9b, "900"), barX + barW * 0.59, barY + 31 * scale);
   const timeText = center(text("0'", 19, 0xfff7dc, "900"), barX + barW / 2, barY + 31 * scale);
-  rounded(scoreLayer, barX + barW / 2 - 29 * scale, barY + 14 * scale, 58 * scale, 34 * scale, 17 * scale, 0x5d9038, 1);
+  rounded(scoreLayer, barX + barW / 2 - 29 * scale, barY + 14 * scale, 58 * scale, 34 * scale, 17 * scale, 0x5d9038, 0.72);
   scoreLayer.addChild(redName, blueName, redScoreText, blueScoreText, timeText);
   const possessionText = center(text("控球 50%  ·  50%   ▾", 14, 0x365421, "800"), barX + barW / 2, barY + 69 * scale);
   scoreLayer.addChild(possessionText);
@@ -376,7 +380,7 @@ function createMatchChrome(options) {
   function toolButton(x, iconName, action) {
     const w = 44 * scale;
     const h = 44 * scale;
-    rounded(toolLayer, x, 16 * scale, w, h, 14 * scale, 0xfffef8, 0.95, 0x8a7046, 1.2 * scale);
+    rounded(toolLayer, x, 16 * scale, w, h, 14 * scale, 0xfffef8, 0.42, 0x8a7046, 1.2 * scale);
     const icon = new PIXI.Graphics();
     drawToolIcon(icon, iconName, x + w / 2, 38 * scale, 23 * scale, 0x4f8a2f);
     toolLayer.addChild(icon);
