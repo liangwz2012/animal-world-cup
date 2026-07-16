@@ -74,6 +74,22 @@ function assertNoDynamicCode(source, label) {
   }
 }
 
+// ⛔ 真机巨头根因（SRCFIX-11，勿回退）：真机 wx 图片（尤其 data URI）onload 触发的
+// 瞬间 width/height 可能仍是 0，要再过几毫秒才填充。原版链路在 load 回调里立刻
+// 读尺寸：image_packer 用 c.width 建纹理帧、spine 皮肤按「设计尺寸/帧尺寸」算头部
+// 附件缩放 —— 除数为 0 就把 81px 的球员头贴图放大几十倍糊满球场（表现为两队专属
+// race 的巨型动物头盖在草地上，DevTools 尺寸同步就绪故不复现）。修法：把「load 完成」
+// 的判定押后到所有图片尺寸真正就绪（25ms 轮询，10 秒封顶后按旧行为放行并告警）。
+function patchPixi(source) {
+  source = replaceOnce(
+    source,
+    "t.onload=function(){if(n._updateImageType(),",
+    't.onload=function __acWaitDims(){if(!((t.naturalWidth||t.width)>0&&(t.naturalHeight||t.height)>0)&&(t.__acDimTries=(t.__acDimTries||0)+1)<=400)return void setTimeout(__acWaitDims,25);if(n._updateImageType(),',
+    "BaseTexture 加载等待真实尺寸",
+  );
+  return source;
+}
+
 function patchMatch(source) {
   const messageNeedle = `e.prototype.compile=function(t){return new Function("this['"+this.globalName+"']="+this.functions()+";return "+this.precompile(this.parse(t)))()}`;
   const messageReplacement = `e.prototype.compile=function(t){var e=String(t);return function(t){return e.replace(/\\{([A-Za-z0-9_$]+)\\}/g,function(e,i){return t&&Object.prototype.hasOwnProperty.call(t,i)?t[i]:e})}}`;
@@ -125,6 +141,23 @@ function patchMatch(source) {
     'var B=this._container;B&&B.addChildAt(T,1)',
     'var B=this._container;console.info("[fans] live fans placed:",T.children.length,"seats:",i.length),B&&B.addChildAt(T,1)',
     "真机观众数量诊断日志",
+  );
+  // 真机巨头修复主闸（配合 patchPixi，注释见其上方）：teams 打包前，resources 的
+  // loadImages 必须等到每张图的尺寸真正就绪才回调 —— 否则 image_packer 建出 0 尺寸
+  // 帧，spine 头部附件缩放爆炸。10 秒封顶后按旧行为放行并告警（不比修复前更糟）。
+  source = replaceOnce(
+    source,
+    'function p(t,e){for(var i=[],r=t.length,n=0;n<t.length;n++){var s=new Image;s.onload=function(){r-=1,!r&&e&&e(i)},s.src=("/"+t[n]).replace(/#/g,"%23"),i.push(s)}}',
+    'function p(t,e){function w(){for(var m=0;m<i.length;m++){var g=i[m];if(!((g.naturalWidth||g.width)>0)){if((k+=1)<=400)return void setTimeout(w,25);console.warn("[resources] 图片尺寸迟迟未就绪:",g.fakeSrc||g.getAttribute&&g.getAttribute("src")||"?");break}}e&&e(i)}var i=[],r=t.length,k=0,n=0;for(;n<t.length;n++){var s=new Image;s.onload=function(){r-=1,!r&&w()},s.src=("/"+t[n]).replace(/#/g,"%23"),i.push(s)}}',
+    "resources.loadImages 等待图片尺寸就绪",
+  );
+  // 最后防线 + 真机诊断：万一仍有 0 尺寸图入包，退回 naturalWidth 并在控制台留证，
+  // 一张真机截图即可定位是哪张图（fakeSrc）。
+  source = replaceOnce(
+    source,
+    'a[u]=new e.Rectangle(0,0,c.width,c.height),h[u]=d,',
+    '(c.width>0&&c.height>0)||console.warn("[image_packer] 0尺寸图片入包:",u),a[u]=new e.Rectangle(0,0,c.width||c.naturalWidth||0,c.height||c.naturalHeight||0),h[u]=d,',
+    "image_packer 0 尺寸图片诊断",
   );
   const criticalTextureGetter = '(window.__ORIGINAL_RUNTIME_GET_CRITICAL_TEXTURE__||globalThis.__ORIGINAL_RUNTIME_GET_CRITICAL_TEXTURE__)';
   source = replaceOnce(
@@ -450,7 +483,7 @@ async function main() {
   const criticalAtlasModule = `// 构建期自动生成：indicators.png 的 base64 内联（主包内，真机不依赖分包文件 I/O）。\nmodule.exports=${JSON.stringify(criticalAtlasDataUri)};\n`;
 
   const outputs = {
-    "pixi.static.js": rewriteImageSrcAssignments(pixiSource, "pixi.static.js", 10),
+    "pixi.static.js": rewriteImageSrcAssignments(patchPixi(pixiSource), "pixi.static.js", 10),
     "swig.static.js": rewriteImageSrcAssignments(patchSwig(swigSource), "swig.static.js"),
     "shim.static.js": rewriteImageSrcAssignments(patchShim(shimSource), "shim.static.js"),
     "match.static.js": wrapMatch(rewriteImageSrcAssignments(patchMatch(matchSource), "match.static.js", 10)),

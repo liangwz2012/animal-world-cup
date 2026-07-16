@@ -479,6 +479,10 @@ function patchImage(img, global) {
     if (dataUri) { loadTarget = dataUri; IMG_STATS.dataUriHit += 1; }
     else if (currentSrc && !/^data:|^https?:\/\/|^blob:/i.test(currentSrc)) { IMG_STATS.dataUriMiss += 1; IMG_STATS.lastMiss = currentSrc; }
     settled = false;
+    // 撤销上一次加载补的 complete=true：否则复用同一元素重新赋 src 时，PIXI 的
+    // loadSource 会走「complete 且有宽高」的立即就绪捷径，吃到上一张图的旧尺寸。
+    // DevTools 里 complete 是原型只读访问器，普通赋值静默无效，不产生分叉。
+    try { if (img.complete === true) img.complete = false; } catch (err) {}
     try {
       img.src = loadTarget;   // 普通赋值：原生属性从未被动过 → 真正触发 wx 加载
     } catch (err) {
