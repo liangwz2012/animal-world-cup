@@ -42,6 +42,15 @@ function clampWatermarkPosition(position, element) {
 
 function getDefaultPosition(element) {
   const rect = element.getBoundingClientRect();
+  // Controller pages reserve the bottom corners for the stick/actions and the
+  // full bottom edge for team confirmation. The small top-left safe area is the
+  // only stable position that never blocks a gamepad control.
+  if (/\/(?:online-)?pad\/?$/.test(window.location.pathname)) {
+    return {
+      x: WATERMARK_EDGE_GAP,
+      y: WATERMARK_EDGE_GAP,
+    };
+  }
   // Bottom-CENTRE everywhere (owner): clears the match controls (legend bottom-
   // left, glass column right, touch controls in the corners) and the page
   // corners. Re-runs on resize → responsive.

@@ -206,6 +206,7 @@ export default function MatchChrome() {
   // play mode (?play=1): the human controls the HOME team. Desktop shows the
   // keyboard legend; touch devices get on-screen joystick + buttons instead.
   const [play, setPlay] = useState(false);
+  const [lan, setLan] = useState(false);
   const [touch, setTouch] = useState(false);
   const [onlineInput, setOnlineInput] = useState(null);
   useEffect(() => {
@@ -214,6 +215,7 @@ export default function MatchChrome() {
     const q = params.get("light");
     setLight(modes.includes(q) ? q : modes[Math.floor(Math.random() * modes.length)]);
     setPlay(params.get("play") === "1");
+    setLan(!!params.get("lan"));
     setOnlineInput(params.get("onlineInput"));
     setTouch(
       params.get("touch") === "1" ||
@@ -353,8 +355,8 @@ export default function MatchChrome() {
       ) : null}
 
 
-      {play && onlineInput !== "pads" && !touch && !result ? <ControlsLegend t={t} /> : null}
-      {play && onlineInput !== "pads" && touch && !loading && !result ? <TouchControls /> : null}
+      {play && !lan && onlineInput !== "pads" && !touch && !result ? <ControlsLegend t={t} /> : null}
+      {play && !lan && onlineInput !== "pads" && touch && !loading && !result ? <TouchControls /> : null}
 
       <MatchEvents />
 

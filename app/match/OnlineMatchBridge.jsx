@@ -171,12 +171,14 @@ export default function OnlineMatchBridge() {
   const bufferRef = useRef(null);
   const pendingFrameRef = useRef(null);
   const lastInputAt = useRef([0, 0]);
+  const [active, setActive] = useState(false);
   const [connection, setConnection] = useState("connecting");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const room = (params.get("online") || "").toUpperCase();
     if (!room) return undefined;
+    setActive(true);
     const role = params.get("onlineRole") === "host" ? "host" : "screen";
     const mode = params.get("onlineMode") === "controllers" ? "controllers" : "direct";
     const roleKey = role === "host" ? "host" : "screen";
@@ -379,6 +381,7 @@ export default function OnlineMatchBridge() {
     };
   }, []);
 
+  if (!active) return null;
   return (
     <div className={`online-match-badge online-match-badge--${connection}`}>
       <i aria-hidden /> ONLINE

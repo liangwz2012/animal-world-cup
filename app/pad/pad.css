@@ -201,3 +201,83 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 .pad-join-btn:disabled { opacity: 0.4; }
+
+/* LAN kiosk team selection */
+.pad-select {
+  position: absolute;
+  inset: 52px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  overflow-y: auto;
+}
+.pad-select__title {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  opacity: 0.8;
+}
+.pad-select__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  flex: 1;
+}
+.pad-select__team {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 4px 5px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.07);
+  color: #f4f7ec;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.pad-select__team:disabled { opacity: 0.22; cursor: not-allowed; }
+.pad-select__team.is-selected {
+  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.2);
+}
+.pad--red .pad-select__team.is-selected {
+  border-color: rgba(232, 76, 61, 0.9);
+  background: rgba(232, 76, 61, 0.18);
+}
+.pad--blue .pad-select__team.is-selected {
+  border-color: rgba(62, 126, 232, 0.9);
+  background: rgba(62, 126, 232, 0.18);
+}
+.pad-select__team img { width: 38px; height: 38px; object-fit: contain; }
+.pad-select__confirm {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #8fd07a;
+  color: #14320f;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+}
+.pad-select__confirm:disabled { opacity: 0.38; cursor: not-allowed; }
+.pad-select__confirm--done {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+}
+.pad-select__confirm--start {
+  background: #e2574c;
+  color: #fff;
+  font-size: 18px;
+  box-shadow: 0 4px 14px rgba(226, 87, 76, 0.5);
+}

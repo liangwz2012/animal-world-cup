@@ -993,3 +993,333 @@ body.ac-touch-play .match-controls .lang-switcher__menu {
 .online-match-badge i { width: 8px; height: 8px; border-radius: 50%; background: #e3b94a; }
 .online-match-badge--online i { background: #72d34d; }
 .online-match-badge--closed i, .online-match-badge--error i { background: #ef6d58; }
+
+/* ===== LAN challenge station ===== */
+.lan-team-select {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  overflow: auto;
+  background: rgba(27, 52, 22, 0.84);
+  backdrop-filter: blur(8px);
+}
+.lan-team-select__panel {
+  width: min(940px, 100%);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+  display: grid;
+  gap: 15px;
+  padding: 20px;
+  border: 4px solid #fffef8;
+  border-radius: 24px;
+  background: #fffef8;
+  box-shadow: 0 18px 46px rgba(15, 32, 12, 0.5);
+  color: #4f6f38;
+  font-family: var(--ak-font-display, "Baloo 2", "Arial Rounded MT Bold", sans-serif);
+}
+.lan-team-select__title { display: grid; justify-items: center; gap: 3px; text-align: center; }
+.lan-team-select__title > span {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: #eaf3e2;
+  color: #5d9038;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+.lan-team-select__title h1 {
+  margin: 1px 0 0;
+  color: #315f27;
+  font-family: "Titan One", "ZCOOL KuaiLe", var(--ak-font-display, sans-serif);
+  font-size: clamp(25px, 4.2vmin, 38px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+.lan-team-select__title p {
+  margin: 0;
+  color: #7b6b51;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+}
+.lan-team-select__duel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+}
+.lan-team-select__vs {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid #fff7e2;
+  background: #5d9038;
+  color: #fff7e2;
+  font-size: 17px;
+  font-weight: 900;
+  font-style: italic;
+  box-shadow: 0 5px 12px rgba(40, 60, 25, 0.28);
+}
+.lan-team-picker {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 3px solid rgba(93, 144, 56, 0.3);
+  border-radius: 18px;
+  background: #f7faf3;
+}
+.lan-team-picker--red { border-color: rgba(197, 69, 57, 0.42); }
+.lan-team-picker--blue { border-color: rgba(63, 127, 177, 0.45); }
+.lan-team-picker__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lan-team-picker__head > span {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #fff;
+  background: #c54539;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+.lan-team-picker--blue .lan-team-picker__head > span { background: #3f7fb1; }
+.lan-team-picker__head b {
+  overflow: hidden;
+  color: #4f6f38;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lan-team-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+.lan-team-picker__grid button {
+  position: relative;
+  min-width: 0;
+  min-height: 82px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  padding: 6px 3px 5px;
+  border: 2px solid rgba(120, 90, 50, 0.14);
+  border-radius: 11px;
+  background: #fff;
+  color: #577540;
+  cursor: pointer;
+}
+.lan-team-picker__grid button:hover:not(:disabled) { transform: translateY(-2px); border-color: #7cb24a; }
+.lan-team-picker__grid button:disabled { opacity: 0.28; cursor: not-allowed; }
+.lan-team-picker__grid button.is-selected { opacity: 1; background: #f1f8e8; border-color: #c54539; }
+.lan-team-picker--blue .lan-team-picker__grid button.is-selected { border-color: #3f7fb1; background: #eef6fb; }
+.lan-team-picker__grid button > i {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 19px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  padding: 0 3px;
+  border-radius: 9px;
+  background: #5d9038;
+  color: #fff;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
+}
+.lan-team-picker__grid img { width: 46px; height: 46px; object-fit: contain; }
+.lan-team-picker__grid button > span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lan-team-select__confirm {
+  justify-self: center;
+  min-width: 230px;
+  min-height: 47px;
+  padding: 10px 28px;
+  border: 2px solid #41702a;
+  border-radius: 15px;
+  background: #5d9038;
+  color: #fff7e2;
+  box-shadow: 0 5px 0 #41702a, 0 9px 18px rgba(40, 60, 25, 0.28);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.lan-team-select__confirm:hover:not(:disabled) { background: #6aa342; transform: translateY(-2px); }
+.lan-team-select__confirm:disabled { opacity: 0.62; cursor: wait; }
+
+.lan-qr-dock {
+  position: fixed;
+  right: max(74px, calc(env(safe-area-inset-right) + 60px));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 210;
+  width: min(324px, calc(100vw - 96px));
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 18px;
+  border: 2px solid rgba(120, 90, 50, 0.22);
+  background: #fffef8;
+  box-shadow: 0 9px 24px rgba(35, 55, 25, 0.34);
+  color: #5b4a2f;
+  font-family: var(--ak-font-display, "Baloo 2", "Arial Rounded MT Bold", sans-serif);
+  pointer-events: none;
+  user-select: none;
+}
+.lan-qr-dock__qr {
+  width: 118px;
+  height: 118px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 2px solid rgba(93, 144, 56, 0.24);
+  background: #fff;
+}
+.lan-qr-dock__qr img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.lan-qr-dock__spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid rgba(93, 144, 56, 0.2);
+  border-top-color: #5d9038;
+  animation: lan-dock-spin 0.9s linear infinite;
+}
+@keyframes lan-dock-spin { to { transform: rotate(360deg); } }
+.lan-qr-dock__meta { min-width: 0; display: grid; gap: 3px; }
+.lan-qr-dock__eyebrow {
+  color: #6b8a55;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+.lan-qr-dock__meta > b {
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+  color: #315f27;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.22;
+}
+.lan-qr-dock__hint {
+  overflow: hidden;
+  color: #7b6b51;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10.5px;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lan-qr-dock__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+}
+.lan-qr-dock__bottom code {
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: #eff5e9;
+  color: #315f27;
+  font: 900 14px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0;
+}
+.lan-qr-dock__players { display: flex; gap: 4px; }
+.lan-qr-dock__players i {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 22px;
+  border-radius: 7px;
+  background: #eeeae0;
+  color: #988d79;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+.lan-qr-dock__players i.is-ready { background: #5d9038; color: #fffef8; }
+
+.lan-p1-toast {
+  position: fixed;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 185;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 22px 13px 16px;
+  border-radius: 18px;
+  border: 2px solid #7cb24a;
+  background: #1d3d16;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
+  color: #fffef8;
+  font-family: var(--ak-font-display, "Baloo 2", "Arial Rounded MT Bold", sans-serif);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.lan-p1-toast__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #7cb24a;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px #7cb24a;
+}
+.lan-p1-toast__body { display: flex; flex-direction: column; gap: 1px; }
+.lan-p1-toast__body b { font-size: 1rem; font-weight: 700; }
+.lan-p1-toast__body span { font-size: 0.82rem; opacity: 0.75; }
+
+@media (max-width: 900px), (max-height: 560px) {
+  .lan-team-select { padding: 10px; }
+  .lan-team-select__panel { max-height: calc(100vh - 20px); gap: 9px; padding: 11px 12px 13px; border-radius: 18px; }
+  .lan-team-select__title p { display: none; }
+  .lan-team-picker { gap: 6px; padding: 8px; }
+  .lan-team-picker__grid { gap: 4px; }
+  .lan-team-picker__grid button { min-height: 63px; padding: 3px 2px; }
+  .lan-team-picker__grid img { width: 35px; height: 35px; }
+  .lan-team-picker__grid button > span { font-size: 8px; }
+  .lan-team-select__confirm { min-height: 40px; padding: 7px 22px; font-size: 14px; }
+  .lan-qr-dock {
+    right: max(58px, calc(env(safe-area-inset-right) + 50px));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: 244px;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 8px;
+    padding: 7px;
+    border-radius: 14px;
+  }
+  .lan-qr-dock__qr { width: 86px; height: 86px; border-radius: 9px; }
+  .lan-qr-dock__meta > b { min-height: 30px; font-size: 12.5px; }
+  .lan-qr-dock__hint { display: none; }
+  .lan-qr-dock__eyebrow { font-size: 8px; }
+  .lan-qr-dock__bottom { margin-top: 2px; }
+  .lan-qr-dock__bottom code { font-size: 11px; padding: 3px 5px; }
+  .lan-qr-dock__players i { width: 23px; height: 19px; font-size: 8px; }
+}
+
+@media (max-width: 680px) {
+  .lan-team-select { align-items: start; }
+  .lan-team-select__duel { grid-template-columns: 1fr; }
+  .lan-team-select__vs { display: none; }
+  .lan-p1-toast { max-width: calc(100vw - 24px); white-space: normal; }
+}

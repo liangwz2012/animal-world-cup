@@ -79,7 +79,12 @@ pnpm dev
 pnpm dev:lan
 ```
 
-比赛在共享大屏上运行，手机扫码后作为无线手柄接入。
+比赛在共享大屏上运行，手机扫码后作为无线手柄接入。局域网中继会校验输入、检测断线，并让短暂掉线或刷新的手机在 10 秒内恢复原来的 P1/P2 位置。
+
+- **标准房间**：从首页进入；P1 到位即可开始，P2 未加入时由 AI 接管。
+- **现场挑战台**：打开 `http://localhost:13000/lan-kiosk`；大屏循环播放 AI 对战，两台手机加入后选队开赛，赛后自动回到展示画面。
+
+macOS 也可以双击 `START-LAN.command` 启动。局域网、防火墙和指定网卡说明见 [README-LAN.md](./README-LAN.md)。
 
 **公网多人对战：**
 
@@ -118,6 +123,8 @@ pnpm build
 | `pnpm dev` | 启动开发服务器（端口 13000） |
 | `pnpm dev:lan` | 启动带局域网对战的开发服务器 |
 | `pnpm lan` | 单独启动局域网中继服务 |
+| `pnpm test:lan` | 验证局域网房间、恢复、输入校验和选队协议 |
+| `pnpm test:lan:browser` | 使用 Chrome 验证挑战台双手机选队与开赛流程 |
 | `pnpm dev:online` | 启动网页和本地公网房间中继 |
 | `pnpm online` | 单独启动本地公网房间中继 |
 | `pnpm test:online` | 验证公网房间、输入和帧转发协议 |
@@ -126,6 +133,8 @@ pnpm build
 | `pnpm build` | 生产构建 |
 | `pnpm build:worker` | 构建 Cloudflare Workers 版本 |
 | `pnpm start` | 运行生产构建 |
+
+发布源码包时请使用 `git archive`，不要加入 `node_modules`、`.pnpm-store`、`.next` 或 `__MACOSX`。开发机依赖包含平台相关二进制和本机缓存，不属于便携发行包。
 
 ### 📄 许可证
 
@@ -203,7 +212,15 @@ pnpm dev:lan
 ```
 
 The match runs on a shared big screen; phones scan a QR code to join as
-wireless gamepads.
+wireless gamepads. The LAN relay validates input, detects dead connections, and
+lets a refreshed or briefly disconnected phone reclaim its P1/P2 seat within
+10 seconds.
+
+- **Classic room**: enter from the home screen. P1 can start immediately; AI controls P2 until a second phone joins.
+- **Challenge station**: open `http://localhost:13000/lan-kiosk`. The screen loops an AI match, lets two phone players choose teams, and returns to attract mode after full time.
+
+On macOS, `START-LAN.command` provides a double-click launcher. See
+[README-LAN.md](./README-LAN.md) for network and firewall details.
 
 **Public online multiplayer:**
 
@@ -239,6 +256,8 @@ matchmaking, rankings, and server-side anti-cheat are not included.
 | `pnpm dev` | Start the dev server (port 13000) |
 | `pnpm dev:lan` | Dev server with LAN multiplayer |
 | `pnpm lan` | Start the LAN relay server standalone |
+| `pnpm test:lan` | Verify LAN rooms, recovery, input validation, and team selection |
+| `pnpm test:lan:browser` | Verify the two-phone kiosk flow in Chrome |
 | `pnpm dev:online` | Dev server with public online rooms |
 | `pnpm online` | Start the local public-room relay |
 | `pnpm test:online` | Verify room, input, and frame relay behavior |
@@ -247,6 +266,10 @@ matchmaking, rankings, and server-side anti-cheat are not included.
 | `pnpm build` | Production build |
 | `pnpm build:worker` | Build for Cloudflare Workers |
 | `pnpm start` | Run the production build |
+
+Use `git archive` for source releases. Do not ship `node_modules`, `.pnpm-store`,
+`.next`, or `__MACOSX`; development-machine dependencies contain platform-specific
+binaries and caches and are not a portable distribution.
 
 ### 📄 License
 

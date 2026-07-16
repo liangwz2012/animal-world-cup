@@ -23,12 +23,16 @@ export function createLanClient({ onMessage, onOpen, onClose } = {}) {
   let ws = null;
   let closed = false;
   let retry = 0;
+  let retryTimer = null;
+  let generation = 0;
   let helloFn = null; // re-sent on every (re)connect so the relay re-attaches us
 
   function connect() {
     if (closed) return;
+    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
     const url = lanWsUrl();
     if (!url) return;
+    const currentGeneration = ++generation;
     try {
       ws = new WebSocket(url);
     } catch {
@@ -36,6 +40,7 @@ export function createLanClient({ onMessage, onOpen, onClose } = {}) {
       return;
     }
     ws.onopen = () => {
+      if (currentGeneration !== generation) return;
       retry = 0;
       if (helloFn) {
         try { ws.send(JSON.stringify(helloFn())); } catch {}
@@ -43,11 +48,14 @@ export function createLanClient({ onMessage, onOpen, onClose } = {}) {
       onOpen && onOpen();
     };
     ws.onmessage = (ev) => {
+      if (currentGeneration !== generation) return;
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       onMessage && onMessage(msg);
     };
     ws.onclose = () => {
+      if (currentGeneration !== generation) return;
+      ws = null;
       onClose && onClose();
       if (!closed) schedule();
     };
@@ -55,8 +63,12 @@ export function createLanClient({ onMessage, onOpen, onClose } = {}) {
   }
 
   function schedule() {
+    if (closed || retryTimer) return;
     retry = Math.min(retry + 1, 6);
-    setTimeout(connect, 300 * retry); // 0.3s..1.8s backoff
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      connect();
+    }, 300 * retry); // 0.3s..1.8s backoff
   }
 
   connect();
@@ -66,7 +78,14 @@ export function createLanClient({ onMessage, onOpen, onClose } = {}) {
     // re-announce identity (host re-attaches to its room; pad re-joins).
     setHello(fn) { helloFn = fn; if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify(fn())); } catch {} } },
     send(obj) { if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify(obj)); } catch {} } },
-    close() { closed = true; if (ws) try { ws.close(); } catch {} },
+    close() {
+      closed = true;
+      generation += 1;
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
+      if (ws) try { ws.close(); } catch {}
+      ws = null;
+    },
     get ready() { return !!ws && ws.readyState === 1; },
   };
 }

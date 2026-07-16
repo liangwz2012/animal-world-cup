@@ -10,6 +10,8 @@
 // It never renders the match — the big screen does. This keeps the phone light
 // and avoids syncing the non-deterministic engine across devices.
 import { useEffect, useRef, useState } from "react";
+import { PLAYABLE_TEAMS, portraitSrc, runtimeHeadSrc } from "../data/teams";
+import { useLocale } from "../i18n/LocaleProvider";
 import { createLanClient } from "../lan/lanClient";
 import { createOnlineClient } from "../online/onlineClient";
 
@@ -31,12 +33,30 @@ const TackleIcon = () => <SVG><path d="M12 3.4l6.6 2.4v5c0 3.9-2.9 6.6-6.6 7.8C8
 const SprintIcon = () => <SVG s={28}><path d="M6 6l6 6-6 6" /><path d="M13 6l6 6-6 6" /></SVG>;
 
 const SIDE = { 0: { key: "P1", cls: "pad--red" }, 1: { key: "P2", cls: "pad--blue" } };
+const PAD_CLIENT_ID_KEY = "animalCupPadClientId";
+
+function getPadClientId() {
+  try {
+    const saved = localStorage.getItem(PAD_CLIENT_ID_KEY);
+    if (saved) return saved;
+    const made = crypto.randomUUID
+      ? crypto.randomUUID()
+      : `pad-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(PAD_CLIENT_ID_KEY, made);
+    return made;
+  } catch {
+    return `pad-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+}
 
 export default function PadController({ room, transport = "lan", requestedSlot = null, invite = "" }) {
+  const { t } = useLocale();
   // status: "connecting" | "joining" | "ready" | "playing" | "full" | "no-room" | "closed"
   const [status, setStatus] = useState("connecting");
   const [slot, setSlot] = useState(null);
+  const [selectInfo, setSelectInfo] = useState(null);
   const statusRef = useRef("connecting");
+  const slotRef = useRef(null);
   const lanRef = useRef(null);
   const seqRef = useRef(0);
   const baseRef = useRef(null);
@@ -48,6 +68,7 @@ export default function PadController({ room, transport = "lan", requestedSlot =
   useEffect(() => {
     if (!room) { setStatus("no-room"); return undefined; }
     let resumeToken = "";
+    const clientId = transport === "lan" ? getPadClientId() : "";
     const setPadStatus = (next) => {
       statusRef.current = typeof next === "function" ? next(statusRef.current) : next;
       setStatus(statusRef.current);
@@ -79,17 +100,41 @@ export default function PadController({ room, transport = "lan", requestedSlot =
     const handlers = {
       onMessage(msg) {
         if (msg.t === "joined") {
+          slotRef.current = msg.slot;
           setSlot(msg.slot);
-          setPadStatus(msg.started ? "playing" : "ready");
+          setPadStatus(msg.started || msg.phase === "playing" ? "playing" : "ready");
           if (transport === "online" && msg.token) {
             resumeToken = msg.token;
             try { sessionStorage.setItem(`animalCupOnline:pad:${room}:${msg.slot}`, msg.token); } catch {}
           }
         }
-        else if (msg.t === "slot") { setSlot(msg.slot); }
-        else if (msg.t === "start") { setPadStatus("playing"); if (typeof msg.slot === "number") setSlot(msg.slot); }
+        else if (msg.t === "slot") { slotRef.current = msg.slot; setSlot(msg.slot); }
+        else if (msg.t === "start") {
+          setPadStatus("playing");
+          setSelectInfo(null);
+          if (typeof msg.slot === "number") { slotRef.current = msg.slot; setSlot(msg.slot); }
+        }
         else if (msg.t === "rematch") { setPadStatus("playing"); }
         else if (msg.t === "ended") { neutralize(true); setPadStatus("ready"); }
+        else if (msg.t === "selecting" && transport === "lan") {
+          const currentSlot = slotRef.current;
+          if (currentSlot !== 0 && currentSlot !== 1) return;
+          const myTeam = currentSlot === 0 ? msg.red : msg.blue;
+          const opponentTeam = currentSlot === 0 ? msg.blue : msg.red;
+          setSelectInfo((previous) => ({
+            myTeam,
+            opponentTeam,
+            confirmed: previous?.myTeam === myTeam ? !!previous.confirmed : false,
+            bothConfirmed: !!msg.bothConfirmed,
+          }));
+          setPadStatus((current) => current === "playing" ? current : "selecting");
+        }
+        else if (msg.t === "released") {
+          neutralize(false);
+          setSelectInfo(null);
+          setPadStatus("finished");
+          lanRef.current?.close();
+        }
         else if (msg.t === "joinErr") {
           neutralize(false);
           setPadStatus(["full", "slot-full"].includes(msg.reason) ? "full" : msg.reason === "no-room" ? "no-room" : "denied");
@@ -98,7 +143,7 @@ export default function PadController({ room, transport = "lan", requestedSlot =
         else if (msg.t === "closed") {
           neutralize(false);
           setPadStatus("closed");
-          if (transport === "online") lanRef.current?.close();
+          lanRef.current?.close();
         }
       },
     };
@@ -115,12 +160,21 @@ export default function PadController({ room, transport = "lan", requestedSlot =
         })
       : createLanClient({
           onOpen() { setPadStatus("joining"); },
-          onClose() { setPadStatus((current) => (current === "closed" ? current : "connecting")); },
+          onClose() {
+            setPadStatus((current) => (["closed", "finished"].includes(current) ? current : "connecting"));
+          },
           ...handlers,
         });
     lanRef.current = lan;
     // (re)join on every connect — a dropped phone re-takes its place
-    if (transport === "lan") lan.setHello(() => ({ t: "join", room, name: navigator.platform || "Pad" }));
+    if (transport === "lan") {
+      lan.setHello(() => ({
+        t: "join",
+        room,
+        clientId,
+        name: navigator.userAgentData?.platform || navigator.platform || "Pad",
+      }));
+    }
 
     // stream continuous state at ~30Hz (only while joined)
     const iv = setInterval(() => {
@@ -198,6 +252,82 @@ export default function PadController({ room, transport = "lan", requestedSlot =
 
   const side = slot != null ? SIDE[slot] : null;
 
+  if (status === "selecting" && selectInfo && transport === "lan") {
+    const { myTeam, opponentTeam, confirmed, bothConfirmed } = selectInfo;
+
+    function pickTeam(teamId) {
+      if (confirmed || bothConfirmed || teamId === opponentTeam) return;
+      setSelectInfo((previous) => ({ ...previous, myTeam: teamId, confirmed: false }));
+      lanRef.current?.send({ t: "pick", team: teamId });
+    }
+
+    function confirmSelection() {
+      if (confirmed || bothConfirmed) return;
+      setSelectInfo((previous) => ({ ...previous, confirmed: true }));
+      lanRef.current?.send({ t: "confirm" });
+    }
+
+    let confirmButton;
+    if (bothConfirmed && slot === 0) {
+      confirmButton = (
+        <button type="button" className="pad-select__confirm pad-select__confirm--start"
+                onClick={() => lanRef.current?.send({ t: "startMatch" })}>
+          {t("pad.select.start")}
+        </button>
+      );
+    } else if (bothConfirmed) {
+      confirmButton = (
+        <button type="button" className="pad-select__confirm pad-select__confirm--done" disabled>
+          {t("pad.select.waitP1")}
+        </button>
+      );
+    } else {
+      confirmButton = (
+        <button type="button" className={`pad-select__confirm${confirmed ? " pad-select__confirm--done" : ""}`}
+                disabled={!myTeam || confirmed} onClick={confirmSelection}>
+          {confirmed ? t("pad.select.waitOther") : t("pad.select.confirm")}
+        </button>
+      );
+    }
+
+    return (
+      <div className={`pad ${side ? side.cls : ""}`}>
+        <div className="pad-top">
+          <span className="pad-badge">{side ? side.key : "-"}</span>
+          <span className="pad-room">{room}</span>
+          <span className="pad-state">{t("pad.select.state")}</span>
+        </div>
+        <div className="pad-select">
+          <p className="pad-select__title">
+            {slot === 0 ? t("lan.select.p1") : t("lan.select.p2")} - {t("pad.select.title")}
+          </p>
+          <div className="pad-select__grid">
+            {PLAYABLE_TEAMS.map((team) => (
+              <button
+                key={team.id}
+                type="button"
+                className={`pad-select__team${myTeam === team.id ? " is-selected" : ""}`}
+                disabled={opponentTeam === team.id || confirmed || bothConfirmed}
+                onClick={() => pickTeam(team.id)}
+              >
+                <img
+                  src={portraitSrc(team.id)}
+                  alt={team.shortName}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = runtimeHeadSrc(team.id);
+                  }}
+                />
+                <span>{team.shortName}</span>
+              </button>
+            ))}
+          </div>
+          {confirmButton}
+        </div>
+      </div>
+    );
+  }
+
   if (status !== "playing" && status !== "ready") {
     return <PadStatus status={status} room={room} />;
   }
@@ -236,6 +366,7 @@ function PadStatus({ status, room }) {
     full: ["房间已满", "This room already has 2 players."],
     "no-room": ["房间不存在", "Room not found — check the code or rescan."],
     denied: ["邀请无效", "This controller invite is invalid or reserved."],
+    finished: ["本场比赛已结束", "This match has ended. Scan again for the next match."],
     closed: ["主机已离开", "The host left. Ask them to restart."],
   };
   const [zh, en] = MSG[status] || ["…", "…"];

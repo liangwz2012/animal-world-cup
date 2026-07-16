@@ -9,16 +9,21 @@
 // unstamped placeholder; the build re-stamps it. (A SWR rewrite was tried and
 // reverted: re-downloading every asset each load wedged boot on the slow host —
 // so we keep cache-first speed + content-hash invalidation.)
-const CACHE_VERSION = "7fb07c90b25f";
+const CACHE_VERSION = "143769361d3c";
 const CACHE_NAME = "animal-cup-" + CACHE_VERSION;
 const MANIFEST_URL = "/__sw-manifest.json";
 
-// On localhost the SW is a NO-OP: local dev must always serve the latest from
-// the dev server, never a cached copy. The precache + cache-first below are a
-// production-only optimisation. (This is exactly why local edits used to need a
-// hard refresh — the prod cache was wrongly active in dev too.)
+// Local and private-LAN hosts are a NO-OP. A LAN game must not spend its first
+// visit precaching the entire asset library or keep stale development files.
+const LOCAL_HOST = self.location.hostname.toLowerCase();
 const IS_LOCAL =
-  self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
+  LOCAL_HOST === "localhost" ||
+  LOCAL_HOST === "127.0.0.1" ||
+  LOCAL_HOST === "::1" ||
+  LOCAL_HOST.endsWith(".local") ||
+  /^10\./.test(LOCAL_HOST) ||
+  /^192\.168\./.test(LOCAL_HOST) ||
+  /^172\.(1[6-9]|2\d|3[01])\./.test(LOCAL_HOST);
 
 // On install: fetch the manifest and precache everything in the background
 self.addEventListener("install", (event) => {

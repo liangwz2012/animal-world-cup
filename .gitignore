@@ -26,6 +26,8 @@ app/favicon.ico
 app/icon.png
 
 node_modules
+.pnpm-store/
+__MACOSX/
 dist
 dist-ssr
 *.local
