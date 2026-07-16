@@ -5,6 +5,7 @@ const { defaults, formation, normalizeConfig } = require("../data/game-options")
 const { SoundBank } = require("../audio/sound-bank");
 const { createFriendMatchCoordinator } = require("./friend-match-coordinator");
 const { initTeamConfig } = require("../net/remote-config");
+const { createPlayGate } = require("../monetize/play-gate");
 
 // 仅用于开发者工具无法把鼠标转换成 wx.onTouch 的衔接验收；提交前保持 false。
 const DEV_AUTO_START_AI = false;
@@ -21,6 +22,16 @@ function startAnimalFootballApp() {
   let devMatchStarts = 0;
   let currentConfig = normalizeConfig(defaults());
   const sound = new SoundBank(typeof wx !== "undefined" ? wx : null);
+  // 场次解锁：每日免费 N 局，用完后转发/看激励视频解锁（见 src/monetize/）。
+  // 只拦「立即开赛/再来一局」的单机对局；观看对战与好友对战不消耗场次。
+  // 面板用项目风格的 shell 卡片呈现（shell 未就绪时回落原生 ActionSheet）。
+  const playGate = createPlayGate({
+    wxApi: typeof wx !== "undefined" ? wx : null,
+    present: (payload) => {
+      if (shell && typeof shell.showUnlockPanel === "function") return shell.showUnlockPanel(payload);
+      return false;
+    },
+  });
   const diagnostics = {
     get shell() { return shell; },
     get runtime() { return runtime; },
@@ -38,6 +49,21 @@ function startAnimalFootballApp() {
     currentConfig = normalized;
     console.info("[animal-football-app] BEGIN_MATCH", JSON.stringify(normalized));
     if (!shell || !runtime) return;
+    // 场次闸门：仅单机「立即开赛/再来一局」消耗场次；观看/好友对战放行。
+    if (normalized.mode !== "watch" && (normalized.syncRole || "off") === "off") {
+      const gate = playGate.tryConsume();
+      if (!gate.ok) {
+        console.info("[animal-football-app] PLAY_GATE_BLOCKED", JSON.stringify(gate.state));
+        // 关键：「再来一局」被拦时 shell 舞台还处于比赛期的分离/隐藏状态，直接画面板
+        // 会不可见。先复用赛后回主页机制把 shell 挂回可见容器，再在其上弹解锁面板。
+        attachShellHome(normalized);
+        playGate.requestUnlock({
+          onUnlocked: () => beginMatch(normalized),
+          onCancel: () => attachShellHome(normalized),
+        });
+        return;
+      }
+    }
     const existingGame = gameObject();
     if (existingGame && shell.screen !== "home") {
       shell.attachLoadingToGame(existingGame, "正在加载比赛场景");
@@ -81,7 +107,17 @@ function startAnimalFootballApp() {
   function handleShellAction(action, config) {
     console.info("[animal-football-app] SHELL_ACTION", action);
     if (friendCoordinator && friendCoordinator.handleAction(action, config)) return;
-    if (action === "watch" || action === "ai") beginMatch(config);
+    if (action === "watch" || action === "ai") {
+      // 顺序：先选队 → 首次"立即开赛"前插入操作教学 → 学完立刻开赛。
+      // 这样"怎么玩"学完马上就用，不再出现"先教学、再回去选队"的脱节。
+      if (action === "ai" && shell && typeof shell.hasSeenTutorial === "function"
+        && !shell.hasSeenTutorial() && typeof shell.showTutorial === "function") {
+        const pendingConfig = config;
+        shell.showTutorial(() => beginMatch(pendingConfig));
+        return;
+      }
+      beginMatch(config);
+    }
   }
 
   function gameObject() {
@@ -151,7 +187,7 @@ function startAnimalFootballApp() {
         wxApi: context.wxApi,
         width: context.inputHost.innerWidth || 1280,
         height: context.inputHost.innerHeight || 720,
-        resolution: Math.min(Number(context.inputHost.devicePixelRatio) || 1, 2),
+        resolution: Math.min(Number(context.inputHost.devicePixelRatio) || 1, 3),
         pixelRatio: Math.max(1, Number(context.inputHost.devicePixelRatio) || 1),
         config: defaults(),
         onAction: handleShellAction,
@@ -244,11 +280,8 @@ function startAnimalFootballApp() {
       const showReadyHome = () => {
         const friendState = friendCoordinator && friendCoordinator.diagnostics();
         if (!friendState || (!friendState.role && !friendState.roomId && !friendState.pendingIntent)) {
-          if (shell.hasSeenTutorial && !shell.hasSeenTutorial()) {
-            shell.showTutorial(() => shell.showHome(defaults()));
-          } else {
-            shell.showHome(defaults());
-          }
+          // 直接进选队主页；操作教学改到首次"立即开赛"前触发（见 handleShellAction）。
+          shell.showHome(defaults());
         }
         console.info("[animal-football-app] HOME_READY", `devAutoStart=${DEV_AUTO_START_AI}`);
         if (DEV_AUTO_START_AI) setTimeout(() => diagnostics.startAi(), 1200);
