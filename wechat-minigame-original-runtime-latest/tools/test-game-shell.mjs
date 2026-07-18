@@ -120,6 +120,7 @@ const shell = createGameShell({
   resolution: 2,
   pixelRatio: 3,
   config: defaults(),
+  friendEntryEnabled: true,
   onAction(type) { action = type; },
   requestFrame() { return 1; },
   cancelFrame() {},
@@ -180,6 +181,32 @@ shell.setFriendState({ status: "host_warmup", role: "host" });
 canvasListeners.mousedown({ clientX: 530, clientY: 258 });
 await new Promise((resolve) => setTimeout(resolve, 130));
 assert.equal(action, "queue-friend-after-warmup", "好友上线后房主必须可选择踢完当前热身局");
+
+// 提审版关闭好友入口：原好友对战坐标不得再触发邀请，两键布局立即开赛必须居中可点。
+const gatedShell = createGameShell({
+  PIXI,
+  canvas,
+  wxApi,
+  width: 915,
+  height: 412,
+  resolution: 2,
+  pixelRatio: 3,
+  config: defaults(),
+  friendEntryEnabled: false,
+  onAction(type) { action = type; },
+  requestFrame() { return 1; },
+  cancelFrame() {},
+});
+gatedShell.showHome(defaults());
+action = null;
+canvasListeners.mousedown({ clientX: 644, clientY: 363 });
+await new Promise((resolve) => setTimeout(resolve, 130));
+assert.equal(action, null, "好友入口关闭后原好友对战坐标不得触发任何动作");
+action = null;
+canvasListeners.mousedown({ clientX: 536, clientY: 363 });
+await new Promise((resolve) => setTimeout(resolve, 130));
+assert.equal(action, "ai", "两键布局下立即开赛必须居中可点");
+gatedShell.destroy();
 
 // 新手引导：首次未看过 → showTutorial 必须切到引导遮罩
 assert.equal(shell.hasSeenTutorial(), false, "首次进入应未看过新手引导");

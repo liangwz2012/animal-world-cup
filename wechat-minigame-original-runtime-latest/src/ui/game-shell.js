@@ -6,6 +6,7 @@ const {
   normalizeConfig,
   cycle,
 } = require("../data/game-options");
+const { FRIEND_ENTRY_ENABLED } = require("../net/friend-service-config");
 
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 720;
@@ -104,6 +105,10 @@ function createGameShell(options) {
   let rafId = null;
   let suspended = false;
   let config = normalizeConfig(options.config);
+  // 好友对战入口开关：缺省读 friend-service-config，测试可显式覆盖。
+  const friendEntryEnabled = options.friendEntryEnabled != null
+    ? !!options.friendEntryEnabled
+    : FRIEND_ENTRY_ENABLED !== false;
   let hitAreas = [];
   let touchAttached = false;
   let touchUsesStart = false;
@@ -563,16 +568,21 @@ function createGameShell(options) {
     const sideW = 240;
     const startW = 340;
     const actionGap = 36;
-    const groupW = sideW * 2 + startW + actionGap * 2;
+    // 入口关闭时（提审版）退为两键布局；恢复入口只需把 FRIEND_ENTRY_ENABLED 改回 true。
+    const groupW = friendEntryEnabled
+      ? sideW * 2 + startW + actionGap * 2
+      : sideW + startW + actionGap;
     const actionX = (DESIGN_WIDTH - groupW) / 2;
     actionButton(actionX, actionY, sideW, "观看对战", () => onAction("watch", normalizeConfig(Object.assign({}, config, { mode: "watch" }))));
     actionButton(actionX + sideW + actionGap, actionY - 5, startW, "立即开赛", () => onAction("ai", normalizeConfig(Object.assign({}, config, { mode: "ai" }))), { primary: true, height: 60 });
-    actionButton(actionX + sideW + actionGap + startW + actionGap, actionY, sideW, "好友对战", () => {
-      const frozenConfig = normalizeConfig(Object.assign({}, config, { mode: "friend" }));
-      config = frozenConfig;
-      showFriendRoom({ status: "creating", role: "host", message: "正在创建专属房间…" });
-      onAction("invite", frozenConfig, Object.assign({}, friendState));
-    });
+    if (friendEntryEnabled) {
+      actionButton(actionX + sideW + actionGap + startW + actionGap, actionY, sideW, "好友对战", () => {
+        const frozenConfig = normalizeConfig(Object.assign({}, config, { mode: "friend" }));
+        config = frozenConfig;
+        showFriendRoom({ status: "creating", role: "host", message: "正在创建专属房间…" });
+        onAction("invite", frozenConfig, Object.assign({}, friendState));
+      });
+    }
     const hint = center(text("选择球队与阵型后开始比赛", 15, 0xe7f0b3, "700"), 640, 688);
     design.addChild(hint);
   }

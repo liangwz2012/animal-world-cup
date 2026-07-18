@@ -4,6 +4,9 @@ const { resolveRoomEndpoint } = require("./room-endpoint");
 // 不允许在这里填写 AppSecret；AppSecret 只能存在于房间服务环境变量中。
 const PRODUCTION_ROOM_WSS_URL = "";
 const DEVTOOLS_ROOM_WS_URL = "ws://127.0.0.1:18787";
+// 提审版临时关闭首页「好友对战」入口：正式 WSS 部署并在微信公众平台登记
+// Socket 合法域名后改回 true。release-check 按此开关决定是否强制校验 WSS。
+const FRIEND_ENTRY_ENABLED = false;
 const DEV_PLAYER_STORAGE_KEY = "animal-football:friend-dev-player-id";
 
 function platformOf(wxApi) {
@@ -84,6 +87,7 @@ async function createFriendAuth(options) {
 module.exports = {
   DEVTOOLS_ROOM_WS_URL,
   DEV_PLAYER_STORAGE_KEY,
+  FRIEND_ENTRY_ENABLED,
   PRODUCTION_ROOM_WSS_URL,
   createFriendAuth,
   devPlayerId,

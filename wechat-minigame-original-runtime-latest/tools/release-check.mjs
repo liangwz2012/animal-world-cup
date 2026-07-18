@@ -48,7 +48,9 @@ async function main() {
   for (const [needle, message] of forbiddenReleaseFeatures) {
     if (releaseCode.includes(needle)) blockers.push(message);
   }
-  if (shellSource.includes("好友对战")) {
+  const entryFlagMatch = friendServiceSource.match(/const FRIEND_ENTRY_ENABLED = (true|false)/);
+  const friendEntryEnabled = entryFlagMatch ? entryFlagMatch[1] === "true" : true;
+  if (friendEntryEnabled) {
     const endpointMatch = friendServiceSource.match(/const PRODUCTION_ROOM_WSS_URL = "([^"]*)"/);
     const endpoint = endpointMatch && endpointMatch[1] || "";
     if (!/^wss:\/\//.test(endpoint)) blockers.push("好友对战已展示，但未配置正式 wss:// 房间服务地址");
