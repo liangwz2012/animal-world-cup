@@ -60,6 +60,7 @@ assets/
 # (project_id/user_id) — must not ship to remixers; kept on disk, out of git.
 AGENTS.md
 .project
+.wechat-minigame-original-runtime-latest-build/
 
 # Engine source + build pipeline — LOCAL ONLY, never tracked / never remixed.
 # The deploy serves the pre-built, committed public/match-runtime-min/ output;
@@ -68,3 +69,15 @@ match-runtime-source/
 match-runtime-assets-source/
 script/build-match-runtime.mjs
 script/build-match-runtime-assets.mjs
+
+# Cocos Creator generated output — keep source/config/assets only.
+wechat-minigame-cocos-production/build/
+wechat-minigame-cocos-production/library/
+wechat-minigame-cocos-production/temp/
+wechat-minigame-cocos-production/profiles/
+wechat-minigame-cocos-production/wechat-devtools-open-animal-football/
+
+# AI 工具会话目录与本机私有配置 — 只留本地，不进 git。
+.superpowers
+.workbuddy
+project.private.config.json
