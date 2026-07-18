@@ -1,7 +1,7 @@
 # 微信小游戏原版比赛 Runtime 静态移植可行性验证设计
 
 日期：2026-07-10  
-状态：已确认方向；根据既有失败审计修订，等待规格复审后实施
+状态：微信开发者工具 B2 可见原版比赛已通过；真机触摸、性能与稳定性待验证
 
 ## 1. 背景与实测结论
 
@@ -90,7 +90,7 @@ standalone-match.js
 
 ## 2. 验证目标
 
-建立独立目录 `wechat-minigame-original-runtime-spike/`，用最小范围回答一个问题：
+建立独立目录 `wechat-minigame-original-runtime-latest/`，用最小范围回答一个问题：
 
 > 原版 `match.rebuilt.js` + Pixi 4.8.9 能否在不使用 `eval`、`new Function` 和兜底比赛的前提下，在微信小游戏中运行一场可操作的单机比赛？
 
@@ -119,7 +119,7 @@ standalone-match.js
 ## 4. 目录与隔离策略
 
 ```text
-wechat-minigame-original-runtime-spike/
+wechat-minigame-original-runtime-latest/
 ├── game.js                    # 微信小游戏静态入口
 ├── game.json                  # 横屏与分包配置
 ├── project.config.json        # compileType=game
@@ -277,3 +277,15 @@ B1 通过不等于路线成功；只有 B3 通过才进入真机闸门。
 ## 11. 实施边界
 
 本规格只授权创建和验证独立 spike 工程，不授权删除或覆盖现有工程，不包含上传、发布、提审或服务器变更。开发者工具本地编译属于验证范围；真机预览二维码生成后由项目所有者扫码验收。
+
+## 12. 2026-07-10 实测记录
+
+- 独立工程：`wechat-minigame-original-runtime-latest`。
+- 闸门 A 已通过：静态构建无 `eval` / `new Function`，资源索引、AMD 注入、主 Canvas 和包体检查通过。
+- 闸门 B1 已通过：Pixi 4.8.9、shim、match、standalone 静态模块完成注册，触控共享对象同引用硬闸门通过。
+- 闸门 B2 已通过：微信开发者工具 Stable 2.01.2510290 冷编译后显示原版球场、原版动物球员、原版足球和原版镜头；控制台记录 `B2_VISIBLE_MATCH_STARTED`。
+- 触控诊断镜像曾在 `GameGlobal === globalThis` 时产生 getter 自递归并导致栈溢出；现已按同对象/跨对象分支修复，回归测试和冷编译复测均通过。
+- 当前开发者工具错误数为 0；约 145 条提示主要来自 Pixi 4.8.9 的弃用警告，后续单独处理，不作为原版引擎失败。
+- 当前主包约 1.35 MiB，资源分包约 9.77 MiB，未压缩或降质原版贴图。
+- 闸门 B3 只完成了 AI、镜头与比赛画面的持续运行观察；桌面模拟器未提供真实 `wx.onTouch*` 输入，完整交互和整局稳定性尚未验收。
+- 闸门 C 未执行：iPhone、Android 的触摸、帧率、内存和连续运行仍须真机调试。未通过 C 前不得表述为“可直接提审”。

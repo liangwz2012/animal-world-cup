@@ -21,7 +21,7 @@ function normalizeSafeArea(width, height, safeArea) {
   return { left, right, top, bottom };
 }
 
-function computeControlLayout(width, height, safeArea) {
+function computeControlLayout(width, height, safeArea, overrides) {
   const logicalWidth = Math.max(1, Number(width) || 1280);
   const logicalHeight = Math.max(1, Number(height) || 720);
   const safe = normalizeSafeArea(logicalWidth, logicalHeight, safeArea);
@@ -32,12 +32,41 @@ function computeControlLayout(width, height, safeArea) {
   const padSize = 208 * scale;
   const actionRadius = 31 * scale;
   const sprintRadius = 28 * scale;
-  const padLeft = logicalWidth - safe.right - margin - padSize;
+  // 横向内边距封顶：底部两角是拇指区，横屏刘海/灵动岛在顶部中央，不应把摇杆和
+  // 动作键群按整段刘海安全区(可达 ~50px)往屏幕中间推。这里只保留“圆角安全余量”
+  // 级别的内边距，让两簇控件贴回左右下角——这是大屏机型“波轮太右/按钮太左”的根因修复。
+  const cornerInsetCap = 16 * scale;
+  const insetLeft = clamp(safe.left, 0, cornerInsetCap);
+  const insetRight = clamp(safe.right, 0, cornerInsetCap);
+
   // Reserve a small teaching-caption strip below the action diamond.  The
   // direction stick stays where players expect it; only the right cluster is
   // lifted slightly so labels never collide with the home indicator.
   const hintReserve = 34 * scale;
-  const padTop = logicalHeight - safe.bottom - margin - padSize - hintReserve;
+
+  // 默认(自适配)簇中心：波轮贴左下角，动作键群贴右下角。
+  let stickX = insetLeft + margin + stickRadius;
+  let stickY = logicalHeight - safe.bottom - margin - stickRadius;
+  // 动作键群以中央冲刺键为中心，与 padLeft+104*scale / padTop+104*scale 对齐。
+  const padHalf = 104 * scale;
+  let padCenterX = (logicalWidth - insetRight - margin - padSize) + padHalf;
+  let padCenterY = (logicalHeight - safe.bottom - margin - padSize - hintReserve) + padHalf;
+
+  // 玩家自定义位置(归一化中心)覆盖默认值，并夹紧到屏内保证整簇可见可点。
+  if (overrides && overrides.stick) {
+    const minX = stickRadius + 4;
+    const minY = stickRadius + 4;
+    stickX = clamp(overrides.stick.nx * logicalWidth, minX, logicalWidth - minX);
+    stickY = clamp(overrides.stick.ny * logicalHeight, minY, logicalHeight - minY);
+  }
+  if (overrides && overrides.pad) {
+    const halfW = padHalf + actionRadius;
+    const halfH = padHalf + actionRadius;
+    padCenterX = clamp(overrides.pad.nx * logicalWidth, halfW + 4, logicalWidth - halfW - 4);
+    padCenterY = clamp(overrides.pad.ny * logicalHeight, halfH + 4, logicalHeight - halfH - 4);
+  }
+  const padLeft = padCenterX - padHalf;
+  const padTop = padCenterY - padHalf;
 
   const layout = {
     width: logicalWidth,
@@ -45,8 +74,8 @@ function computeControlLayout(width, height, safeArea) {
     scale,
     safe,
     stick: {
-      x: safe.left + margin + stickRadius,
-      y: logicalHeight - safe.bottom - margin - stickRadius,
+      x: stickX,
+      y: stickY,
       radius: stickRadius,
       thumbRadius,
       hitRadius: stickRadius + 14 * scale,

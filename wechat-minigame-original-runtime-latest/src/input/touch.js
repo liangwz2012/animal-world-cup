@@ -1,4 +1,5 @@
 const { computeControlLayout, hitTestControl } = require("./control-layout");
+const customize = require("./control-customize");
 
 const PULSE_ACTIONS = new Set(["pass", "lob", "tackle"]);
 const HOLD_ACTIONS = new Set(["shoot", "sprint"]);
@@ -54,17 +55,105 @@ function installTouchInput(globalObject, wxApi, width, height, safeArea) {
   };
   const assignments = new Map();
   let pinch = null;
-  let layout = computeControlLayout(width, height, safeArea);
+  // 当前屏幕尺寸/安全区在闭包内保持，方便旋转或自定义后按同参数重算布局。
+  let currentWidth = Number(width) || 1280;
+  let currentHeight = Number(height) || 720;
+  let currentSafe = safeArea;
+  // 已保存的玩家自定义位置(归一化)。空对象=用默认自适配布局。
+  let overrides = customize.load(globalObject);
+  let layout = computeControlLayout(currentWidth, currentHeight, currentSafe, overrides);
   primary.__layout = layout;
   globalObject.__ORIGINAL_RUNTIME_CONTROL_LAYOUT__ = layout;
 
-  const updateLayout = (nextWidth, nextHeight, nextSafeArea) => {
-    layout = computeControlLayout(nextWidth, nextHeight, nextSafeArea);
+  const recompute = () => {
+    layout = computeControlLayout(currentWidth, currentHeight, currentSafe, overrides);
     primary.__layout = layout;
     globalObject.__ORIGINAL_RUNTIME_CONTROL_LAYOUT__ = layout;
     return layout;
   };
+
+  const updateLayout = (nextWidth, nextHeight, nextSafeArea) => {
+    if (Number(nextWidth) > 0) currentWidth = Number(nextWidth);
+    if (Number(nextHeight) > 0) currentHeight = Number(nextHeight);
+    if (nextSafeArea) currentSafe = nextSafeArea;
+    return recompute();
+  };
   globalObject.__ORIGINAL_RUNTIME_UPDATE_CONTROL_LAYOUT__ = updateLayout;
+
+  // ——— 自定义(编辑)态：拖动摇杆/动作键群到顺手位置 ———
+  // 屏幕底部居中的“完成/重置默认”按钮矩形(物理像素，与布局同坐标空间)。
+  const editButtonRects = () => {
+    const s = layout.scale || 1;
+    const bw = 132 * s;
+    const bh = 48 * s;
+    const gap = 18 * s;
+    const cx = currentWidth / 2;
+    const bottomInset = (layout.safe && layout.safe.bottom) || 0;
+    const top = currentHeight - bottomInset - bh - 12 * s;
+    return {
+      reset: { x: cx - gap / 2 - bw, y: top, w: bw, h: bh },
+      done: { x: cx + gap / 2, y: top, w: bw, h: bh },
+    };
+  };
+  globalObject.__ORIGINAL_RUNTIME_CONTROL_EDIT_RECTS__ = editButtonRects;
+
+  const pointInRect = (x, y, rect) =>
+    x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+
+  let editDrag = null; // { kind: 'stick'|'pad', dx, dy } —— dx/dy = 簇中心 - 手指，避免跳变
+
+  const clusterCenter = (kind) => {
+    if (kind === "stick") return { x: layout.stick.x, y: layout.stick.y };
+    const sprint = layout.actions && layout.actions.sprint;
+    return { x: sprint ? sprint.x : currentWidth, y: sprint ? sprint.y : currentHeight };
+  };
+
+  const persistOverrides = () => { overrides = customize.save(globalObject, overrides); };
+
+  const handleEditTouch = (event, phase) => {
+    const changed = touchList(event && event.changedTouches);
+    const active = touchList(event && event.touches);
+
+    if (phase === "start") {
+      const point = changed.length ? changed[0] : (active[0] || null);
+      if (!point) return;
+      const rects = editButtonRects();
+      if (pointInRect(point.x, point.y, rects.done)) {
+        // 完成：退出编辑态并落盘。
+        globalObject.__ORIGINAL_RUNTIME_CONTROL_EDIT__ = false;
+        persistOverrides();
+        editDrag = null;
+        return;
+      }
+      if (pointInRect(point.x, point.y, rects.reset)) {
+        // 重置默认：清空自定义并回落自适配布局。
+        overrides = customize.reset(globalObject);
+        editDrag = null;
+        recompute();
+        return;
+      }
+      const role = hitTestControl(layout, point.x, point.y);
+      if (!role) return;
+      const kind = role === "stick" ? "stick" : "pad";
+      const center = clusterCenter(kind);
+      editDrag = { kind, dx: center.x - point.x, dy: center.y - point.y };
+      return;
+    }
+
+    if (!editDrag) return;
+    const point = active[0] || (changed.length ? changed[0] : null);
+    if (phase === "move" && point) {
+      const cx = point.x + editDrag.dx;
+      const cy = point.y + editDrag.dy;
+      overrides = customize.setCenter(overrides, editDrag.kind, cx, cy, currentWidth, currentHeight);
+      recompute();
+      return;
+    }
+    if (phase === "end" || phase === "cancel") {
+      persistOverrides();
+      editDrag = null;
+    }
+  };
 
   const assignStart = (point) => {
     if (assignments.has(point.id)) return;
@@ -171,6 +260,20 @@ function installTouchInput(globalObject, wxApi, width, height, safeArea) {
   };
 
   const update = (event, phase) => {
+    // 编辑态：触摸只用于拖动控件，不喂给比赛。归零输入避免调整时球员乱跑。
+    if (globalObject.__ORIGINAL_RUNTIME_CONTROL_EDIT__) {
+      handleEditTouch(event, phase);
+      assignments.clear();
+      pinch = null;
+      primary.active = true;
+      primary.vx = 0; primary.vy = 0;
+      primary.shoot = false; primary.sprint = false;
+      primary.switchPlayer = false;
+      primary.pass = false; primary.lob = false; primary.tackle = false;
+      recordTelemetry(phase, touchList(event && event.touches).length);
+      return globalObject.__ORIGINAL_RUNTIME_LAST_TOUCH__;
+    }
+
     const activePoints = touchList(event && event.touches);
     const activeById = new Map(activePoints.map((point) => [point.id, point]));
 

@@ -138,6 +138,66 @@ function createTouchControlsOverlay(options) {
   let lastActionAt = 0;
   let frameId = null;
   let destroyed = false;
+  let editLayer = null;
+  let editActive = false;
+
+  // 编辑态覆盖层：半透明遮罩 + 顶部提示 + 底部“重置默认 / 完成”按钮。
+  // 与控件同处 root 坐标空间(布局像素)，随 root.scale 一起映射到舞台。
+  const buildEditLayer = () => {
+    if (editLayer && typeof editLayer.destroy === "function") {
+      if (editLayer.parent) editLayer.parent.removeChild(editLayer);
+      try { editLayer.destroy({ children: true }); } catch (error) { editLayer.destroy(); }
+    }
+    editLayer = new PIXI.Container();
+    editLayer.name = "original-runtime-control-edit";
+    const s = layout.scale || 1;
+    const W = layout.width;
+    const H = layout.height;
+
+    const scrim = new PIXI.Graphics();
+    scrim.beginFill(0x0a1608, 0.42);
+    scrim.drawRect(0, 0, W, H);
+    scrim.endFill();
+    editLayer.addChild(scrim);
+
+    const stageSize = visibleStageSize(game, W, H);
+    const upscale = Math.ceil(Math.max(1, stageSize.width / W));
+    const makeText = (value, size, fill, weight) => {
+      const t = new PIXI.Text(value, {
+        fontFamily: "Arial, PingFang SC, Microsoft YaHei, sans-serif",
+        fontSize: Math.max(11, Math.round(size * s)) * upscale,
+        fontWeight: weight || "800",
+        fill,
+        align: "center",
+      });
+      t.scale.set(1 / upscale, 1 / upscale);
+      if (t.anchor && t.anchor.set) t.anchor.set(0.5, 0.5);
+      return t;
+    };
+
+    const hint = makeText("拖动摇杆和按钮到顺手的位置", 18, 0xfff7e2, "900");
+    setPoint(hint.position, W / 2, (layout.safe && layout.safe.top || 0) + 30 * s);
+    editLayer.addChild(hint);
+
+    const rectsFn = globalObject.__ORIGINAL_RUNTIME_CONTROL_EDIT_RECTS__;
+    const rects = typeof rectsFn === "function" ? rectsFn() : null;
+    if (rects) {
+      const drawButton = (rect, label, bg, fg) => {
+        const g = new PIXI.Graphics();
+        g.lineStyle(2 * s, 0xffffff, 0.4);
+        g.beginFill(bg, 0.94);
+        g.drawRoundedRect(rect.x, rect.y, rect.w, rect.h, rect.h / 2);
+        g.endFill();
+        editLayer.addChild(g);
+        const t = makeText(label, 17, fg, "900");
+        setPoint(t.position, rect.x + rect.w / 2, rect.y + rect.h / 2);
+        editLayer.addChild(t);
+      };
+      drawButton(rects.reset, "重置默认", 0x7b8a9a, 0xffffff);
+      drawButton(rects.done, "完成", 0x5d9038, 0xfff8dc);
+    }
+    root.addChild(editLayer);
+  };
 
   const redraw = () => {
     layout = input.__layout;
@@ -230,6 +290,21 @@ function createTouchControlsOverlay(options) {
   const update = () => {
     if (destroyed) return;
     if (layout !== input.__layout) redraw();
+
+    // 编辑态覆盖层：进入时构建、退出时摘除；控件 redraw() 会清空 root，
+    // 故编辑中每帧确保 editLayer 仍挂在 root 顶层(重挂而非重建，开销极低)。
+    const editing = !!globalObject.__ORIGINAL_RUNTIME_CONTROL_EDIT__;
+    if (editing !== editActive) {
+      editActive = editing;
+      if (editing) buildEditLayer();
+      else if (editLayer && editLayer.parent) editLayer.parent.removeChild(editLayer);
+    }
+    if (editing) {
+      if (!editLayer) buildEditLayer();
+      const kids = root.children || [];
+      if (editLayer.parent !== root || kids[kids.length - 1] !== editLayer) root.addChild(editLayer);
+    }
+
     const stageSize = visibleStageSize(game, layout.width, layout.height);
     setPoint(root.scale, stageSize.width / layout.width, stageSize.height / layout.height);
 

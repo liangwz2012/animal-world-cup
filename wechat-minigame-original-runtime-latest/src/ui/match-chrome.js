@@ -1,5 +1,6 @@
 const { TEAMS } = require("../data/game-options");
 const { matchShareTitle, matchShareCaption, generateMatchShareCard } = require("./share-card");
+const compliance = require("../data/release-compliance");
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -120,6 +121,21 @@ function drawToolIcon(graphics, kind, cx, cy, size, color) {
       graphics.bezierCurveTo(x(5.4), y(13.8), x(8.9), y(11), x(14), y(11));
       graphics.lineTo(x(19.8), y(11));
     }
+  } else if (kind === "adjust") {
+    // 四向移动箭头 = 调整/移动按键位置
+    path([[12, 3.5], [12, 20.5]]);
+    path([[3.5, 12], [20.5, 12]]);
+    path([[12, 3.5], [9.6, 6.4]]); path([[12, 3.5], [14.4, 6.4]]);
+    path([[12, 20.5], [9.6, 17.6]]); path([[12, 20.5], [14.4, 17.6]]);
+    path([[3.5, 12], [6.4, 9.6]]); path([[3.5, 12], [6.4, 14.4]]);
+    path([[20.5, 12], [17.6, 9.6]]); path([[20.5, 12], [17.6, 14.4]]);
+  } else if (kind === "info") {
+    // 圆圈内感叹号 = 关于/说明
+    graphics.drawCircle(x(12), y(12), 8.6 * unit);
+    path([[12, 7.3], [12, 13.2]]);
+    graphics.beginFill(color, 1);
+    graphics.drawCircle(x(12), y(16.4), 1.15 * unit);
+    graphics.endFill();
   }
   return graphics;
 }
@@ -148,7 +164,8 @@ function createMatchChrome(options) {
   const eventLayer = new PIXI.Container();
   const confettiLayer = new PIXI.Container();
   const resultLayer = new PIXI.Container();
-  root.addChild(scoreLayer, toolLayer, confettiLayer, eventLayer, resultLayer);
+  const aboutLayer = new PIXI.Container();
+  root.addChild(scoreLayer, toolLayer, confettiLayer, eventLayer, resultLayer, aboutLayer);
   game.stage.addChild(root);
   // 记分牌与工具按钮跟随摇杆的半透明规格（按钮整体 0.82 + 低不透明度底），
   // 避免 HUD 遮挡球场；事件卡/彩带/战报层保持原样。
@@ -159,6 +176,7 @@ function createMatchChrome(options) {
   let rafId = null;
   let statsOpen = false;
   let resultVisible = false;
+  let aboutVisible = false;
   let eventHideAt = 0;
   let shownHalf = false;
   let touchAttached = false;
@@ -377,22 +395,24 @@ function createMatchChrome(options) {
     } else notify("请从右上角分享");
   }
 
-  function toolButton(x, iconName, action) {
+  function toolButton(x, iconName, action, topY) {
     const w = 44 * scale;
     const h = 44 * scale;
-    rounded(toolLayer, x, 16 * scale, w, h, 14 * scale, 0xfffef8, 0.42, 0x8a7046, 1.2 * scale);
+    const top = topY == null ? 16 * scale : topY;
+    rounded(toolLayer, x, top, w, h, 14 * scale, 0xfffef8, 0.42, 0x8a7046, 1.2 * scale);
     const icon = new PIXI.Graphics();
-    drawToolIcon(icon, iconName, x + w / 2, 38 * scale, 23 * scale, 0x4f8a2f);
+    drawToolIcon(icon, iconName, x + w / 2, top + 22 * scale, 23 * scale, 0x4f8a2f);
     toolLayer.addChild(icon);
-    addHit(x, 17 * scale, w, h, action);
+    addHit(x, top + 1 * scale, w, h, action);
     return {
       nextX: x + w + 7 * scale,
       setIcon(nextIconName) {
-        drawToolIcon(icon, nextIconName, x + w / 2, 38 * scale, 23 * scale, 0x4f8a2f);
+        drawToolIcon(icon, nextIconName, x + w / 2, top + 22 * scale, 23 * scale, 0x4f8a2f);
       },
     };
   }
 
+  // 第一排：观赛/视角/声音/分享等高频工具(保持原样，避免与居中记分牌相撞)。
   let toolX = 12 * scale;
   let tool = toolButton(toolX, "zoom-out", () => { const z = zoomObject(); if (z) z.step(1 / 1.18); });
   toolX = tool.nextX;
@@ -412,6 +432,73 @@ function createMatchChrome(options) {
   tool = toolButton(toolX, "camera", captureScreenshot);
   toolX = tool.nextX;
   toolButton(toolX, "share", shareMatch);
+
+  // 第二排(低频“设置类”)：调整按键 + 关于。放在第一排正下方，
+  // 既跟主工具条风格统一，又避开居中记分牌与右上角微信胶囊。
+  const row2Y = 16 * scale + 44 * scale + 8 * scale;
+  let tool2X = 12 * scale;
+  const adjustTool = toolButton(tool2X, "adjust", () => {
+    const editing = !inputHost.__ORIGINAL_RUNTIME_CONTROL_EDIT__;
+    inputHost.__ORIGINAL_RUNTIME_CONTROL_EDIT__ = editing;
+    // 触控读写可能落在 GameGlobal 或 globalThis 任一宿主上，两处同步以防不一致。
+    try { if (typeof globalThis !== "undefined") globalThis.__ORIGINAL_RUNTIME_CONTROL_EDIT__ = editing; } catch (error) {}
+    notify(editing ? "拖动摇杆和按钮到顺手位置，完成后点“完成”" : "按键位置已保存");
+  }, row2Y);
+  tool2X = adjustTool.nextX;
+  toolButton(tool2X, "info", showAbout, row2Y);
+
+  // 关于弹窗：开源改造声明(Apache-2.0 归属) + 备案/著作权(如已填)。点空白或“知道了”关闭。
+  function showAbout() {
+    aboutVisible = true;
+    aboutLayer.removeChildren();
+    rounded(aboutLayer, 0, 0, width, height, 0, 0x0d1808, 0.72);
+    addHit(0, 0, width, height, hideAbout, "about");
+
+    const lines = [
+      { t: compliance.gameName || "动物足球赛", s: 22, c: 0x385823, w: "900" },
+      { t: "本作基于开源项目 animal-world-cup 改造开发", s: 15, c: 0x5a6a4c, w: "700" },
+      { t: "原项目  github.com/NeoXu954/animal-world-cup", s: 14, c: 0x5a6a4c, w: "700" },
+      { t: "遵循 Apache License 2.0 开源协议", s: 15, c: 0x5a6a4c, w: "700" },
+      { t: "Copyright 2026 NeoXu954", s: 14, c: 0x8a7a52, w: "700" },
+    ];
+    if (compliance.copyrightOwner) lines.push({ t: "运营主体  " + compliance.copyrightOwner, s: 13, c: 0x8a7a52, w: "700" });
+    if (compliance.miniProgramFilingNumber) lines.push({ t: "备案号  " + compliance.miniProgramFilingNumber, s: 13, c: 0x8a7a52, w: "700" });
+    if (compliance.softwareCopyrightRegistrationNumber) lines.push({ t: "软著登记号  " + compliance.softwareCopyrightRegistrationNumber, s: 13, c: 0x8a7a52, w: "700" });
+
+    const cardW = Math.min(width * 0.82, 620 * scale);
+    const titleH = 74 * scale;
+    const lineGap = 34 * scale;
+    const btnH = 50 * scale;
+    const padBottom = 30 * scale;
+    const cardH = titleH + lines.length * lineGap + btnH + padBottom + 10 * scale;
+    const x = (width - cardW) / 2;
+    const y = (height - cardH) / 2;
+    rounded(aboutLayer, x + 6 * scale, y + 9 * scale, cardW, cardH, 28 * scale, 0x0c150a, 0.34);
+    rounded(aboutLayer, x, y, cardW, cardH, 26 * scale, 0xfffdf5, 0.99, 0xe1d6b7, 3 * scale);
+
+    aboutLayer.addChild(center(text("关于本游戏", 20, 0x5d9038, "900"), width / 2, y + 40 * scale));
+
+    let ty = y + titleH + 12 * scale;
+    for (const ln of lines) {
+      const node = center(text(ln.t, ln.s, ln.c, ln.w), width / 2, ty);
+      fitTextWidth(node, cardW - 56 * scale, 10);
+      aboutLayer.addChild(node);
+      ty += lineGap;
+    }
+
+    const bw = 200 * scale;
+    const bx = width / 2 - bw / 2;
+    const by = y + cardH - btnH - padBottom + 6 * scale;
+    rounded(aboutLayer, bx, by, bw, btnH, btnH / 2, 0x5d9038, 1, 0xffffff, 2 * scale);
+    aboutLayer.addChild(center(text("知道了", 17, 0xfff8dc, "900"), width / 2, by + btnH / 2));
+    addHit(bx, by, bw, btnH, hideAbout, "about");
+  }
+
+  function hideAbout() {
+    aboutVisible = false;
+    aboutLayer.removeChildren();
+    hitAreas = hitAreas.filter((entry) => entry.kind !== "about");
+  }
 
   function showEvent(title, line, teamId, kind) {
     eventLayer.removeChildren();
@@ -606,6 +693,9 @@ function createMatchChrome(options) {
       const y = local.y;
       for (let index = hitAreas.length - 1; index >= 0; index -= 1) {
         const hit = hitAreas[index];
+        // 关于弹窗打开时只放行其自身的关闭热区，屏蔽底层工具/记分牌点击。
+        if (aboutVisible && hit.kind !== "about") continue;
+        if (!aboutVisible && hit.kind === "about") continue;
         if (resultVisible && hit.kind !== "result") continue;
         if (!resultVisible && hit.kind === "result") continue;
         if (x >= hit.x && x <= hit.x + hit.w && y >= hit.y && y <= hit.y + hit.h) {
