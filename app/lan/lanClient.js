@@ -19,7 +19,7 @@ export function lanWsUrl() {
   return `ws://${host}:${LAN_PORT}`;
 }
 
-export function createLanClient({ onMessage, onOpen, onClose } = {}) {
+export function createLanClient({ onMessage, onOpen, onClose, onStatus } = {}) {
   let ws = null;
   let closed = false;
   let retry = 0;
@@ -29,6 +29,7 @@ export function createLanClient({ onMessage, onOpen, onClose } = {}) {
     if (closed) return;
     const url = lanWsUrl();
     if (!url) return;
+    onStatus && onStatus({ state: "connecting", url, retry });
     try {
       ws = new WebSocket(url);
     } catch {
@@ -37,6 +38,7 @@ export function createLanClient({ onMessage, onOpen, onClose } = {}) {
     }
     ws.onopen = () => {
       retry = 0;
+      onStatus && onStatus({ state: "open", url, retry });
       if (helloFn) {
         try { ws.send(JSON.stringify(helloFn())); } catch {}
       }
@@ -48,14 +50,20 @@ export function createLanClient({ onMessage, onOpen, onClose } = {}) {
       onMessage && onMessage(msg);
     };
     ws.onclose = () => {
+      onStatus && onStatus({ state: "closed", url, retry });
       onClose && onClose();
       if (!closed) schedule();
     };
-    ws.onerror = () => { try { ws.close(); } catch {} };
+    ws.onerror = () => {
+      onStatus && onStatus({ state: "error", url, retry });
+      try { ws.close(); } catch {}
+    };
   }
 
   function schedule() {
     retry = Math.min(retry + 1, 6);
+    const url = lanWsUrl();
+    onStatus && onStatus({ state: "retrying", url, retry });
     setTimeout(connect, 300 * retry); // 0.3s..1.8s backoff
   }
 

@@ -13,6 +13,21 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+html:fullscreen,
+html:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #5d9038;
+}
+
+html:fullscreen body,
+html:-webkit-full-screen body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 /* ---- buttons: kill the focus outline that sticks after a click/tap. The
    browser draws it in the system accent colour, which shows up as a red box on
    some setups ("点按按钮老是有红框"). Transparent tap highlight too. A subtle
@@ -38,6 +53,38 @@ button:focus-visible,
    canvases in the app are the game's, so scoping to `canvas` is safe. ---- */
 canvas {
   touch-action: none;
+}
+
+/* WeChat/iOS in-app browser fallback. True orientation lock often requires a
+   user gesture or is blocked entirely, so touch portrait devices can use a
+   page-level landscape mode shared by the team picker and the match screen. */
+@media (orientation: portrait) and (pointer: coarse) {
+  html.ac-fake-landscape-root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #5d9038;
+  }
+  @supports selector(html:has(body.ac-fake-landscape)) {
+    html:has(body.ac-fake-landscape) {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #5d9038;
+    }
+  }
+  body.ac-fake-landscape {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vh;
+    height: 100vw;
+    min-height: 0;
+    overflow: hidden;
+    transform: rotate(90deg) translateY(-100%);
+    transform-origin: top left;
+    background: #5d9038;
+  }
 }
 
 /* ---- language switcher (hand-drawn globe, fan-out menu) ---- */
@@ -90,4 +137,3 @@ canvas {
   background: var(--ak-green, #7ec97a);
   color: #fff;
 }
-

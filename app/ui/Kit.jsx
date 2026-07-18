@@ -1,6 +1,6 @@
 "use client";
 /**
- * Animal Cup UI Kit — the ONE set of chrome components for every page.
+ * 动物足球赛 UI Kit — the ONE set of chrome components for every page.
  * Visuals come from /animal-cup/kit/ 9-slice assets + kit.css tokens.
  * Pages must not define their own panel/button/badge styles.
  */

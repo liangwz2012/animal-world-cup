@@ -6,7 +6,7 @@ import "../ui/kit.css";
 import "./match.css";
 
 export const metadata = {
-  title: "Animal Cup",
+  title: "动物足球赛",
 };
 
 export default function MatchPage() {

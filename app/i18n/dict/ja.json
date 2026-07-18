@@ -1,5 +1,5 @@
 {
-  "app.title": "Animal Cup",
+  "app.title": "アニマルサッカー",
   "app.subtitle": "けもの国杯",
   "keys.label": "操作ガイド",
   "keys.teamA": "Aチーム",
@@ -88,7 +88,7 @@
   "home.home": "ホーム",
   "home.away": "アウェイ",
   "home.formation": "フォーメーション",
-  "home.kickoff": "キックオフ",
+  "home.kickoff": "今すぐ試合",
   "home.play": "プレイ",
   "home.random": "おまかせ",
   "stats.title": "試合データ",

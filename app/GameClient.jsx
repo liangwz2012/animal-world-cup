@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { rollFormations } from "./data/formations";
+import { publicPath } from "./publicPath";
 
-const runtimeBase = "/match-runtime-min";
+const runtimeBase = publicPath("/match-runtime-min");
 
 const stylesheets = [
   `${runtimeBase}/fonts/cup-round.css`,

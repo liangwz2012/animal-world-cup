@@ -10,11 +10,14 @@ import LoadingScreen from "./LoadingScreen";
 import GoalFx from "./GoalFx";
 import { StatsBars, readStats } from "./StatsPanel";
 import { captureMatch } from "./captureMatch";
+import { createInvitePoster } from "./createInvitePoster";
 import { sfx } from "../audio/SoundBank";
-import { IconCamera, IconCheck, IconSoundOn, IconSoundOff, IconZoomIn, IconZoomOut, IconReplay, IconHome } from "../ui/Icons";
+import { IconCamera, IconCheck, IconSoundOn, IconSoundOff, IconZoomIn, IconZoomOut, IconHome, IconShareForward } from "../ui/Icons";
+import { isPortraitViewport, usePageLandscapeMode } from "../mobileLandscape";
+import { publicPath, routePath } from "../publicPath";
 
 function navigateHome() {
-  window.location.href = "/";
+  window.location.href = routePath("/");
 }
 
 function Head({ id }) {
@@ -23,6 +26,44 @@ function Head({ id }) {
       <img src={portraitSrc(id)} alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = runtimeHeadSrc(id); }} />
     </span>
   );
+}
+
+const MATCH_GUIDE_KEY = "animalCupMatchGuide:v1";
+
+function resizeRuntimeForViewport(fakeLandscape) {
+  const game = typeof window !== "undefined" ? window.__matchGame : null;
+  if (typeof window === "undefined") return;
+  const fake = fakeLandscape || document.body.classList.contains("ac-fake-landscape");
+  const cssW = fake ? Math.max(window.innerWidth, window.innerHeight) : window.innerWidth;
+  const cssH = fake ? Math.min(window.innerWidth, window.innerHeight) : window.innerHeight;
+  if (!game || !game.renderer) return;
+  if (!fake && typeof game.resize === "function") {
+    try {
+      game._autoResize = true;
+      game.resize();
+      return;
+    } catch {}
+  }
+  const resolution = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(cssW * resolution));
+  const h = Math.max(1, Math.round(cssH * resolution));
+
+  try {
+    game._autoResize = false;
+    game.resolution = resolution;
+    game.viewportWidth = w;
+    game.viewportHeight = h;
+    game.renderer.resize(w, h);
+    if (game.renderer.view) {
+      game.renderer.view.style.width = `${cssW}px`;
+      game.renderer.view.style.height = `${cssH}px`;
+    }
+    if (game.stadium) {
+      game.stadium.resize(w, h);
+      if (game.repositionUI) game.repositionUI();
+    }
+    if (game.renderer.render && game.stage) game.renderer.render(game.stage);
+  } catch {}
 }
 
 // Scoreboard + match stats in ONE top element (owner pick "E", 2026-06-15):
@@ -52,7 +93,7 @@ function Scoreboard({ teams }) {
     <span className="ms-head"><img src={portraitSrc(id)} alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = runtimeHeadSrc(id); }} /></span>
   );
   const flag = (id) => (
-    <img className="ms-flag" src={`/match-runtime-min/data/teams/${id}/flag.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+    <img className="ms-flag" src={publicPath(`/match-runtime-min/data/teams/${id}/flag.png`)} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
   );
   const p = poss || { red: 50, blue: 50 };
   // toggle the inline dropdown (no modal): tap the bar to drop the full stats
@@ -127,15 +168,17 @@ function MatchControls({ result, onShot, shot }) {
           </button>
         </>
       ) : (
-        <button type="button" className="glass-btn" data-tip={t("match.ctrl.newmatch")}
-                ref={(el) => {
-                  if (el && !el.__newmatchWired2) {
-                    el.__newmatchWired2 = true;
-                    el.addEventListener("click", () => { sfx.play("ui_click"); navigateHome(); });
-                  }
-                }}>
-          <IconHome size={20} />
-        </button>
+        <>
+          <button type="button" className="glass-btn" data-tip={t("match.ctrl.newmatch")}
+                  ref={(el) => {
+                    if (el && !el.__newmatchWired2) {
+                      el.__newmatchWired2 = true;
+                      el.addEventListener("click", () => { sfx.play("ui_click"); navigateHome(); });
+                    }
+                  }}>
+            <IconHome size={20} />
+          </button>
+        </>
       )}
       <button type="button" className="glass-btn" data-tip={soundOn ? t("match.ctrl.mute") : t("match.ctrl.unmute")} onClick={toggleSound}>
         {soundOn ? <IconSoundOn /> : <IconSoundOff />}
@@ -192,6 +235,73 @@ function ControlsLegend({ t }) {
   );
 }
 
+function MatchGuide({ play, touch, t, onClose }) {
+  const rows = !play ? [
+    { k: t("guide.watchStats"), v: t("guide.watchStatsText") },
+    { k: t("guide.watchTools"), v: t("guide.watchToolsText") },
+    { k: t("guide.watchPhone"), v: t("guide.watchPhoneText") },
+  ] : touch ? [
+    { k: t("guide.phoneMove"), v: t("guide.phoneMoveText") },
+    { k: t("guide.phoneActions"), v: t("guide.phoneActionsText") },
+    { k: t("guide.phoneSprint"), v: t("guide.phoneSprintText") },
+    { k: t("guide.phoneZoom"), v: t("guide.phoneZoomText") },
+  ] : [
+    { k: t("guide.desktopMove"), v: t("guide.desktopMoveText") },
+    { k: t("guide.desktopActions"), v: t("guide.desktopActionsText") },
+    { k: t("guide.desktopSwitch"), v: t("guide.desktopSwitchText") },
+    { k: t("guide.desktopZoom"), v: t("guide.desktopZoomText") },
+  ];
+  const intro = !play ? t("guide.watchIntro") : touch ? t("guide.phoneIntro") : t("guide.desktopIntro");
+
+  return (
+    <div className="match-guide" role="dialog" aria-modal="true" aria-label={t("guide.title")}>
+      <div className="match-guide__card">
+        <span className="match-guide__eyebrow">{t("guide.eyebrow")}</span>
+        <h2>{t("guide.title")}</h2>
+        <p>{intro}</p>
+        <div className="match-guide__grid">
+          {rows.map((r) => (
+            <div className="match-guide__row" key={r.k}>
+              <b>{r.k}</b>
+              <span>{r.v}</span>
+            </div>
+          ))}
+        </div>
+        <button type="button" className="match-guide__ok" onClick={onClose}>{t("guide.ok")}</button>
+      </div>
+    </div>
+  );
+}
+
+function InvitePosterModal({ invite, t, onClose }) {
+  if (!invite.open) return null;
+  return (
+    <div className="invite-sheet" role="dialog" aria-modal="true" aria-label={t("invite.title")}>
+      <div className="invite-sheet__card">
+        <div className="invite-sheet__head">
+          <span>
+            <b>{t("invite.title")}</b>
+            <small>{t("invite.subtitle")}</small>
+          </span>
+          <button type="button" className="invite-sheet__close" onClick={onClose} aria-label={t("invite.close")}>×</button>
+        </div>
+        <div className="invite-sheet__body">
+          {invite.busy ? (
+            <div className="invite-sheet__loading">{t("invite.loading")}</div>
+          ) : invite.poster ? (
+            <>
+              <p className="invite-sheet__prompt">{t("invite.longPressForward")}</p>
+              <img className="invite-sheet__poster" src={invite.poster.dataUrl} alt={t("invite.title")} />
+            </>
+          ) : (
+            <div className="invite-sheet__loading">{t("invite.failed")}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MatchChrome() {
   const { t } = useLocale();
   const [loading, setLoading] = useState("cover"); // "cover" | "parting" | false
@@ -207,6 +317,14 @@ export default function MatchChrome() {
   // keyboard legend; touch devices get on-screen joystick + buttons instead.
   const [play, setPlay] = useState(false);
   const [touch, setTouch] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [invite, setInvite] = useState({ open: false, busy: false, poster: null, copied: false });
+  const landscape = usePageLandscapeMode({
+    enabled: touch,
+    auto: false,
+    nativeOnGesture: false,
+    onResize: resizeRuntimeForViewport,
+  });
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const modes = ["morning", "noon", "night"];
@@ -231,12 +349,61 @@ export default function MatchChrome() {
     return () => document.body.classList.remove("ac-touch-play");
   }, [touch, result]);
 
+  useEffect(() => {
+    if (loading || result) return;
+    try {
+      if (localStorage.getItem(MATCH_GUIDE_KEY) === "1") return;
+    } catch {}
+    setGuideOpen(true);
+  }, [loading, result]);
+
   async function onShot() {
     if (!teams || shot === "busy") return;
     setShot("busy");
     const ok = await captureMatch(teams);
     setShot(ok ? "done" : "idle");
     if (ok) setTimeout(() => setShot("idle"), 1600);
+  }
+
+  function closeGuide() {
+    try { localStorage.setItem(MATCH_GUIDE_KEY, "1"); } catch {}
+    sfx.play("ui_click");
+    setGuideOpen(false);
+  }
+
+  async function enterLandscapeMode() {
+    const mode = await landscape.enterLandscapeMode();
+    if (String(mode).includes("fake") && touch && isPortraitViewport()) {
+      setGuideOpen(false);
+      setTimeout(() => resizeRuntimeForViewport(true), 0);
+      setTimeout(() => resizeRuntimeForViewport(true), 160);
+      setTimeout(() => resizeRuntimeForViewport(true), 520);
+    } else if (mode === "fullscreen" || mode === "locked") {
+      setGuideOpen(false);
+      setTimeout(() => resizeRuntimeForViewport(false), 0);
+      setTimeout(() => resizeRuntimeForViewport(false), 160);
+      setTimeout(() => resizeRuntimeForViewport(false), 520);
+    }
+  }
+
+  async function openInvite() {
+    if (!teams || invite.busy) return;
+    sfx.play("ui_select");
+    setInvite({ open: true, busy: true, poster: null, copied: false });
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("from", "invite");
+      const poster = await createInvitePoster({ teams, t, url: url.toString() });
+      setInvite({ open: true, busy: false, poster, copied: false });
+    } catch (err) {
+      console.error("[invite] failed to create poster", err);
+      setInvite({ open: true, busy: false, poster: null, copied: false });
+    }
+  }
+
+  function closeInvite() {
+    sfx.play("ui_click");
+    setInvite((cur) => ({ ...cur, open: false }));
   }
 
   useEffect(() => {
@@ -273,6 +440,13 @@ export default function MatchChrome() {
     window.addEventListener("ab-match-started", onStarted);
     window.addEventListener("ab-match-ended", onEnded);
     window.addEventListener("ab-formations", onForms);
+    const forceResize = () => {
+      resizeRuntimeForViewport(document.body.classList.contains("ac-fake-landscape"));
+    };
+    window.addEventListener("ac-force-layout-refresh", forceResize);
+    document.addEventListener("fullscreenchange", forceResize);
+    document.addEventListener("webkitfullscreenchange", forceResize);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", forceResize);
     // Dismiss ONLY on ab-match-started — that fires after the crowd is baked,
     // so the curtain covers the bake instead of exposing a 4-FPS run-in.
     // Long fallback in case the event never arrives (boot failure).
@@ -281,6 +455,10 @@ export default function MatchChrome() {
       window.removeEventListener("ab-match-started", onStarted);
       window.removeEventListener("ab-match-ended", onEnded);
       window.removeEventListener("ab-formations", onForms);
+      window.removeEventListener("ac-force-layout-refresh", forceResize);
+      document.removeEventListener("fullscreenchange", forceResize);
+      document.removeEventListener("webkitfullscreenchange", forceResize);
+      if (window.visualViewport) window.visualViewport.removeEventListener("resize", forceResize);
       clearTimeout(fallback);
     };
   }, []);
@@ -297,6 +475,12 @@ export default function MatchChrome() {
               the aerial haze view is out); fades into the establishing shot */}
           <LoadingScreen card={loading === "cover"} />
         </div>
+      ) : null}
+
+      {teams ? (
+        <button type="button" className="match-share" data-tip={t("invite.open")} onClick={openInvite} aria-label={t("invite.open")}>
+          <IconShareForward size={27} />
+        </button>
       ) : null}
 
       {teams && !result ? <Scoreboard teams={teams} /> : null}
@@ -349,6 +533,8 @@ export default function MatchChrome() {
 
       {play && !touch && !result ? <ControlsLegend t={t} /> : null}
       {play && touch && !loading && !result ? <TouchControls /> : null}
+      {guideOpen && !result ? <MatchGuide play={play} touch={touch} t={t} onClose={closeGuide} /> : null}
+      <InvitePosterModal invite={invite} t={t} onClose={closeInvite} />
 
       <MatchEvents />
 
@@ -359,25 +545,18 @@ export default function MatchChrome() {
       {light ? <div className={`match-light match-light--${light}`} aria-hidden /> : null}
       <div className="match-vignette" aria-hidden />
 
-      <div className="rotate-hint"
-           onClick={() => {
-             // web can't force landscape outright — but on Android a user
-             // gesture may grant fullscreen + orientation lock; iOS has no
-             // such API, the hint stays
-             const el = document.documentElement;
-             const fs = el.requestFullscreen || el.webkitRequestFullscreen;
-             Promise.resolve(fs && fs.call(el)).then(() => {
-               if (screen.orientation && screen.orientation.lock) {
-                 screen.orientation.lock("landscape").catch(() => {});
-               }
-             }).catch(() => {});
-           }}>
+      <div className="rotate-hint" onClick={enterLandscapeMode}>
         <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <rect x="7" y="3" width="10" height="18" rx="2.5" />
           <circle cx="12" cy="18" r="0.9" fill="currentColor" />
         </svg>
+        <strong>{t("match.rotateTitle")}</strong>
         <span>{t("match.rotate")}</span>
+        <button type="button" onClick={(e) => { e.stopPropagation(); enterLandscapeMode(); }}>
+          {t("match.rotateAction")}
+        </button>
+        <small>{t("match.rotateHelp")}</small>
       </div>
 
       <MatchControls result={result} onShot={onShot} shot={shot} />

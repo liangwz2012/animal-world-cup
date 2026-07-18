@@ -1,5 +1,10 @@
+const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/+$/, "");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
+  outputFileTracingRoot: process.cwd(),
+  basePath: basePath || undefined,
   reactStrictMode: false,
   devIndicators: false,
   // Game assets ship from /public with Next's default max-age=0,

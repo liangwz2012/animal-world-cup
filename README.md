@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🐾 Animal Cup — AI 动物足球模拟器
+# 动物足球赛
 
-**AI Animal Football Simulator**
+**AI 动物足球模拟器**
 
 从 8 支动物国家队中挑选你的队伍，排布阵型，观看全程模拟的 7v7 足球赛事，实时统计数据 — 移动端随处可玩。
 
@@ -20,7 +20,7 @@ Pick from 8 animal national teams, set your formation, and watch fully simulated
 
 ### 🎮 简介
 
-Animal Cup 灵感来自经典街机足球游戏。你从 8 支动物国家队中选择队伍、设置阵型，然后观看一场完全模拟的 7v7 比赛，并实时查看比赛数据。整个游戏为移动端优化，随时随地都能玩，同时支持局域网多人对战。
+动物足球赛灵感来自经典街机足球游戏。你从 8 支动物国家队中选择队伍、设置阵型，然后观看一场完全模拟的 7v7 比赛，并实时查看比赛数据。整个游戏为移动端优化，随时随地都能玩，同时支持局域网多人对战。
 
 ### 🚀 技术栈
 
@@ -95,7 +95,7 @@ pnpm dev:lan
 
 ### 🎮 Overview
 
-Animal Cup is inspired by classic arcade football games. Pick from 8 animal
+动物足球赛 is inspired by classic arcade football games. Pick from 8 animal
 national teams, set your formation, then watch a fully simulated 7v7 match
 with live stats. The whole game is mobile-optimized so you can play anywhere,
 and it supports local-network multiplayer.

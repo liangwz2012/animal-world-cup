@@ -1,3 +1,5 @@
+import { publicPath } from "../publicPath";
+
 // Playable squads (match engine has full assets for these 8).
 // Display names/animals/traits live in the i18n dictionaries (team.<id>.*).
 export const PLAYABLE_TEAMS = [
@@ -12,10 +14,10 @@ export const PLAYABLE_TEAMS = [
 ];
 
 export function portraitSrc(id) {
-  return `/animal-cup/portraits/${id}.png`;
+  return publicPath(`/animal-cup/portraits/${id}.png`);
 }
 
 // in-match side-view head (runtime asset) — fallback for portraits
 export function runtimeHeadSrc(id) {
-  return `/match-runtime-min/data/player/races/${id}/head.png`;
+  return publicPath(`/match-runtime-min/data/player/races/${id}/head.png`);
 }

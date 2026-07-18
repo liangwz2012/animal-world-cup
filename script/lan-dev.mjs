@@ -7,15 +7,15 @@ import os from "node:os";
 
 function lanIP() {
   const ifaces = os.networkInterfaces();
+  const prefer = [];
   for (const name of Object.keys(ifaces)) {
     for (const ni of ifaces[name] || []) {
-      if (ni.family === "IPv4" && !ni.internal &&
-          /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ni.address)) {
-        return ni.address;
-      }
+      if (ni.family !== "IPv4" || ni.internal) continue;
+      if (/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ni.address)) prefer.unshift(ni.address);
+      else prefer.push(ni.address);
     }
   }
-  return "localhost";
+  return prefer[0] || "127.0.0.1";
 }
 
 const procs = [];

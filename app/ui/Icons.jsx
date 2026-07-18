@@ -97,6 +97,16 @@ export function IconHome(p) {
   );
 }
 
+export function IconShareForward(p) {
+  return (
+    <Svg {...p}>
+      <path d="M7 17.5v-1.8c0-4.1 3.3-7.4 7.4-7.4H19" />
+      <path d="M15 4.6 20.4 10 15 15.4" />
+      <path d="M4.2 18.5c1.2-4.7 4.7-7.5 9.8-7.5h5.8" opacity="0.32" />
+    </Svg>
+  );
+}
+
 // language / globe — line style, replaces the colourful globe PNG + "en" label
 export function IconGlobe(p) {
   return (

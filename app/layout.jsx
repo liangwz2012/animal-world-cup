@@ -1,6 +1,7 @@
 import './globals.css';
 import { LocaleProvider } from './i18n/LocaleProvider';
 import { HappySeedsWatermark } from './HappySeedsWatermark';
+import { publicPath } from './publicPath';
 
 // HappySeeds watermark: read the platform env SERVER-side (a client bundle can't
 // see non-NEXT_PUBLIC_ vars) and pass to the client component as props.
@@ -9,31 +10,31 @@ const HS_API_BASE = HS_ORIGIN ? `${HS_ORIGIN}/v1/project` : '';
 const HS_PROJECT_ID = typeof process.env.PROJECT_ID === 'string' ? process.env.PROJECT_ID.trim() : '';
 
 export const metadata = {
-  title: 'Animal Cup - AI Animal Football Simulator',
-  description: 'Watch adorable animal teams battle it out on the pitch! Pick your national squad, choose formations, and enjoy a fully simulated 6v6 football match powered by AI.',
-  keywords: ['animal football', 'soccer simulator', 'AI game', 'animal cup', 'football match', 'web game', 'pixi.js'],
+  title: '动物足球赛 - AI 动物足球模拟器',
+  description: '选择你的动物国家队，设置阵型，操控或观看一场完整的 AI 动物足球赛。',
+  keywords: ['animal football', 'soccer simulator', 'AI game', 'football match', 'web game', 'pixi.js'],
   openGraph: {
-    title: 'Animal Cup - AI Animal Football Simulator',
-    description: 'Pick your animal team and watch them play a full football match. 8 national teams, unique animal mascots, real-time AI simulation.',
+    title: '动物足球赛 - AI 动物足球模拟器',
+    description: '选择动物国家队，观看或操控一场完整的 AI 足球模拟赛。',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Animal Cup - AI Animal Football Simulator',
-    description: 'Pick your animal team and watch them play a full football match.',
+    title: '动物足球赛 - AI 动物足球模拟器',
+    description: '选择动物国家队，观看或操控一场完整的 AI 足球模拟赛。',
   },
   // PWA: "Add to Home Screen" launches fullscreen (no browser bars). iOS Safari
   // has no in-page fullscreen API, so home-screen install is the only way to
   // drop the address/tool bars there — these tags enable it.
-  manifest: '/manifest.webmanifest',
+  manifest: publicPath('/manifest.webmanifest'),
   appleWebApp: {
     capable: true,
-    title: 'Animal Cup',
+    title: '动物足球赛',
     statusBarStyle: 'black-translucent',
   },
   icons: {
-    icon: '/icon-192.png',
-    apple: '/apple-touch-icon.png',
+    icon: publicPath('/icon-192.png'),
+    apple: publicPath('/apple-touch-icon.png'),
   },
   // iOS Safari still reads the legacy apple-prefixed tag for home-screen
   // standalone (it doesn't honor the modern mobile-web-app-capable yet).
@@ -52,7 +53,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
         {/* Display fonts. Titan One = chunky cartoon face for the hero logo
             (Latin only); ZCOOL KuaiLe covers the CJK title fallback (动物杯);

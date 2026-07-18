@@ -9,9 +9,10 @@
 // unstamped placeholder; the build re-stamps it. (A SWR rewrite was tried and
 // reverted: re-downloading every asset each load wedged boot on the slow host —
 // so we keep cache-first speed + content-hash invalidation.)
-const CACHE_VERSION = "7fb07c90b25f";
+const CACHE_VERSION = "a07be37b4c54";
 const CACHE_NAME = "animal-cup-" + CACHE_VERSION;
-const MANIFEST_URL = "/__sw-manifest.json";
+const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "");
+const MANIFEST_URL = `${BASE_PATH}/__sw-manifest.json`;
 
 // On localhost the SW is a NO-OP: local dev must always serve the latest from
 // the dev server, never a cached copy. The precache + cache-first below are a
@@ -28,6 +29,7 @@ self.addEventListener("install", (event) => {
     fetch(MANIFEST_URL)
       .then((r) => r.json())
       .then((urls) => {
+        urls = urls.map((url) => `${BASE_PATH}${url}`);
         return caches.open(CACHE_NAME).then((cache) => {
           // Don't let a single failed fetch abort the whole precache.
           // Use individual add() calls so failures are isolated.
@@ -91,9 +93,9 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   const isGameAsset =
-    url.pathname.startsWith("/match-runtime-min/") ||
-    url.pathname.startsWith("/animal-cup/") ||
-    url.pathname === "/__sw-manifest.json";
+    url.pathname.startsWith(`${BASE_PATH}/match-runtime-min/`) ||
+    url.pathname.startsWith(`${BASE_PATH}/animal-cup/`) ||
+    url.pathname === `${BASE_PATH}/__sw-manifest.json`;
 
   if (!isGameAsset) return;
 

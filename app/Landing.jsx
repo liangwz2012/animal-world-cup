@@ -6,14 +6,18 @@
 // one in the YOUR TEAM slot, period. Watch (AI vs AI) is a small secondary link.
 // The controlled team maps to the engine's red slot, so the runtime is unchanged.
 // Spec: docs/specs/2026-06-15-landing-interaction-redesign.md
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import LangSwitcher from "./i18n/LangSwitcher";
 import { useLocale } from "./i18n/LocaleProvider";
 import { PLAYABLE_TEAMS, portraitSrc, runtimeHeadSrc } from "./data/teams";
 import { FORMATIONS } from "./data/formations";
 import FormationDiagram from "./ui/FormationDiagram";
+import { IconShareForward } from "./ui/Icons";
+import { createInvitePoster } from "./match/createInvitePoster";
 import css from "./Landing.module.css";
+import { getViewportSize, isPortraitViewport, usePageLandscapeMode } from "./mobileLandscape";
+import { publicPath, routePath } from "./publicPath";
 
 // Runs before paint on the client (so fit + randomize land before the page is
 // shown); falls back to useEffect during SSR to avoid the React warning.
@@ -23,13 +27,14 @@ function rand(n) { return Math.floor(Math.random() * n); }
 
 // Shrink .wrap just enough to fit the viewport (never scale up). scrollHeight/
 // scrollWidth ignore the transform, so this is safe to call repeatedly.
-function fit(w) {
+function fit(w, fakeLandscape = false) {
   const nh = w.scrollHeight, nw = w.scrollWidth;
   if (!nh || !nw) return;
+  const { width, height } = getViewportSize(fakeLandscape);
   // -54 = 6px breathing room + the 48px bottom strip reserved for the watermark
   // (see .stage padding-bottom) so the CTA buttons clear the bottom-centre pill.
-  const s = Math.min(1, (window.innerHeight - 54) / nh, window.innerWidth / nw);
-  w.style.setProperty("--fit-scale", String(Math.max(0.5, s)));
+  const s = Math.min(1, (height - 54) / nh, width / nw);
+  w.style.setProperty("--fit-scale", String(Math.max(0.34, s)));
 }
 
 function CtrlIcon() {
@@ -49,17 +54,6 @@ function EyeIcon() {
          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" />
       <circle cx="12" cy="12" r="2.6" />
-    </svg>
-  );
-}
-// two phones = local-network versus
-function LanIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="2.5" y="4" width="8" height="16" rx="2" />
-      <rect x="13.5" y="4" width="8" height="16" rx="2" />
-      <path d="M6.5 17.2h0M17.5 17.2h0" />
     </svg>
   );
 }
@@ -115,6 +109,35 @@ function Panel({ label, mine, picked, taken, onPick, form, setForm, tone }) {
   );
 }
 
+function LandingInviteModal({ invite, t, onClose }) {
+  if (!invite.open) return null;
+  return (
+    <div className={css.inviteSheet} role="dialog" aria-modal="true" aria-label={t("invite.title")}>
+      <div className={css.inviteCard}>
+        <div className={css.inviteHead}>
+          <span>
+            <b>{t("invite.title")}</b>
+            <small>{t("invite.subtitle")}</small>
+          </span>
+          <button type="button" className={css.inviteClose} onClick={onClose} aria-label={t("invite.close")}>×</button>
+        </div>
+        <div className={css.inviteBody}>
+          {invite.busy ? (
+            <div className={css.inviteLoading}>{t("invite.loading")}</div>
+          ) : invite.poster ? (
+            <>
+              <p className={css.invitePrompt}>{t("invite.longPressForward")}</p>
+              <img className={css.invitePoster} src={invite.poster.dataUrl} alt={t("invite.title")} />
+            </>
+          ) : (
+            <div className={css.inviteLoading}>{t("invite.failed")}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ai level 0..3 (0 = easiest). Shifted down a notch — vs one human, even the
 // old "easy" (1) pressed too hard. easy=0, normal=1, hard=2.
 const DIFFS = [
@@ -143,32 +166,64 @@ export default function Landing() {
   const [diff, setDiff] = useState(0);
   const [time, setTime] = useState(6); // full-match minutes (default: normal)
   const [side, setSide] = useState("home"); // your team's kit: home / away
+  const [landscapePrompt, setLandscapePrompt] = useState(false);
+  const [invite, setInvite] = useState({ open: false, busy: false, poster: null, copied: false });
+  const wrapRef = useRef(null);
+  const refit = useCallback((fakeLandscape = false) => {
+    const w = wrapRef.current;
+    if (!w) return;
+    const fake = fakeLandscape || document.body.classList.contains("ac-fake-landscape");
+    fit(w, fake);
+  }, []);
 
   const router = useRouter();
+  const landscape = usePageLandscapeMode({ auto: false, nativeOnGesture: false, onResize: refit });
+
   useEffect(() => {
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    document.body.classList.remove("loading", "loaded");
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register(publicPath("/sw.js"), { scope: routePath("/") }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!landscape.touch) return;
+    const syncPrompt = () => {
+      const fake = document.body.classList.contains("ac-fake-landscape");
+      const needsPrompt = isPortraitViewport() && !fake;
+      setLandscapePrompt(needsPrompt);
+      setTimeout(() => refit(fake), 0);
+    };
+    syncPrompt();
+    window.addEventListener("resize", syncPrompt);
+    window.addEventListener("orientationchange", syncPrompt);
+    return () => {
+      window.removeEventListener("resize", syncPrompt);
+      window.removeEventListener("orientationchange", syncPrompt);
+    };
+  }, [landscape.touch, refit]);
 
   // The landing must show in full with NO scrolling on any screen. Measure the
   // natural size + randomize the formations BEFORE the first visible paint, then
   // reveal (.wrap stays hidden — the branded background shows — until `ready`).
   // So the first thing on screen is the final, scaled layout: no scale pop, no
   // formation flicker.
-  const wrapRef = useRef(null);
   const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const fallback = setTimeout(() => setReady(true), 260);
+    return () => clearTimeout(fallback);
+  }, []);
   useIsoLayoutEffect(() => {
     const w = wrapRef.current;
     if (!w) return;
     setMineForm(FORMATIONS[rand(FORMATIONS.length)].name);
     setOppForm(FORMATIONS[rand(FORMATIONS.length)].name);
-    fit(w);
+    refit();
     setReady(true);
-  }, []);
+  }, [refit]);
   // Re-fit on later viewport/content changes (resize, web-font reflow).
   useEffect(() => {
     const w = wrapRef.current;
     if (!w) return undefined;
-    const onFit = () => fit(w);
+    const onFit = () => refit();
     window.addEventListener("resize", onFit);
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(onFit) : null;
     if (ro) ro.observe(w);
@@ -190,17 +245,69 @@ export default function Landing() {
     router.push(url);
   }
 
-  // LAN versus (局域网联机): hand the chosen teams to the lobby, where the big
-  // screen hosts a room and phones join as gamepads. Two humans, no shared
-  // keyboard — each plays from their own phone over the local network.
   function goLan() {
-    router.push(`/lobby?red=${mine}&blue=${opp}&ai=${diff}&side=${side}&time=${time}`);
+    const url = `/lobby?red=${mine}&blue=${opp}&ai=${diff}&side=${side}&time=${time}`;
+    router.push(url);
+  }
+
+  async function enterLandingLandscape() {
+    const mode = await landscape.enterLandscapeMode();
+    setLandscapePrompt(false);
+    const fitNow = () => refit(document.body.classList.contains("ac-fake-landscape") || String(mode).includes("fake"));
+    setTimeout(fitNow, 0);
+    setTimeout(fitNow, 90);
+    setTimeout(fitNow, 420);
+  }
+
+  function inviteUrl() {
+    const url = new URL(routePath("/match"), window.location.origin);
+    url.searchParams.set("red", mine);
+    url.searchParams.set("blue", opp);
+    url.searchParams.set("ai", String(diff));
+    url.searchParams.set("side", side);
+    url.searchParams.set("time", String(time));
+    url.searchParams.set("play", "1");
+    url.searchParams.set("from", "invite");
+    return url.toString();
+  }
+
+  async function openInvite() {
+    if (invite.busy) return;
+    setInvite({ open: true, busy: true, poster: null, copied: false });
+    try {
+      const poster = await createInvitePoster({ teams: { red: mine, blue: opp }, t, url: inviteUrl() });
+      setInvite({ open: true, busy: false, poster, copied: false });
+    } catch (err) {
+      console.error("[invite] failed to create poster", err);
+      setInvite({ open: true, busy: false, poster: null, copied: false });
+    }
+  }
+
+  function closeInvite() {
+    setInvite((cur) => ({ ...cur, open: false }));
   }
 
   return (
     <main className={css.stage}>
       <div className={css.pattern} aria-hidden />
+      <button type="button" className={css.shareTop} onClick={openInvite} aria-label={t("invite.open")}>
+        <IconShareForward size={27} />
+      </button>
       <span className={css.lang}><LangSwitcher /></span>
+      {landscapePrompt ? (
+        <div className={css.landscapeGate} role="dialog" aria-modal="true" aria-label={t("home.landscapeTitle")}>
+          <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="7" y="3" width="10" height="18" rx="2.5" />
+            <path d="M4 12c0 4.4 3.6 8 8 8" />
+            <path d="M20 12c0-4.4-3.6-8-8-8" />
+            <path d="M15.5 4h4v4" />
+          </svg>
+          <strong>{t("home.landscapeTitle")}</strong>
+          <span>{t("home.landscapeText")}</span>
+          <button type="button" onClick={enterLandingLandscape}>{t("home.landscapeAction")}</button>
+        </div>
+      ) : null}
       <div className={`${css.wrap} ${ready ? css.ready : ""}`} ref={wrapRef}>
         <h1 className={css.title}>{t("home.title")}</h1>
 
@@ -255,16 +362,15 @@ export default function Landing() {
           <button type="button" className={css.watch} onClick={() => go(false)}>
             <EyeIcon /> {t("home.watchAi")}
           </button>
+          <button type="button" className={css.watch} onClick={goLan}>
+            <CtrlIcon /> {t("home.lan")}
+          </button>
           <button type="button" className={css.play} onClick={() => go(true)}>
             <CtrlIcon /> {t("home.kickoff")}
           </button>
         </div>
-        <div className={css.actionsLan}>
-          <button type="button" className={css.lan} onClick={goLan}>
-            <LanIcon /> {t("home.lan")}
-          </button>
-        </div>
       </div>
+      <LandingInviteModal invite={invite} t={t} onClose={closeInvite} />
     </main>
   );
 }

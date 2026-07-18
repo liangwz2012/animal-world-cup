@@ -18,15 +18,14 @@ export const LOCALES = [
   { id: "fr", label: "FR" },
 ];
 const STORAGE_KEY = "animalCupLocale";
+const DEFAULT_LOCALE = "zh";
 
-const LocaleContext = createContext({ locale: "en", setLocale: () => {}, t: (k) => k });
+const LocaleContext = createContext({ locale: DEFAULT_LOCALE, setLocale: () => {}, t: (k) => k });
 
 export function LocaleProvider({ children }) {
-  // SSR-safe: render the default (en) on the server, switch after mount
-  // (avoids hydration mismatch). English is THE first language (owner
-  // 2026-06-12) — no browser-language sniffing; only an explicit choice
-  // made with the switcher (persisted) moves off en.
-  const [locale, setLocaleState] = useState("en");
+  // SSR-safe: render the default Chinese UI on the server, then honor an
+  // explicit language switch persisted in localStorage after mount.
+  const [locale, setLocaleState] = useState(DEFAULT_LOCALE);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -41,7 +40,7 @@ export function LocaleProvider({ children }) {
 
   const t = useCallback(
     (key, vars) => {
-      let str = DICTS[locale][key] ?? DICTS.en[key] ?? key;
+      let str = DICTS[locale][key] ?? DICTS.zh[key] ?? DICTS.en[key] ?? key;
       if (vars) for (const [k, v] of Object.entries(vars)) str = str.replaceAll(`{${k}}`, v);
       return str;
     },

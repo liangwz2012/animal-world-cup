@@ -8,7 +8,9 @@
 // resumed on the first user gesture, unlocks every sound for the session;
 // overlapping one-shots are free. Brand-new ElevenLabs audio under
 // /animal-cup/audio/. Every call no-ops cleanly if a file/decode fails.
-const BASE = "/animal-cup/audio/";
+import { publicPath } from "../publicPath";
+
+const BASE = publicPath("/animal-cup/audio/");
 // Decoded the moment audio unlocks, so the first goal cheer has no fetch lag.
 const WARM = [
   "cheer_lion", "cheer_jaguar", "cheer_puma", "cheer_wolf", "cheer_eagle",

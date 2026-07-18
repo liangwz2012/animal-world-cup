@@ -201,3 +201,29 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 .pad-join-btn:disabled { opacity: 0.4; }
+
+/* WeChat often keeps scanned web pages in portrait and blocks orientation lock.
+   The controller itself is a landscape surface, so rotate only the live gamepad
+   view in-page. Status/join screens stay portrait for easier reading. */
+@media (orientation: portrait) and (pointer: coarse) {
+  .pad:not(.pad--status) {
+    top: 0;
+    left: 0;
+    right: auto;
+    bottom: auto;
+    width: 100vh;
+    height: 100vw;
+    transform-origin: top left;
+    transform: rotate(90deg) translateY(-100%);
+  }
+
+  .pad:not(.pad--status) .pad-stick {
+    left: max(24px, env(safe-area-inset-bottom));
+    bottom: max(24px, env(safe-area-inset-left));
+  }
+
+  .pad:not(.pad--status) .pad-pad {
+    right: max(24px, env(safe-area-inset-top));
+    bottom: max(24px, env(safe-area-inset-left));
+  }
+}

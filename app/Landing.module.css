@@ -47,7 +47,7 @@
 .wrap {
   position: relative;
   width: 100%;
-  max-width: 1060px;
+  max-width: 1100px;
   margin: 0;
   padding: 26px 18px 34px;
   display: grid;
@@ -55,9 +55,10 @@
   /* shrink-to-fit when the content is taller/wider than the viewport (JS) */
   transform: scale(var(--fit-scale, 1));
   transform-origin: center center;
-  /* hidden until the fit + formation pick land (JS sets .ready), so the page
-     never appears unscaled then snaps — it fades in already settled */
-  opacity: 0;
+  /* Keep the server-rendered picker visible. Mobile fullscreen/WebView can
+     delay hydration; hiding until JS adds .ready turns that delay into a green
+     blank screen. */
+  opacity: 1;
   transition: opacity 160ms ease;
 }
 .wrap.ready { opacity: 1; }
@@ -188,12 +189,12 @@
 }
 
 .actions {
-  /* Play + Watch are ALWAYS equal width (two equal columns) — only colour and
-     label differ. Equal columns survive any label length / locale. */
+  /* Keep every mode visible while giving the player-controlled match a clear
+     primary-action hierarchy. */
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.38fr);
   gap: 14px;
-  max-width: 400px;
+  max-width: 680px;
   margin: 0 auto;
 }
 .kick {
@@ -272,8 +273,127 @@
   .kick, .lucky { width: 168px; padding: 9px 0; font-size: 14px; }
 }
 
+/* WeChat fake-landscape: the browser is still technically portrait, so all
+   max-width mobile media queries above would stack the selector into a vertical
+   phone layout. In this mode the page itself is already rotated; force the
+   original desktop selector back: two team panels with VS in the middle. */
+:global(body.ac-fake-landscape) .stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vh;
+  height: 100vw;
+  min-height: 0;
+  padding-bottom: 0;
+  align-items: center;
+  justify-content: center;
+}
+:global(body.ac-fake-landscape) .pattern {
+  width: 100vh;
+  height: 100vw;
+}
+:global(body.ac-fake-landscape) .wrap {
+  width: min(1100px, calc(100vh - 28px));
+  max-width: 1100px;
+  padding: 18px 16px 18px;
+  gap: 12px;
+}
+:global(body.ac-fake-landscape) .title {
+  padding: 0 56px;
+  font-size: clamp(34px, 10vw, 58px);
+  line-height: 1.06;
+}
+:global(body.ac-fake-landscape) .duel {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+:global(body.ac-fake-landscape) .vs {
+  justify-self: center;
+  align-self: center;
+  width: clamp(44px, 9vw, 62px);
+  height: clamp(44px, 9vw, 62px);
+  font-size: clamp(17px, 3.8vw, 24px);
+}
+:global(body.ac-fake-landscape) .panel {
+  padding: 12px 14px 14px;
+  gap: 10px;
+}
+:global(body.ac-fake-landscape) .grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+:global(body.ac-fake-landscape) .card {
+  min-height: 74px;
+  padding: 7px 4px 6px;
+}
+:global(body.ac-fake-landscape) .cardPic {
+  width: 38px;
+  height: 38px;
+}
+:global(body.ac-fake-landscape) .card b {
+  font-size: 11px;
+}
+:global(body.ac-fake-landscape) .preview {
+  display: grid;
+}
+:global(body.ac-fake-landscape) .preview :global(.form-diagram) {
+  width: 112px;
+  height: 142px;
+}
+:global(body.ac-fake-landscape) .settings {
+  gap: 8px 18px;
+}
+:global(body.ac-fake-landscape) .setGroup {
+  gap: 8px;
+}
+:global(body.ac-fake-landscape) .pill {
+  padding: 4px 11px;
+  font-size: 11.5px;
+}
+:global(body.ac-fake-landscape) .actions {
+  max-width: 560px;
+  gap: 12px;
+}
+:global(body.ac-fake-landscape) .play,
+:global(body.ac-fake-landscape) .watch {
+  padding: 10px 14px;
+  font-size: 14px;
+}
+:global(body.ac-fake-landscape) .shareTop {
+  top: 10px;
+  right: 10px;
+}
+:global(body.ac-fake-landscape) .lang {
+  top: 62px;
+  right: 10px;
+}
+
+/* fixed forward/share button, matching the short-video style the owner picked */
+.shareTop {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 30;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 254, 248, 0.82);
+  background: rgba(20, 53, 29, 0.48);
+  color: #fffef8;
+  box-shadow: 0 7px 18px rgba(30, 50, 22, 0.28);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: transform 120ms ease, background 120ms ease;
+}
+.shareTop:hover { transform: translateY(-2px); background: rgba(20, 53, 29, 0.62); }
+.shareTop:active { transform: scale(0.94); }
+
 /* language switcher pinned top-right, cream/green like the HUD */
-.lang { position: fixed; top: 14px; right: 14px; z-index: 20; }
+.lang { position: fixed; top: 74px; right: 14px; z-index: 20; }
 .lang :global(.lang-switcher__toggle) {
   width: 44px;
   height: 44px;
@@ -292,6 +412,54 @@
 .lang :global(.lang-switcher__menu) button { color: #4f8a2f; }
 .lang :global(.lang-switcher__menu) button:hover { background: #f4eed9; }
 .lang :global(.lang-switcher__menu) button.is-active { background: #5d9038; color: #fff7e2; }
+
+.landscapeGate {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 16px;
+  padding: 26px;
+  background: radial-gradient(140% 110% at 50% 42%, #7fb851 0%, #5d9038 58%, #41702a 100%);
+  color: #fff7e2;
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  text-align: center;
+  text-shadow: 0 3px 0 rgba(58, 38, 20, 0.55);
+}
+.landscapeGate svg { animation: land-turn 1.6s ease-in-out infinite; }
+.landscapeGate strong {
+  display: block;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 900;
+}
+.landscapeGate span {
+  display: block;
+  max-width: 320px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.45;
+  color: rgba(255, 247, 226, 0.9);
+}
+.landscapeGate button {
+  border: 0;
+  border-radius: 999px;
+  padding: 13px 24px;
+  background: #fff7e2;
+  color: #356727;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  box-shadow: 0 5px 0 rgba(70, 45, 20, 0.35), 0 12px 24px rgba(30, 52, 18, 0.26);
+  cursor: pointer;
+}
+@keyframes land-turn {
+  0%, 20% { transform: rotate(0deg); }
+  55%, 80% { transform: rotate(90deg); }
+  100% { transform: rotate(90deg); }
+}
 
 
 /* ===== 2026-06-15 redesign v2: segmented control + stable tags ===== */
@@ -370,7 +538,7 @@
 .roleMine { background: #5d9038; color: #fff7e2; }
 .roleOpp  { background: rgba(120, 90, 50, 0.16); color: #8a7a62; }
 
-/* Play (you) and Watch (AI) are PARALLEL choices — two side-by-side buttons */
+/* Play remains alongside Watch and LAN, but is visually primary. */
 .play, .watch {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   box-sizing: border-box; width: 100%; white-space: nowrap;
@@ -380,11 +548,27 @@
   transition: transform 120ms ease, background 120ms ease;
 }
 .play {
-  color: #fff7e2; background: #5d9038; border-color: #41702a;
-  box-shadow: 0 5px 0 #41702a, 0 10px 20px rgba(40, 60, 25, 0.35);
+  min-height: 54px;
+  padding: 16px 18px;
+  color: #314518;
+  background: linear-gradient(180deg, #ffe768 0%, #ffb331 100%);
+  border-color: #d97924;
+  font-size: 18px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-shadow: 0 6px 0 #d97924, 0 12px 24px rgba(111, 67, 10, 0.34);
 }
-.play:hover { background: #6aa342; transform: translateY(-2px); }
-.play:active { transform: translateY(1px); box-shadow: 0 3px 0 #41702a; }
+.play:hover {
+  background: linear-gradient(180deg, #fff07b 0%, #ffc047 100%);
+  transform: translateY(-2px);
+}
+.play:active {
+  transform: translateY(1px);
+  box-shadow: 0 3px 0 #d97924, 0 7px 14px rgba(111, 67, 10, 0.28);
+}
+.play:focus-visible {
+  outline: 4px solid rgba(255, 247, 226, 0.95);
+  outline-offset: 3px;
+}
 .watch {
   color: #4f8a2f; background: var(--ak-card, #fffef8); border-color: rgba(120, 90, 50, 0.22);
   box-shadow: 0 5px 0 rgba(120, 90, 50, 0.25), 0 10px 20px rgba(70, 90, 120, 0.25);
@@ -392,26 +576,189 @@
 .watch:hover { background: #f4eed9; transform: translateY(-2px); }
 .watch:active { transform: translateY(1px); box-shadow: 0 3px 0 rgba(120, 90, 50, 0.25); }
 
-/* LAN versus: a full-width third action under the Play/Watch pair. Storybook
-   blue to read as the "two-player / 联机" path, distinct from the green Play. */
-.actionsLan {
-  max-width: 400px;
-  margin: 10px auto 0;
-}
-.lan {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  box-sizing: border-box; width: 100%; white-space: nowrap;
-  border: 2px solid #2f5aa8; border-radius: 16px; padding: 12px 16px;
-  font-size: 16px; font-weight: 900; font-family: inherit; cursor: pointer;
-  color: #fff7e2; background: #3a6fce;
-  box-shadow: 0 5px 0 #2f5aa8, 0 10px 20px rgba(30, 50, 90, 0.3);
-  transition: transform 120ms ease, background 120ms ease;
-}
-.lan:hover { background: #4880e0; transform: translateY(-2px); }
-.lan:active { transform: translateY(1px); box-shadow: 0 3px 0 #2f5aa8; }
-
 @media (max-width: 720px), (max-height: 560px) {
   .segBtn { padding: 8px 12px; font-size: 13px; max-width: 38vw; }
+}
+
+@media (max-height: 440px) {
+  .play {
+    min-height: 46px;
+    padding: 11px 14px;
+    font-size: 15px;
+  }
+}
+
+:global(body.ac-fake-landscape) .actions {
+  max-width: 610px;
+}
+:global(body.ac-fake-landscape) .play {
+  min-height: 48px;
+  padding: 12px 16px;
+  font-size: 15px;
+}
+
+/* invite poster modal, reused on the landing share button */
+.inviteSheet {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  background: rgba(9, 25, 20, 0.58);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+.inviteCard {
+  width: min(450px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fffef8;
+  border: 2px solid rgba(92, 68, 36, 0.22);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+  color: #3f4f2f;
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+}
+.inviteHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(92, 68, 36, 0.12);
+}
+.inviteHead b {
+  display: block;
+  color: #3f672b;
+  font-size: 18px;
+  font-weight: 900;
+}
+.inviteHead small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(63, 79, 47, 0.68);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.inviteClose {
+  border: 0;
+  background: transparent;
+  color: rgba(63, 79, 47, 0.6);
+  font: inherit;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+.inviteBody {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 16px 14px;
+}
+.invitePrompt {
+  margin: 0 auto 10px;
+  color: #315222;
+  font-size: 16px;
+  font-weight: 900;
+  text-align: center;
+}
+.invitePoster {
+  display: block;
+  width: min(100%, 300px);
+  margin: 0 auto;
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(70, 90, 120, 0.22);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: default;
+}
+.inviteHint {
+  margin: 10px auto 12px;
+  max-width: 30em;
+  color: #536943;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: center;
+}
+.inviteUrl {
+  display: grid;
+  gap: 6px;
+}
+.inviteUrl span {
+  color: #6b8a55;
+  font-size: 12px;
+  font-weight: 900;
+}
+.inviteUrl input {
+  width: 100%;
+  border: 1.5px solid rgba(92, 68, 36, 0.18);
+  border-radius: 10px;
+  padding: 9px 10px;
+  color: #315222;
+  background: #fff8e3;
+  font: 700 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.inviteLoading {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  color: #4f8a2f;
+  font-weight: 900;
+}
+.inviteActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid rgba(92, 68, 36, 0.12);
+}
+.invitePrimary,
+.inviteOutline {
+  width: 100%;
+  min-width: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.invitePrimary {
+  border: 0;
+  color: #fff7e2;
+  background: #5d9038;
+  box-shadow: 0 4px 0 #41702a, 0 8px 16px rgba(60, 50, 30, 0.24);
+}
+.inviteOutline {
+  border: 2px solid #5d9038;
+  color: #5d9038;
+  background: transparent;
+}
+.invitePrimary:disabled,
+.inviteOutline:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+:global(body.ac-fake-landscape) .inviteCard {
+  width: min(450px, calc(100vh - 24px));
+  max-height: calc(100vw - 24px);
+}
+@media (max-height: 500px), (max-width: 560px) {
+  .inviteSheet { align-items: flex-start; }
+  .invitePoster { width: min(100%, 230px); }
+  .inviteHead { padding: 11px 13px 8px; }
+  .inviteBody { padding: 10px 13px 12px; }
+  .inviteActions { padding: 10px 13px 13px; }
 }
 
 /* ===== selection motion — same spring as the formation diagram ===== */

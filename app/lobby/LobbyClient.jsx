@@ -33,10 +33,14 @@ export default function LobbyClient({ red, blue, side, ai, time }) {
   const [join, setJoin] = useState(null); // full http URL the phone opens
   const [qr, setQr] = useState(null); // data URL
   const [pads, setPads] = useState([]); // [{padId,name,slot,ready}]
+  const [lanStatus, setLanStatus] = useState({ state: "connecting", url: "" });
   const lanRef = useRef(null);
 
   useEffect(() => {
     const lan = createLanClient({
+      onStatus(status) {
+        setLanStatus(status);
+      },
       onMessage(msg) {
         if (msg.t === "hosted") {
           setRoom(msg.room);
@@ -84,7 +88,7 @@ export default function LobbyClient({ red, blue, side, ai, time }) {
           <section className="lb-card lb-join">
             <h2 className="lb-h2">{t("lan.scan")}</h2>
             <div className="lb-qr">
-              {qr ? <img src={qr} alt="join QR" /> : <div className="lb-qr-wait" />}
+              {qr ? <img src={qr} alt="join QR" /> : <QrFallback status={lanStatus} t={t} />}
             </div>
             <div className="lb-code">
               <span className="lb-code-label">{t("lan.code")}</span>
@@ -113,6 +117,19 @@ export default function LobbyClient({ red, blue, side, ai, time }) {
         </div>
       </div>
     </main>
+  );
+}
+
+function QrFallback({ status, t }) {
+  const waiting = status.state === "connecting" || status.state === "open";
+  if (waiting) return <div className="lb-qr-wait" aria-label={t("lan.connecting")} />;
+  return (
+    <div className="lb-qr-error">
+      <b>{t("lan.relayMissing")}</b>
+      <span>{t("lan.relayHelp")}</span>
+      <code>pnpm dev:lan</code>
+      {status.url ? <small>{status.url}</small> : null}
+    </div>
   );
 }
 

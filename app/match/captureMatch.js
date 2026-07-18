@@ -7,6 +7,7 @@
 // screenshot a live WebGL scene. The React HUD (scoreboard, buttons) is DOM and
 // never part of the extract, so we redraw just the score onto the capture.
 import { portraitSrc, runtimeHeadSrc } from "../data/teams";
+import { publicPath } from "../publicPath";
 
 function loadImg(src, fallback) {
   return new Promise((resolve) => {
@@ -61,8 +62,8 @@ export async function captureMatch(teams) {
   const [hr, hb, fr, fb] = await Promise.all([
     loadImg(portraitSrc(teams.red), runtimeHeadSrc(teams.red)),
     loadImg(portraitSrc(teams.blue), runtimeHeadSrc(teams.blue)),
-    loadImg(`/match-runtime-min/data/teams/${teams.red}/flag.png`),
-    loadImg(`/match-runtime-min/data/teams/${teams.blue}/flag.png`),
+    loadImg(publicPath(`/match-runtime-min/data/teams/${teams.red}/flag.png`)),
+    loadImg(publicPath(`/match-runtime-min/data/teams/${teams.blue}/flag.png`)),
   ]);
 
   // --- paper-craft score strip, centered at the top ---
@@ -157,7 +158,7 @@ export async function captureMatch(teams) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `animal-cup-${teams.red}-vs-${teams.blue}.png`;
+        a.download = `animal-football-${teams.red}-vs-${teams.blue}.png`;
         a.click();
         URL.revokeObjectURL(url);
       }

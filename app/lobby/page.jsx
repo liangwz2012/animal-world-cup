@@ -2,7 +2,7 @@ import LobbyClient from "./LobbyClient";
 import "./lobby.css";
 
 export const metadata = {
-  title: "Animal Cup · LAN",
+  title: "动物足球赛 · 联机房间",
 };
 
 // LAN lobby route. Reached from the Landing's "局域网联机" button carrying the

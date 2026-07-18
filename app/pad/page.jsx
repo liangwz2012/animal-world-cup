@@ -2,7 +2,7 @@ import PadClient from "./PadClient";
 import "./pad.css";
 
 export const metadata = {
-  title: "Animal Cup · Controller",
+  title: "动物足球赛 · 手机手柄",
 };
 
 // The phone-gamepad route. A phone reaches it as
