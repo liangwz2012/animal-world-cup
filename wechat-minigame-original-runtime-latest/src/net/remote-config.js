@@ -2,12 +2,13 @@
 // 策略：启动时先用上次缓存的配置"瞬时生效"，再后台拉新写入缓存供下次启动使用；
 // 任何拉取失败/超时/格式错误都回落本地，游戏永不因配置服务不可用而无法开局。
 //
-// ⚠️ 目标域名（默认 football.allrich.ai）必须登记在微信公众平台的 request 合法域名。
-// ⚠️ 远程只能调整已随包发布(已过审)的队伍；新增带美术的队伍须随版本重新提审，
+// 默认不在首发包里请求远程配置，避免未登记或失效域名让开发者工具和真机启动产生
+// 无意义的 request 合法域名报错。正式启用时仅通过全局注入一个已登记 HTTPS 地址。
+// 远程只能调整已随包发布(已过审)的队伍；新增带美术的队伍须随版本重新提审，
 //    合规守卫在 game-options.applyTeamOverrides 内实现（忽略本地不存在的新 id）。
 const { applyTeamOverrides } = require("../data/game-options");
 
-const PRODUCTION_CONFIG_URL = "https://football.allrich.ai/minigame-config/teams.json";
+const PRODUCTION_CONFIG_URL = "";
 const STORAGE_KEY = "animal-football:team-config";
 const REQUEST_TIMEOUT_MS = 6000;
 
@@ -46,12 +47,14 @@ function writeCachedConfig(wxApi, config) {
 function fetchConfig(wxApi, globalObject) {
   return new Promise((resolve) => {
     if (!wxApi || typeof wxApi.request !== "function") { resolve(null); return; }
+    const url = resolveConfigUrl(globalObject);
+    if (!url) { resolve(null); return; }
     let settled = false;
     const done = (value) => { if (!settled) { settled = true; resolve(value); } };
     const timer = setTimeout(() => done(null), REQUEST_TIMEOUT_MS);
     try {
       wxApi.request({
-        url: resolveConfigUrl(globalObject),
+        url,
         method: "GET",
         timeout: REQUEST_TIMEOUT_MS,
         success: (res) => {

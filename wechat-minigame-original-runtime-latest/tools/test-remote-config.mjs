@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { TEAMS, DEFAULT_TEAMS, applyTeamOverrides } = require("../src/data/game-options");
-const { initTeamConfig, isValidConfig } = require("../src/net/remote-config");
+const { initTeamConfig, isValidConfig, fetchConfig, PRODUCTION_CONFIG_URL } = require("../src/net/remote-config");
 
 const ids = () => TEAMS.map((t) => t.id);
 const byId = (id) => TEAMS.find((t) => t.id === id);
@@ -59,4 +59,10 @@ assert.equal(isValidConfig(null), false);
 const applied = await initTeamConfig(null, {});
 assert.equal(applied, false, "无 wx 环境后台拉取回落 false，不抛错");
 
-console.info("[test-remote-config] PASS：远程覆盖、合规守卫(忽略新id)、停用/排序、非法回落与无网兜底均正常");
+// 9) 首发包不探测未登记域名；只有上线后显式注入通过微信登记的 HTTPS 地址才允许请求。
+assert.equal(PRODUCTION_CONFIG_URL, "");
+let requestCalled = false;
+assert.equal(await fetchConfig({ request() { requestCalled = true; } }, {}), null);
+assert.equal(requestCalled, false, "未配置远程地址时不得发起请求");
+
+console.info("[test-remote-config] PASS：远程覆盖、合规守卫(忽略新id)、停用/排序、未配置远程地址与无网兜底均正常");

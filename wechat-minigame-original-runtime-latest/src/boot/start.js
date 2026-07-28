@@ -116,9 +116,13 @@ function loadRuntimeSubpackage(wxApi, onProgress) {
   setStage("A1_SUBPACKAGE_LOADING");
   return new Promise((resolve, reject) => {
     const task = wxApi.loadSubpackage({
-      name: "runtimeAssets",
+      // 分包别名必须与实际根目录一致。此前这里用 camelCase 别名，而根目录是
+      // runtime-assets；部分开发者工具会把它缓存成一个不存在的 JS 模块，之后即使
+      // 文件已经在磁盘上仍持续报 loadSubpackage:fail module not found。
+      // 统一为目录名后，工具和真机都按同一个物理分包入口解析。
+      name: "runtime-assets",
       success: resolve,
-      fail: (result) => reject(new Error(`runtimeAssets 分包加载失败: ${JSON.stringify(result || {})}`)),
+      fail: (result) => reject(new Error(`runtime-assets 分包加载失败: ${JSON.stringify(result || {})}`)),
     });
     if (task && task.onProgressUpdate) {
       task.onProgressUpdate((result) => {

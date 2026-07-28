@@ -3,7 +3,7 @@
   "showStatusBar": false,
   "subpackages": [
     {
-      "name": "runtimeAssets",
+      "name": "runtime-assets",
       "root": "runtime-assets"
     }
   ],
@@ -14,4 +14,3 @@
     "downloadFile": 30000
   }
 }
-

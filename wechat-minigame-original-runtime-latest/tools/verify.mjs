@@ -144,12 +144,12 @@ async function main() {
     .filter((item) => item.type === "folder")
     .map((item) => item.value));
   if (!ignoredFolders.has("server")) throw new Error("房间服务端目录必须从微信小游戏上传包中排除");
-  const runtimePackage = (gameConfig.subpackages || []).find((item) => item.name === "runtimeAssets");
+  const runtimePackage = (gameConfig.subpackages || []).find((item) => item.name === "runtime-assets");
   if (!runtimePackage || runtimePackage.root !== "runtime-assets") {
-    throw new Error("game.json 未正确声明 runtimeAssets 普通分包");
+    throw new Error("game.json 未正确声明 runtime-assets 普通分包");
   }
   if (runtimePackage.independent === true && subpackageBytes > 4 * 1024 * 1024) {
-    throw new Error(`runtimeAssets 被声明为独立分包且超过 4 MiB: ${subpackageBytes}`);
+    throw new Error(`runtime-assets 被声明为独立分包且超过 4 MiB: ${subpackageBytes}`);
   }
 
   console.info("[verify] PASS：动态代码、AMD 注入、主 Canvas 与资源键静态检查通过");
