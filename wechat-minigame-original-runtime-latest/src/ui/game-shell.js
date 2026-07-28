@@ -53,6 +53,27 @@ function normalizeFriendState(input, previous) {
   return merged;
 }
 
+function normalizeCampaignState(input) {
+  const source = input && typeof input === "object" ? input : {};
+  const season = source.season && typeof source.season === "object" ? source.season : {};
+  const daily = source.daily && typeof source.daily === "object" ? source.daily : {};
+  return {
+    season: {
+      seasonNumber: Math.max(1, Math.floor(Number(season.seasonNumber) || 1)),
+      completedRounds: Math.max(0, Math.min(5, Math.floor(Number(season.completedRounds) || 0))),
+      totalRounds: Math.max(1, Math.min(5, Math.floor(Number(season.totalRounds) || 5))),
+      complete: !!season.complete,
+      opponentName: typeof season.opponentName === "string" ? season.opponentName.slice(0, 12) : "",
+    },
+    daily: {
+      theme: typeof daily.theme === "string" ? daily.theme.slice(0, 12) : "今日挑战",
+      opponentName: typeof daily.opponentName === "string" ? daily.opponentName.slice(0, 12) : "",
+      attempts: Math.max(0, Math.floor(Number(daily.attempts) || 0)),
+      completed: !!daily.completed,
+    },
+  };
+}
+
 function point(touch) {
   return {
     x: Number(touch && (touch.clientX == null ? (touch.pageX == null ? touch.x : touch.pageX) : touch.clientX)) || 0,
@@ -120,6 +141,7 @@ function createGameShell(options) {
   let transitionLocked = false;
   let friendState = null;
   let leaderboardState = { metric: "points", model: null };
+  let campaignState = normalizeCampaignState(options.campaign);
   const textureCache = Object.create(null);
   const portraitPaths = Object.create(null);
   let onAction = typeof options.onAction === "function" ? options.onAction : () => {};
@@ -557,11 +579,24 @@ function createGameShell(options) {
     formationPreview(leftX, panelY, config.redFormation, "red", "red");
     formationPreview(rightX, panelY, config.blueFormation, "blue", "blue");
 
+    const season = campaignState.season;
+    const daily = campaignState.daily;
+    const seasonLabel = season.complete
+      ? `赛季征程 · 开启第 ${season.seasonNumber + 1} 赛季`
+      : season.opponentName
+        ? `赛季第 ${season.completedRounds + 1}/${season.totalRounds} 场 · 对阵${season.opponentName}`
+        : "赛季征程 · 5 场联赛";
+    const dailyLabel = daily.completed
+      ? "每日挑战 · 今日已完成"
+      : daily.opponentName
+      ? `每日挑战 · ${daily.theme} vs ${daily.opponentName}`
+      : "每日挑战 · 今日固定赛";
+    actionButton(330, 506, 290, seasonLabel, () => onAction("season", normalizeConfig(config)), { height: 36 });
+    actionButton(660, 506, 290, dailyLabel, () => onAction("daily", normalizeConfig(config)), { height: 36 });
+
     const diff = DIFFICULTIES.find((item) => item.value === config.ai);
     const matchTime = TIMES.find((item) => item.value === config.time);
-    const settingsY = 523;
-    const settingsLabel = center(text("比赛设置", 15, 0xe7f0b3, "800"), 640, settingsY - 8);
-    design.addChild(settingsLabel);
+    const settingsY = 552;
     settingButton(405, settingsY, 215, `难度  ${diff.label}`, () => {
       config.ai = cycle(DIFFICULTIES, config.ai, "value", 1);
       showHome(config);
@@ -1176,6 +1211,7 @@ function createGameShell(options) {
     get screen() { return screen; },
     get config() { return normalizeConfig(config); },
     get friendState() { return friendState ? Object.assign({}, friendState) : null; },
+    get campaign() { return normalizeCampaignState(campaignState); },
     setProgress,
     showLoading,
     showTransitionLoading(label) {
@@ -1183,6 +1219,10 @@ function createGameShell(options) {
     },
     whenPortraitsReady() { return portraitReady; },
     showHome,
+    setCampaignState(nextState) {
+      campaignState = normalizeCampaignState(nextState);
+      if (screen === "home") showHome(config);
+    },
     showLeaderboard,
     showFriendRoom,
     setFriendState(nextState) { showFriendRoom(nextState); },

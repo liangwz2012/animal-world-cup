@@ -1,13 +1,15 @@
 const { bootOriginalRuntime, reportFatal } = require("../boot/start");
 const { createGameShell } = require("../ui/game-shell");
 const { createMatchChrome } = require("../ui/match-chrome");
-const { defaults, formation, normalizeConfig } = require("../data/game-options");
+const { TEAMS, defaults, formation, normalizeConfig } = require("../data/game-options");
 const { SoundBank } = require("../audio/sound-bank");
 const { createFriendMatchCoordinator } = require("./friend-match-coordinator");
 const { initTeamConfig } = require("../net/remote-config");
 const { createPlayGate } = require("../monetize/play-gate");
 const { createLeaderboard } = require("../data/leaderboard");
 const { createLeaderboardClient } = require("../net/leaderboard-client");
+const { createSeasonJourney } = require("../data/season-journey");
+const { createDailyChallenge } = require("../data/daily-challenge");
 
 // 仅用于开发者工具无法把鼠标转换成 wx.onTouch 的衔接验收；提交前保持 false。
 const DEV_AUTO_START_AI = false;
@@ -22,6 +24,7 @@ function startAnimalFootballApp() {
   let activeChrome = null;
   let friendCoordinator = null;
   let devMatchStarts = 0;
+  let currentMatchStartedAt = 0;
   let currentConfig = normalizeConfig(defaults());
   const sound = new SoundBank(typeof wx !== "undefined" ? wx : null);
   // 排行榜的本地账本始终可用；头像/昵称只在用户主动点击加入排行榜后才请求。
@@ -30,6 +33,9 @@ function startAnimalFootballApp() {
     wxApi: typeof wx !== "undefined" ? wx : null,
     globalObject: typeof globalThis !== "undefined" ? globalThis : {},
   });
+  // 首发玩法进度只落本机；赛季/每日挑战不需要登录，也不触发头像昵称授权。
+  const seasonJourney = createSeasonJourney({ wxApi: typeof wx !== "undefined" ? wx : null });
+  const dailyChallenge = createDailyChallenge({ wxApi: typeof wx !== "undefined" ? wx : null });
   // 场次解锁：每日免费 N 局，用完后转发/看激励视频解锁（见 src/monetize/）。
   // 只拦「立即开赛/再来一局」的单机对局；观看对战与好友对战不消耗场次。
   // 面板用项目风格的 shell 卡片呈现（shell 未就绪时回落原生 ActionSheet）。
@@ -48,10 +54,41 @@ function startAnimalFootballApp() {
     startWatch() { return handleShellAction("watch", shell && shell.config); },
     inviteFriend() { return handleShellAction("invite", shell && shell.config); },
     leaderboard() { return leaderboard.snapshot(); },
+    season() { return seasonJourney.snapshot(); },
+    dailyChallenge() { return dailyChallenge.snapshot(); },
     get friend() { return friendCoordinator && friendCoordinator.diagnostics(); },
   };
   if (typeof globalThis !== "undefined") globalThis.__ANIMAL_FOOTBALL_APP__ = diagnostics;
   if (typeof GameGlobal !== "undefined") GameGlobal.__ANIMAL_FOOTBALL_APP__ = diagnostics;
+
+  function teamName(id) {
+    const team = TEAMS.find((item) => item.id === id);
+    return team ? team.name : "";
+  }
+
+  function campaignView() {
+    const season = seasonJourney.snapshot();
+    const daily = dailyChallenge.snapshot();
+    return {
+      season: {
+        seasonNumber: season.seasonNumber,
+        completedRounds: season.completedRounds,
+        totalRounds: season.totalRounds,
+        complete: season.complete,
+        opponentName: season.nextRound ? teamName(season.nextRound.opponent) : "",
+      },
+      daily: {
+        theme: daily.challenge.theme,
+        opponentName: teamName(daily.challenge.blueTeam),
+        attempts: daily.attempts,
+        completed: !!(daily.best && daily.best.complete),
+      },
+    };
+  }
+
+  function refreshCampaignUi() {
+    if (shell && typeof shell.setCampaignState === "function") shell.setCampaignState(campaignView());
+  }
 
   function beginMatch(config) {
     const normalized = normalizeConfig(config);
@@ -59,7 +96,8 @@ function startAnimalFootballApp() {
     console.info("[animal-football-app] BEGIN_MATCH", JSON.stringify(normalized));
     if (!shell || !runtime) return;
     // 场次闸门：仅单机「立即开赛/再来一局」消耗场次；观看/好友对战放行。
-    if (normalized.mode !== "watch" && (normalized.syncRole || "off") === "off") {
+    // 每日挑战允许不限次数重试，不能被普通“立即开赛”的场次闸门卡住。
+    if (normalized.journeyMode !== "daily" && normalized.mode !== "watch" && (normalized.syncRole || "off") === "off") {
       const gate = playGate.tryConsume();
       if (!gate.ok) {
         console.info("[animal-football-app] PLAY_GATE_BLOCKED", JSON.stringify(gate.state));
@@ -73,6 +111,7 @@ function startAnimalFootballApp() {
         return;
       }
     }
+    currentMatchStartedAt = Date.now();
     const existingGame = gameObject();
     if (existingGame && shell.screen !== "home") {
       shell.attachLoadingToGame(existingGame, "正在加载比赛场景");
@@ -140,6 +179,68 @@ function startAnimalFootballApp() {
     }).catch((error) => console.warn("[animal-football-app] 提交排行榜成绩失败", error && error.message || error));
   }
 
+  function startSoloMatch(config) {
+    if (shell && typeof shell.hasSeenTutorial === "function"
+      && !shell.hasSeenTutorial() && typeof shell.showTutorial === "function") {
+      shell.showTutorial(() => beginMatch(config));
+      return;
+    }
+    beginMatch(config);
+  }
+
+  function startSeason(config) {
+    try {
+      const season = seasonJourney.snapshot();
+      if (season.complete) seasonJourney.startNextSeason();
+      const prepared = seasonJourney.prepareMatch({
+        teamId: config.redTeam,
+        teamIds: TEAMS.map((team) => team.id),
+        redFormation: config.redFormation,
+        blueFormation: config.blueFormation,
+      });
+      refreshCampaignUi();
+      startSoloMatch(normalizeConfig(Object.assign({}, config, prepared)));
+    } catch (error) {
+      const message = error && error.message || "暂时无法开始赛季征程";
+      if (typeof wx !== "undefined" && wx.showToast) wx.showToast({ title: message, icon: "none" });
+      else console.warn("[animal-football-app]", message);
+    }
+  }
+
+  function startDailyChallenge(config) {
+    try {
+      const prepared = dailyChallenge.prepareMatch();
+      refreshCampaignUi();
+      startSoloMatch(normalizeConfig(Object.assign({}, config, prepared)));
+    } catch (error) {
+      const message = error && error.message || "暂时无法开始每日挑战";
+      if (typeof wx !== "undefined" && wx.showToast) wx.showToast({ title: message, icon: "none" });
+      else console.warn("[animal-football-app]", message);
+    }
+  }
+
+  function recordCampaignResult(detail, resultConfig) {
+    const config = resultConfig || currentConfig;
+    const elapsedMs = currentMatchStartedAt ? Math.max(0, Date.now() - currentMatchStartedAt) : 0;
+    let result = null;
+    if (config && config.journeyMode === "season") result = seasonJourney.recordMatch(detail, config);
+    if (config && config.journeyMode === "daily") result = dailyChallenge.recordMatch(detail, config, { elapsedMs });
+    currentMatchStartedAt = 0;
+    if (result && result.accepted) {
+      refreshCampaignUi();
+      console.info("[animal-football-app] CAMPAIGN_MATCH_RECORDED", config.journeyMode, JSON.stringify(result));
+      if (typeof wx !== "undefined" && wx.showToast) {
+        const title = config.journeyMode === "season"
+          ? result.completed ? `赛季完赛：第 ${result.rank} 名` : "赛季进度已保存"
+          : result.candidate && result.candidate.complete
+            ? result.improved ? "挑战成功，刷新最佳" : "挑战成功"
+            : "成绩已记录，再来一次";
+        try { wx.showToast({ title, icon: "none", duration: 1800 }); } catch (error) {}
+      }
+    }
+    return result;
+  }
+
   function handleShellAction(action, config, payload) {
     console.info("[animal-football-app] SHELL_ACTION", action);
     if (action === "leaderboard") {
@@ -163,16 +264,19 @@ function startAnimalFootballApp() {
       return;
     }
     if (friendCoordinator && friendCoordinator.handleAction(action, config)) return;
+    if (action === "season") {
+      startSeason(config);
+      return;
+    }
+    if (action === "daily") {
+      startDailyChallenge(config);
+      return;
+    }
     if (action === "watch" || action === "ai") {
       // 顺序：先选队 → 首次"立即开赛"前插入操作教学 → 学完立刻开赛。
       // 这样"怎么玩"学完马上就用，不再出现"先教学、再回去选队"的脱节。
-      if (action === "ai" && shell && typeof shell.hasSeenTutorial === "function"
-        && !shell.hasSeenTutorial() && typeof shell.showTutorial === "function") {
-        const pendingConfig = config;
-        shell.showTutorial(() => beginMatch(pendingConfig));
-        return;
-      }
-      beginMatch(config);
+      if (action === "ai") startSoloMatch(config);
+      else beginMatch(config);
     }
   }
 
@@ -196,6 +300,7 @@ function startAnimalFootballApp() {
     const config = normalizeConfig(nextConfig || currentConfig || defaults());
     const game = gameObject();
     destroyChromeAndControls();
+    refreshCampaignUi();
     if (game && game.stage) shell.attachHomeToGame(game, config);
     else shell.showHome(config);
   }
@@ -246,6 +351,7 @@ function startAnimalFootballApp() {
         resolution: Math.min(Number(context.inputHost.devicePixelRatio) || 1, 3),
         pixelRatio: Math.max(1, Number(context.inputHost.devicePixelRatio) || 1),
         config: defaults(),
+        campaign: campaignView(),
         onAction: handleShellAction,
         requestFrame: context.inputHost.requestAnimationFrame && context.inputHost.requestAnimationFrame.bind(context.inputHost),
         cancelFrame: context.inputHost.cancelAnimationFrame && context.inputHost.cancelAnimationFrame.bind(context.inputHost),
@@ -306,6 +412,7 @@ function startAnimalFootballApp() {
           const recorded = leaderboard.recordMatch(detail, currentConfig);
           if (recorded.accepted) console.info("[animal-football-app] LEADERBOARD_MATCH_RECORDED", JSON.stringify(recorded.match));
           submitRankedResult(recorded, currentConfig);
+          recordCampaignResult(detail, currentConfig);
           if (friendCoordinator) friendCoordinator.handleMatchEnded(detail);
         },
       });

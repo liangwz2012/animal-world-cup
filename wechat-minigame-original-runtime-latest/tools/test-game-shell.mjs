@@ -179,6 +179,18 @@ canvasListeners.mousedown({ clientX: 250, clientY: 363 });
 await new Promise((resolve) => setTimeout(resolve, 130));
 assert.equal(action, "watch", "开发者工具 Canvas 鼠标必须命中观看对战按钮");
 
+// 首发玩法入口必须保持横版并且不挤走“立即开赛 / 排行榜”。
+action = null;
+shell.showHome(defaults());
+canvasListeners.mousedown({ clientX: 360, clientY: 299 });
+await new Promise((resolve) => setTimeout(resolve, 130));
+assert.equal(action, "season", "横版主页必须可直接进入赛季征程");
+action = null;
+shell.showHome(defaults());
+canvasListeners.mousedown({ clientX: 550, clientY: 299 });
+await new Promise((resolve) => setTimeout(resolve, 130));
+assert.equal(action, "daily", "横版主页必须可直接进入每日挑战");
+
 action = null;
 shell.showHome(defaults());
 canvasListeners.mousedown({ clientX: 716, clientY: 363 });
