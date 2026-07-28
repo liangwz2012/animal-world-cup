@@ -6,6 +6,8 @@ const { SoundBank } = require("../audio/sound-bank");
 const { createFriendMatchCoordinator } = require("./friend-match-coordinator");
 const { initTeamConfig } = require("../net/remote-config");
 const { createPlayGate } = require("../monetize/play-gate");
+const { createLeaderboard } = require("../data/leaderboard");
+const { createLeaderboardClient } = require("../net/leaderboard-client");
 
 // 仅用于开发者工具无法把鼠标转换成 wx.onTouch 的衔接验收；提交前保持 false。
 const DEV_AUTO_START_AI = false;
@@ -22,6 +24,12 @@ function startAnimalFootballApp() {
   let devMatchStarts = 0;
   let currentConfig = normalizeConfig(defaults());
   const sound = new SoundBank(typeof wx !== "undefined" ? wx : null);
+  // 排行榜的本地账本始终可用；头像/昵称只在用户主动点击加入排行榜后才请求。
+  const leaderboard = createLeaderboard({ wxApi: typeof wx !== "undefined" ? wx : null });
+  const leaderboardClient = createLeaderboardClient({
+    wxApi: typeof wx !== "undefined" ? wx : null,
+    globalObject: typeof globalThis !== "undefined" ? globalThis : {},
+  });
   // 场次解锁：每日免费 N 局，用完后转发/看激励视频解锁（见 src/monetize/）。
   // 只拦「立即开赛/再来一局」的单机对局；观看对战与好友对战不消耗场次。
   // 面板用项目风格的 shell 卡片呈现（shell 未就绪时回落原生 ActionSheet）。
@@ -39,6 +47,7 @@ function startAnimalFootballApp() {
     startAi() { return handleShellAction("ai", shell && shell.config); },
     startWatch() { return handleShellAction("watch", shell && shell.config); },
     inviteFriend() { return handleShellAction("invite", shell && shell.config); },
+    leaderboard() { return leaderboard.snapshot(); },
     get friend() { return friendCoordinator && friendCoordinator.diagnostics(); },
   };
   if (typeof globalThis !== "undefined") globalThis.__ANIMAL_FOOTBALL_APP__ = diagnostics;
@@ -104,8 +113,55 @@ function startAnimalFootballApp() {
     }, 190);
   }
 
-  function handleShellAction(action, config) {
+  function showLeaderboard(metric) {
+    if (!shell || typeof shell.showLeaderboard !== "function") return;
+    shell.showLeaderboard(leaderboard.snapshot());
+    if (!leaderboardClient.available()) return;
+    leaderboardClient.fetchLeaderboard(metric || "points").then((result) => {
+      if (!shell || typeof shell.showLeaderboard !== "function") return;
+      shell.showLeaderboard(Object.assign({}, leaderboard.snapshot(), {
+        online: !!result.online,
+        remoteRows: result.rows || [],
+        remoteSelf: result.self || null,
+        remoteMetric: result.metric || metric || "points",
+      }));
+    }).catch((error) => console.warn("[animal-football-app] 拉取排行榜失败", error && error.message || error));
+  }
+
+  function submitRankedResult(recorded, matchConfig) {
+    const profile = leaderboard.snapshot().profile;
+    const rankedMatchId = matchConfig && matchConfig.rankedMatchId;
+    // 普通单机和好友房都只记本机/好友战绩。只有后续“排位赛”流程签发的 rankedMatchId
+    // 才允许提交全服榜，不能把客户端可伪造或可对刷的结果混进公开排名。
+    if (!recorded || !recorded.accepted || !rankedMatchId || !profile.nickname || !leaderboardClient.available()) return;
+    leaderboardClient.submitResult({
+      matchId: rankedMatchId,
+      score: { mine: recorded.match.mine, opponent: recorded.match.opponent },
+    }).catch((error) => console.warn("[animal-football-app] 提交排行榜成绩失败", error && error.message || error));
+  }
+
+  function handleShellAction(action, config, payload) {
     console.info("[animal-football-app] SHELL_ACTION", action);
+    if (action === "leaderboard") {
+      showLeaderboard("points");
+      return;
+    }
+    if (action === "leaderboard-metric") {
+      showLeaderboard(payload && payload.metric || "points");
+      return;
+    }
+    if (action === "leaderboard-profile") {
+      leaderboard.requestProfile().then(() => {
+        const profile = leaderboard.snapshot().profile;
+        showLeaderboard("points");
+        if (!leaderboardClient.available()) return null;
+        return leaderboardClient.updateProfile(profile).then(() => showLeaderboard("points"));
+      }).catch((error) => {
+        const message = error && error.message || "暂未获取到昵称和头像";
+        if (typeof wx !== "undefined" && wx.showToast) wx.showToast({ title: message, icon: "none" });
+      });
+      return;
+    }
     if (friendCoordinator && friendCoordinator.handleAction(action, config)) return;
     if (action === "watch" || action === "ai") {
       // 顺序：先选队 → 首次"立即开赛"前插入操作教学 → 学完立刻开赛。
@@ -207,6 +263,11 @@ function startAnimalFootballApp() {
         showMatchResult(result) {
           if (activeChrome && result) activeChrome.showResult(result);
         },
+        onMatchResult(result, resultConfig) {
+          const recorded = leaderboard.recordMatch(result, resultConfig || currentConfig);
+          if (recorded.accepted) console.info("[animal-football-app] LEADERBOARD_MATCH_RECORDED", JSON.stringify(recorded.match));
+          submitRankedResult(recorded, resultConfig || currentConfig);
+        },
       });
       if (context.wxApi && typeof context.wxApi.onShow === "function") {
         context.wxApi.onShow((entry) => {
@@ -242,6 +303,9 @@ function startAnimalFootballApp() {
         onHome: returnHome,
         onRematch: rematch,
         onMatchEnded(detail) {
+          const recorded = leaderboard.recordMatch(detail, currentConfig);
+          if (recorded.accepted) console.info("[animal-football-app] LEADERBOARD_MATCH_RECORDED", JSON.stringify(recorded.match));
+          submitRankedResult(recorded, currentConfig);
           if (friendCoordinator) friendCoordinator.handleMatchEnded(detail);
         },
       });

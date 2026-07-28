@@ -119,6 +119,7 @@ function createGameShell(options) {
   let runtimeLoadingOverlay = null;
   let transitionLocked = false;
   let friendState = null;
+  let leaderboardState = { metric: "points", model: null };
   const textureCache = Object.create(null);
   const portraitPaths = Object.create(null);
   let onAction = typeof options.onAction === "function" ? options.onAction : () => {};
@@ -516,6 +517,7 @@ function createGameShell(options) {
     addBackground();
     const title = center(text("选择对战球队", 36, 0xfff8d7, "900"), 640, 34);
     design.addChild(title);
+    actionButton(1088, 13, 140, "排行榜", () => onAction("leaderboard", normalizeConfig(config)), { height: 38 });
 
     const panelY = 64;
     const panelW = 512;
@@ -585,6 +587,169 @@ function createGameShell(options) {
     }
     const hint = center(text("选择球队与阵型后开始比赛", 15, 0xe7f0b3, "700"), 640, 688);
     design.addChild(hint);
+  }
+
+  function normalizedLeaderboardModel(input) {
+    const model = input && typeof input === "object" ? input : {};
+    const stats = model.stats && typeof model.stats === "object" ? model.stats : {};
+    const profile = model.profile && typeof model.profile === "object" ? model.profile : {};
+    const values = model.values && typeof model.values === "object" ? model.values : {};
+    const metrics = Array.isArray(model.metrics) ? model.metrics : [];
+    return {
+      profile: {
+        nickname: typeof profile.nickname === "string" ? profile.nickname.slice(0, 16) : "",
+        avatarUrl: typeof profile.avatarUrl === "string" ? profile.avatarUrl : "",
+      },
+      stats: {
+        matches: Math.max(0, Number(stats.matches) || 0),
+        wins: Math.max(0, Number(stats.wins) || 0),
+        draws: Math.max(0, Number(stats.draws) || 0),
+        losses: Math.max(0, Number(stats.losses) || 0),
+        goalsFor: Math.max(0, Number(stats.goalsFor) || 0),
+        goalsAgainst: Math.max(0, Number(stats.goalsAgainst) || 0),
+        cleanSheets: Math.max(0, Number(stats.cleanSheets) || 0),
+        points: Math.max(0, Number(stats.points) || 0),
+        bestWinStreak: Math.max(0, Number(stats.bestWinStreak) || 0),
+      },
+      values,
+      metrics: metrics.filter((metric) => metric && typeof metric.id === "string").slice(0, 6),
+      qualified: !!model.qualified,
+      matchesUntilQualified: Math.max(0, Number(model.matchesUntilQualified) || 0),
+      online: !!model.online,
+      remoteMetric: typeof model.remoteMetric === "string" ? model.remoteMetric : "",
+      remoteSelf: model.remoteSelf && typeof model.remoteSelf === "object" ? model.remoteSelf : null,
+      remoteRows: Array.isArray(model.remoteRows)
+        ? model.remoteRows.filter((row) => row && typeof row.nickname === "string").slice(0, 5)
+        : [],
+    };
+  }
+
+  function showLeaderboard(nextModel) {
+    leaderboardState.model = normalizedLeaderboardModel(nextModel || leaderboardState.model);
+    const model = leaderboardState.model;
+    if (!model.metrics.some((metric) => metric.id === leaderboardState.metric)) {
+      leaderboardState.metric = model.metrics[0] && model.metrics[0].id || "points";
+    }
+    showHome(config);
+    screen = "leaderboard";
+    transitionLocked = false;
+    hitAreas = [];
+
+    const shade = new PIXI.Graphics();
+    shade.beginFill(0x15220e, 0.78);
+    shade.drawRect(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT);
+    shade.endFill();
+    design.addChild(shade);
+    const cardX = 136;
+    const cardY = 56;
+    const cardW = 1008;
+    const cardH = 608;
+    rounded(design, cardX + 8, cardY + 11, cardW, cardH, 30, 0x111b0b, 0.32, 0, 0, 0);
+    rounded(design, cardX, cardY, cardW, cardH, 28, 0xfffef8, 1, 0xe2d7b9, 1, 4);
+    const title = center(text("动物足球赛 · 排行榜", 30, 0x31481f, "900"), 640, cardY + 42);
+    design.addChild(title);
+
+    const profileX = cardX + 42;
+    const profileY = cardY + 88;
+    const profileW = 248;
+    rounded(design, profileX, profileY, profileW, 428, 20, 0xf2f7e5, 1, 0xc8d5ad, 1, 2.5);
+    const avatar = new PIXI.Graphics();
+    avatar.beginFill(0x6aa843, 0.18);
+    avatar.drawCircle(profileX + profileW / 2, profileY + 67, 43);
+    avatar.endFill();
+    design.addChild(avatar);
+    if (model.profile.avatarUrl) {
+      const profileAvatar = sprite(model.profile.avatarUrl, profileX + profileW / 2, profileY + 67, 78, 78);
+      profileAvatar.alpha = 0.98;
+    }
+    const nickname = model.profile.nickname || "未加入排行榜";
+    const nicknameText = center(text(nickname, 21, 0x31481f, "900"), profileX + profileW / 2, profileY + 130);
+    design.addChild(nicknameText);
+    const total = center(text(`已完成 ${model.stats.matches} 场`, 15, 0x71805e, "700"), profileX + profileW / 2, profileY + 157);
+    design.addChild(total);
+    const overview = [
+      ["积分", model.stats.points],
+      ["胜 / 平 / 负", `${model.stats.wins} / ${model.stats.draws} / ${model.stats.losses}`],
+      ["进球 / 失球", `${model.stats.goalsFor} / ${model.stats.goalsAgainst}`],
+      ["最佳连胜", model.stats.bestWinStreak],
+      ["零封", model.stats.cleanSheets],
+    ];
+    overview.forEach(([label, value], index) => {
+      const y = profileY + 206 + index * 42;
+      const left = text(label, 15, 0x71805e, "700");
+      left.position.set(profileX + 24, y);
+      const right = text(String(value), 16, 0x31481f, "900");
+      if (right.anchor && right.anchor.set) right.anchor.set(1, 0);
+      right.position.set(profileX + profileW - 24, y);
+      design.addChild(left, right);
+    });
+    if (!model.profile.nickname) {
+      actionButton(profileX + 23, profileY + 354, profileW - 46, "加入排行榜", () => onAction("leaderboard-profile", normalizeConfig(config)), { primary: true, height: 48 });
+    }
+
+    const contentX = cardX + 324;
+    const contentW = cardW - 366;
+    const tabs = model.metrics.length ? model.metrics : [{ id: "points", label: "积分", suffix: "" }];
+    const tabW = Math.floor((contentW - 10 * (tabs.length - 1)) / tabs.length);
+    tabs.forEach((metric, index) => {
+      const x = contentX + index * (tabW + 10);
+      const active = leaderboardState.metric === metric.id;
+      rounded(design, x, profileY, tabW, 43, 19, active ? 0x5d9038 : 0xf8faef, 1, active ? 0x426d2a : 0xcbd7b2, 1, 2);
+      const label = center(text(metric.label, 16, active ? 0xfff7e2 : 0x405632, "800"), x + tabW / 2, profileY + 21);
+      design.addChild(label);
+      addHit(x, profileY, tabW, 43, () => {
+        leaderboardState.metric = metric.id;
+        showLeaderboard(model);
+        onAction("leaderboard-metric", normalizeConfig(config), { metric: metric.id });
+      }, true);
+    });
+    const activeMetric = tabs.find((metric) => metric.id === leaderboardState.metric) || tabs[0];
+    const currentValue = model.values[activeMetric.id] == null ? 0 : model.values[activeMetric.id];
+    const heading = center(text(`${activeMetric.label}榜`, 25, 0x31481f, "900"), contentX + contentW / 2, profileY + 99);
+    const value = center(text(`${currentValue}${activeMetric.suffix || ""}`, 54, 0x5d9038, "900"), contentX + contentW / 2, profileY + 157);
+    design.addChild(heading, value);
+    const sub = center(text(
+      model.qualified
+        ? "本机赛季数据已达标；排位赛上线后可提交全服榜"
+        : `再完成 ${model.matchesUntilQualified} 场可满足后续全服榜准入条件`,
+      17,
+      0x71805e,
+      "700",
+    ), contentX + contentW / 2, profileY + 205);
+    design.addChild(sub);
+    rounded(design, contentX, profileY + 238, contentW, 190, 18, 0xf2f7e5, 1, 0xc8d5ad, 1, 2);
+    const rankTitle = center(text("全服榜单", 21, 0x31481f, "900"), contentX + contentW / 2, profileY + 274);
+    design.addChild(rankTitle);
+    const onlineRows = model.online && model.remoteMetric === activeMetric.id ? model.remoteRows : [];
+    if (onlineRows.length) {
+      onlineRows.slice(0, 3).forEach((row, index) => {
+        const y = profileY + 306 + index * 36;
+        const rank = text(String(row.rank || index + 1), 16, index === 0 ? 0xc4821b : 0x71805e, "900");
+        rank.position.set(contentX + 26, y);
+        const name = text(row.nickname, 16, row.self ? 0x5d9038 : 0x31481f, "800");
+        name.position.set(contentX + 68, y);
+        const valueText = text(`${row.value}${activeMetric.suffix || ""}`, 17, 0x31481f, "900");
+        if (valueText.anchor && valueText.anchor.set) valueText.anchor.set(1, 0);
+        valueText.position.set(contentX + contentW - 28, y);
+        design.addChild(rank, name, valueText);
+      });
+      if (model.remoteSelf && !onlineRows.some((row) => row.self)) {
+        const selfText = center(text(`我的全服排名：第 ${model.remoteSelf.rank} 名`, 14, 0x71805e, "700"), contentX + contentW / 2, profileY + 408);
+        design.addChild(selfText);
+      }
+    } else {
+      const status = center(text(
+        model.online
+          ? "暂无有效排位赛数据；好友局和普通局不会进入全服榜。"
+          : "榜单服务将在上线域名配置完成后自动同步；当前战绩已安全保存在本机。",
+        16,
+        0x71805e,
+        "700",
+      ), contentX + contentW / 2, profileY + 326);
+      const honest = center(text("不会用虚构玩家或假排名填充榜单", 14, 0x9aa383, "700"), contentX + contentW / 2, profileY + 357);
+      design.addChild(status, honest);
+    }
+    actionButton(contentX + 130, profileY + 465, contentW - 260, "返回选队", () => showHome(config), { height: 48 });
   }
 
   function roomAction(type, configOverride) {
@@ -1006,6 +1171,7 @@ function createGameShell(options) {
     },
     whenPortraitsReady() { return portraitReady; },
     showHome,
+    showLeaderboard,
     showFriendRoom,
     setFriendState(nextState) { showFriendRoom(nextState); },
     setActionHandler(handler) { onAction = typeof handler === "function" ? handler : () => {}; },

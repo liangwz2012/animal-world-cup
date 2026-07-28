@@ -136,6 +136,24 @@ for (const teamId of ["england", "france", "germany", "spain", "portugal", "braz
   assert.ok(imagePaths.includes(`shell-assets/portraits/${teamId}.png`), `${teamId} 头像必须从主包加载`);
 }
 
+// 横版主页面必须可以进入排行榜；排行榜覆盖层不应破坏已有选队操作。
+action = null;
+canvasListeners.mousedown({ clientX: 780, clientY: 20 });
+await new Promise((resolve) => setTimeout(resolve, 130));
+assert.equal(action, "leaderboard", "横版主页右上角必须提供排行榜入口");
+shell.showLeaderboard({
+  profile: { nickname: "雄狮队长", avatarUrl: "https://wx.qlogo.cn/a.png" },
+  stats: { matches: 5, wins: 3, draws: 1, losses: 1, goalsFor: 7, goalsAgainst: 3, cleanSheets: 3, points: 10, bestWinStreak: 2 },
+  values: { points: 10, wins: 3, goals: 7, winRate: 60, cleanSheets: 3, streak: 2 },
+  metrics: [{ id: "points", label: "积分" }, { id: "wins", label: "胜场" }],
+  qualified: true,
+  online: true,
+  remoteMetric: "points",
+  remoteRows: [{ rank: 1, nickname: "雄狮队长", value: 10, self: true }],
+});
+assert.equal(shell.screen, "leaderboard", "排行榜必须保持横版遮罩界面");
+shell.showHome(defaults());
+
 // Android 某些基础库会返回设备物理像素，而 Canvas 为节省性能只按 2 倍渲染。
 // 金色“立即开赛”几何中心为 (640, 635)，换算 3 倍设备像素约 (1373, 1090)。
 touchStart({ touches: [{ clientX: 1373, clientY: 1090 }] });

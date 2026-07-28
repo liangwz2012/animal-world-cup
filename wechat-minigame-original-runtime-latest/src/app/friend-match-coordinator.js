@@ -429,6 +429,9 @@ function createFriendMatchCoordinator(options) {
       }
       return;
     }
+    if (message && message.phase === "friend" && message.result && typeof opts.onMatchResult === "function") {
+      opts.onMatchResult(message.result, frozenConfig);
+    }
     if (message && message.phase === "friend" && message.result && typeof opts.showMatchResult === "function") {
       opts.showMatchResult(message.result);
     }

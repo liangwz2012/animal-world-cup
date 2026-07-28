@@ -61,6 +61,7 @@ assets/
 AGENTS.md
 .project
 .wechat-minigame-original-runtime-latest-build/
+wechat-minigame-original-runtime-latest/server/data/
 
 # Engine source + build pipeline — LOCAL ONLY, never tracked / never remixed.
 # The deploy serves the pre-built, committed public/match-runtime-min/ output;
