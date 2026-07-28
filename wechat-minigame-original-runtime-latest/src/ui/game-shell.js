@@ -463,6 +463,9 @@ function createGameShell(options) {
     const opts = options || {};
     const primary = !!opts.primary;
     const enabled = opts.enabled !== false;
+    // 返回/取消类操作不能被异步授权、网络失败等遗留的按钮锁永久吞掉。
+    const bypassTransitionLock = !!opts.bypassTransitionLock;
+    const releaseLockAfterAction = !!opts.releaseLockAfterAction;
     const h = opts.height || 50;
     const radius = h / 2;
     const shadow = rounded(
@@ -494,8 +497,8 @@ function createGameShell(options) {
     const labelText = center(text(label, primary ? 23 : 19, enabled ? (primary ? 0x314518 : 0x31481f) : 0x777970, "900"), x + w / 2, y + h / 2);
     design.addChild(labelText);
     addHit(x, y, w, h, () => {
-      if (transitionLocked) return;
-      transitionLocked = true;
+      if (transitionLocked && !bypassTransitionLock) return;
+      if (!bypassTransitionLock) transitionLocked = true;
       bg.clear();
       bg.lineStyle(primary ? 4 : 3, primary ? 0xb85f19 : 0x426d2a, 1);
       bg.beginFill(primary ? 0xf2a62a : 0x5d9038, 1);
@@ -504,7 +507,10 @@ function createGameShell(options) {
       labelText.style.fill = primary ? 0x314518 : 0xfff7e2;
       shadow.alpha = primary ? 0.16 : 0.08;
       renderer.render(stage);
-      setTimeout(action, 110);
+      setTimeout(() => {
+        action();
+        if (releaseLockAfterAction) transitionLocked = false;
+      }, 110);
     }, enabled);
   }
 
@@ -517,7 +523,6 @@ function createGameShell(options) {
     addBackground();
     const title = center(text("选择对战球队", 36, 0xfff8d7, "900"), 640, 34);
     design.addChild(title);
-    actionButton(1088, 13, 140, "排行榜", () => onAction("leaderboard", normalizeConfig(config)), { height: 38 });
 
     const panelY = 64;
     const panelW = 512;
@@ -569,16 +574,19 @@ function createGameShell(options) {
     const actionY = 610;
     const sideW = 240;
     const startW = 340;
-    const actionGap = 36;
-    // 入口关闭时（提审版）退为两键布局；恢复入口只需把 FRIEND_ENTRY_ENABLED 改回 true。
+    const actionGap = friendEntryEnabled ? 28 : 36;
+    // 提审版为“观看对战 / 立即开赛 / 排行榜”三键对称布局；排行榜紧贴在立即开赛右侧。
+    // 好友入口恢复后继续排在排行榜右侧，不会破坏主入口的相邻关系。
     const groupW = friendEntryEnabled
-      ? sideW * 2 + startW + actionGap * 2
-      : sideW + startW + actionGap;
+      ? sideW * 3 + startW + actionGap * 3
+      : sideW * 2 + startW + actionGap * 2;
     const actionX = (DESIGN_WIDTH - groupW) / 2;
     actionButton(actionX, actionY, sideW, "观看对战", () => onAction("watch", normalizeConfig(Object.assign({}, config, { mode: "watch" }))));
     actionButton(actionX + sideW + actionGap, actionY - 5, startW, "立即开赛", () => onAction("ai", normalizeConfig(Object.assign({}, config, { mode: "ai" }))), { primary: true, height: 60 });
+    const leaderboardX = actionX + sideW + actionGap + startW + actionGap;
+    actionButton(leaderboardX, actionY, sideW, "排行榜", () => onAction("leaderboard", normalizeConfig(config)));
     if (friendEntryEnabled) {
-      actionButton(actionX + sideW + actionGap + startW + actionGap, actionY, sideW, "好友对战", () => {
+      actionButton(leaderboardX + sideW + actionGap, actionY, sideW, "好友对战", () => {
         const frozenConfig = normalizeConfig(Object.assign({}, config, { mode: "friend" }));
         config = frozenConfig;
         showFriendRoom({ status: "creating", role: "host", message: "正在创建专属房间…" });
@@ -684,7 +692,7 @@ function createGameShell(options) {
       design.addChild(left, right);
     });
     if (!model.profile.nickname) {
-      actionButton(profileX + 23, profileY + 354, profileW - 46, "加入排行榜", () => onAction("leaderboard-profile", normalizeConfig(config)), { primary: true, height: 48 });
+      actionButton(profileX + 23, profileY + 354, profileW - 46, "加入排行榜", () => onAction("leaderboard-profile", normalizeConfig(config)), { primary: true, height: 48, releaseLockAfterAction: true });
     }
 
     const contentX = cardX + 324;
@@ -749,7 +757,11 @@ function createGameShell(options) {
       const honest = center(text("不会用虚构玩家或假排名填充榜单", 14, 0x9aa383, "700"), contentX + contentW / 2, profileY + 357);
       design.addChild(status, honest);
     }
-    actionButton(contentX + 130, profileY + 465, contentW - 260, "返回选队", () => showHome(config), { height: 48 });
+    actionButton(contentX + 130, profileY + 465, contentW - 260, "返回选队", () => showHome(config), {
+      height: 48,
+      bypassTransitionLock: true,
+      releaseLockAfterAction: true,
+    });
   }
 
   function roomAction(type, configOverride) {

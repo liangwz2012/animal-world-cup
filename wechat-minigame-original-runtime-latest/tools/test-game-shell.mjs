@@ -136,13 +136,13 @@ for (const teamId of ["england", "france", "germany", "spain", "portugal", "braz
   assert.ok(imagePaths.includes(`shell-assets/portraits/${teamId}.png`), `${teamId} 头像必须从主包加载`);
 }
 
-// 横版主页面必须可以进入排行榜；排行榜覆盖层不应破坏已有选队操作。
+// 横版主页面必须在“立即开赛”的右侧提供排行榜；排行榜覆盖层不应破坏已有选队操作。
 action = null;
-canvasListeners.mousedown({ clientX: 780, clientY: 20 });
+canvasListeners.mousedown({ clientX: 563, clientY: 363 });
 await new Promise((resolve) => setTimeout(resolve, 130));
-assert.equal(action, "leaderboard", "横版主页右上角必须提供排行榜入口");
+assert.equal(action, "leaderboard", "横版主页立即开赛右侧必须提供排行榜入口");
 shell.showLeaderboard({
-  profile: { nickname: "雄狮队长", avatarUrl: "https://wx.qlogo.cn/a.png" },
+  profile: {},
   stats: { matches: 5, wins: 3, draws: 1, losses: 1, goalsFor: 7, goalsAgainst: 3, cleanSheets: 3, points: 10, bestWinStreak: 2 },
   values: { points: 10, wins: 3, goals: 7, winRate: 60, cleanSheets: 3, streak: 2 },
   metrics: [{ id: "points", label: "积分" }, { id: "wins", label: "胜场" }],
@@ -152,6 +152,13 @@ shell.showLeaderboard({
   remoteRows: [{ rank: 1, nickname: "雄狮队长", value: 10, self: true }],
 });
 assert.equal(shell.screen, "leaderboard", "排行榜必须保持横版遮罩界面");
+// 先点“加入排行榜”制造异步授权未完成时的点击锁，再点返回；返回必须无条件生效。
+canvasListeners.mousedown({ clientX: 264, clientY: 302 });
+await new Promise((resolve) => setTimeout(resolve, 130));
+assert.equal(action, "leaderboard-profile", "加入排行榜必须仍可触发授权动作");
+canvasListeners.mousedown({ clientX: 525, clientY: 363 });
+await new Promise((resolve) => setTimeout(resolve, 130));
+assert.equal(shell.screen, "home", "返回选队不得被异步动作遗留的点击锁拦住");
 shell.showHome(defaults());
 
 // Android 某些基础库会返回设备物理像素，而 Canvas 为节省性能只按 2 倍渲染。
@@ -168,13 +175,13 @@ assert.equal(action, "ai", "PC 小游戏逻辑像素鼠标必须命中立即对�
 
 action = null;
 shell.showHome(defaults());
-canvasListeners.mousedown({ clientX: 271, clientY: 363 });
+canvasListeners.mousedown({ clientX: 250, clientY: 363 });
 await new Promise((resolve) => setTimeout(resolve, 130));
 assert.equal(action, "watch", "开发者工具 Canvas 鼠标必须命中观看对战按钮");
 
 action = null;
 shell.showHome(defaults());
-canvasListeners.mousedown({ clientX: 644, clientY: 363 });
+canvasListeners.mousedown({ clientX: 716, clientY: 363 });
 await new Promise((resolve) => setTimeout(resolve, 130));
 assert.equal(action, "invite", "右侧好友对战必须使用当前配置创建邀请");
 assert.equal(shell.screen, "friend-room");
@@ -200,7 +207,7 @@ canvasListeners.mousedown({ clientX: 530, clientY: 258 });
 await new Promise((resolve) => setTimeout(resolve, 130));
 assert.equal(action, "queue-friend-after-warmup", "好友上线后房主必须可选择踢完当前热身局");
 
-// 提审版关闭好友入口：原好友对战坐标不得再触发邀请，两键布局立即开赛必须居中可点。
+// 提审版关闭好友入口：底部仍保留观看、开赛、排行榜三键，排行榜位于开赛右侧。
 const gatedShell = createGameShell({
   PIXI,
   canvas,
@@ -219,7 +226,8 @@ gatedShell.showHome(defaults());
 action = null;
 canvasListeners.mousedown({ clientX: 644, clientY: 363 });
 await new Promise((resolve) => setTimeout(resolve, 130));
-assert.equal(action, null, "好友入口关闭后原好友对战坐标不得触发任何动作");
+assert.equal(action, "leaderboard", "好友入口关闭后立即开赛右侧必须保留排行榜");
+gatedShell.showHome(defaults()); // 实际应用会切入排行榜并重置导航锁；测试显式模拟该状态切换。
 action = null;
 canvasListeners.mousedown({ clientX: 536, clientY: 363 });
 await new Promise((resolve) => setTimeout(resolve, 130));
