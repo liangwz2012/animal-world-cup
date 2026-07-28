@@ -14,13 +14,23 @@ const assetsDir = path.join(projectDir, "runtime-assets");
 const shellAssetsDir = path.join(projectDir, "shell-assets");
 // 暂存目录必须位于微信小游戏项目根目录之外。开发者工具会实时扫描项目，
 // 如果刚好在构建时抓到这些瞬态文件，真机预览随后会因原子替换而报 ENOENT。
-const stagingRootDir = path.join(repoDir, ".wechat-minigame-original-runtime-latest-build");
+const stagingRootBaseDir = path.join(repoDir, ".wechat-minigame-original-runtime-latest-build");
+// 每个构建使用独立的暂存目录。开发者工具、watch 脚本或人工重复点击构建可能让两个
+// node 进程短暂重叠；共用目录会令其中一个进程在清理时删掉另一个进程正在复制的文件，
+// 从而出现 macOS 的 ENOTEMPTY。PID 在并发进程间唯一，既隔离构建，又仍落在已忽略目录内。
+const stagingRootDir = path.join(stagingRootBaseDir, String(process.pid));
 const generatedStagingDir = path.join(stagingRootDir, "generated");
 const assetsStagingDir = path.join(stagingRootDir, "runtime-assets");
 const shellAssetsStagingDir = path.join(stagingRootDir, "shell-assets");
 
 function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+async function removeStagingTree(target) {
+  // APFS 在大量嵌套资源目录刚完成 rename 时偶尔会短暂返回 ENOTEMPTY；Node 原生重试
+  // 能处理这一瞬态，避免把一次正常构建误报成失败。
+  await fs.rm(target, { recursive: true, force: true, maxRetries: 8, retryDelay: 80 });
 }
 
 function replaceOnce(source, needle, replacement, label) {
@@ -185,6 +195,18 @@ function patchSwig(source) {
 }
 
 function patchShim(source) {
+  // 电脑端小游戏容器偶发把不存在的 __data-bundle.json 响应解析为 JSON null。
+  // 原 shim 紧接着执行 Object.keys(bundleCache)，于是 null 会在首次开赛、读取
+  // data/ 资源索引时直接抛 "Cannot convert undefined or null to object"。手机端
+  // 通常返回空响应而走 {} 分支，因此该问题只在电脑端暴露。资源文本本来由
+  // runtime-text-assets.js 逐项提供，空索引是安全的降级路径。
+  source = replaceOnce(
+    source,
+    '      bundleCache = xhr.status >= 200 && xhr.status < 300 ? JSON.parse(xhr.responseText) : {};',
+    '      var parsedBundle = xhr.status >= 200 && xhr.status < 300 ? JSON.parse(xhr.responseText) : {};\n      bundleCache = parsedBundle && typeof parsedBundle === "object" ? parsedBundle : {};',
+    "电脑端 data bundle 空值回退",
+  );
+
   source = replaceOnce(
     source,
     "window.__bundleReadText = function (p) {",
@@ -436,12 +458,49 @@ async function buildTextIndex() {
   return assets;
 }
 
+// 开发者工具会持续监听项目目录。此前构建成功后先递归删除 generated/
+// runtime-assets/、shell-assets/，再把暂存目录 rename 回来；删除与回写之间哪怕
+// 只有几十毫秒，工具也可能将分包根目录缓存为“模块不存在”，之后 loadSubpackage
+// 会一直报 module not found。这里保留项目内目录本身，只把已成功构建的文件逐个
+// 原子替换；旧文件会在全部新文件就位后才删除。
+async function syncStagedTree(sourceDir, targetDir) {
+  await fs.mkdir(targetDir, { recursive: true });
+  const sourceEntries = await fs.readdir(sourceDir, { withFileTypes: true });
+  const sourceNames = new Set(sourceEntries.map((entry) => entry.name));
+
+  for (const entry of sourceEntries) {
+    const source = path.join(sourceDir, entry.name);
+    const target = path.join(targetDir, entry.name);
+    let targetStat = null;
+    try { targetStat = await fs.lstat(target); } catch (error) {
+      if (error && error.code !== "ENOENT") throw error;
+    }
+
+    if (entry.isDirectory()) {
+      if (targetStat && !targetStat.isDirectory()) await fs.rm(target, { recursive: true, force: true });
+      await syncStagedTree(source, target);
+      continue;
+    }
+
+    if (!entry.isFile()) throw new Error(`不支持的构建产物类型: ${source}`);
+    if (targetStat && targetStat.isDirectory()) await fs.rm(target, { recursive: true, force: true });
+    // 同一磁盘内 rename 会以单次替换提交目标文件，不会出现空的 game.js 或
+    // runtime-text-assets.js 被开发者工具读到的窗口。
+    await fs.rename(source, target);
+  }
+
+  const targetEntries = await fs.readdir(targetDir, { withFileTypes: true });
+  for (const entry of targetEntries) {
+    if (!sourceNames.has(entry.name)) {
+      await fs.rm(path.join(targetDir, entry.name), { recursive: true, force: true });
+    }
+  }
+}
+
 async function main() {
   // 始终先在暂存目录构建。只有所有静态替换和文件写入都成功后才替换
   // 上一次可运行产物，避免构建失败留下缺少分包 game.js 的半成品。
-  await fs.rm(generatedStagingDir, { recursive: true, force: true });
-  await fs.rm(assetsStagingDir, { recursive: true, force: true });
-  await fs.rm(shellAssetsStagingDir, { recursive: true, force: true });
+  await removeStagingTree(stagingRootDir);
   await fs.mkdir(generatedStagingDir, { recursive: true });
   await fs.mkdir(path.join(assetsStagingDir, "match-runtime-min"), { recursive: true });
   await fs.mkdir(path.join(assetsStagingDir, "animal-cup"), { recursive: true });
@@ -537,13 +596,10 @@ async function main() {
     textAssets: { entries: Object.keys(textAssets).length, bytes: Buffer.byteLength(textModule) },
   };
   await fs.writeFile(path.join(generatedStagingDir, "build-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-  await fs.rm(generatedDir, { recursive: true, force: true });
-  await fs.rm(assetsDir, { recursive: true, force: true });
-  await fs.rm(shellAssetsDir, { recursive: true, force: true });
-  await fs.rename(generatedStagingDir, generatedDir);
-  await fs.rename(assetsStagingDir, assetsDir);
-  await fs.rename(shellAssetsStagingDir, shellAssetsDir);
-  await fs.rm(stagingRootDir, { recursive: true, force: true });
+  await syncStagedTree(generatedStagingDir, generatedDir);
+  await syncStagedTree(assetsStagingDir, assetsDir);
+  await syncStagedTree(shellAssetsStagingDir, shellAssetsDir);
+  await removeStagingTree(stagingRootDir);
   console.info(`[build] original-runtime-latest: ${Object.keys(textAssets).length} 个文本键`);
   console.info(`[build] match=${manifest.output["match.static.js"].bytes} bytes, text-index=${manifest.textAssets.bytes} bytes`);
 }

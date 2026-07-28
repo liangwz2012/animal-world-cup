@@ -88,6 +88,10 @@ function reportFatal(error) {
     return;
   }
   fatalReported = true;
+  // 保留真正的失败阶段。此前先 setStage("FATAL") 再拼弹窗，所有错误都会只显示
+  // FATAL，无法区分是资源分包、索引解析还是比赛首帧阶段的问题。
+  const failedStage = root.__ORIGINAL_RUNTIME_LATEST_STAGE__ || "UNKNOWN";
+  root.__ORIGINAL_RUNTIME_FAILED_STAGE__ = failedStage;
   root.__ORIGINAL_RUNTIME_LATEST_ERROR__ = normalized;
   root.__ORIGINAL_RUNTIME_ACTIVE__ = false;
   setStage("FATAL", normalized.stack || normalized.message);
@@ -96,7 +100,7 @@ function reportFatal(error) {
     wx.showModal({
       title: "原版引擎移植失败",
       // 附 build 号与音频模式：真机截图即可确认包版本与音频降级路径
-      content: `[SRCFIX-10 音频:${root.__ANIMAL_AUDIO_MODE__ || "未初始化"}] ${root.__ORIGINAL_RUNTIME_LATEST_STAGE__}: ${normalized.message}`.slice(0, 500),
+      content: `[SRCFIX-10 音频:${root.__ANIMAL_AUDIO_MODE__ || "未初始化"}] ${failedStage}: ${normalized.message}`.slice(0, 500),
       showCancel: false,
     });
   }
