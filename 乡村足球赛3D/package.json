@@ -1,0 +1,13 @@
+{
+  "name": "rural-football-3d",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Clean-room 3D rural football game for WeChat Mini Game",
+  "scripts": {
+    "check": "node tools/check-scaffold.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

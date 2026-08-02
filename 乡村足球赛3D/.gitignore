@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+dist/
+build/
+release/
+coverage/
+.cache/
+.tmp/
+*.log
+.env
+.env.*
+!.env.example
+tests/evidence/raw/*
+!tests/evidence/raw/.gitkeep
+assets/built/**/*
+!assets/built/**/.gitkeep
