@@ -1,0 +1,37 @@
+{
+  "frozenAt": "2026-08-02T00:00:00+08:00",
+  "runtime": {
+    "node": "24.13.1",
+    "npm": "11.8.0"
+  },
+  "engines": {
+    "layaair": {
+      "version": "3.4.0",
+      "release": "https://github.com/layabox/LayaAir/releases/tag/v3.4.0",
+      "archive": "https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip",
+      "archiveBytes": 10952187,
+      "sha256": "a21b787b7d5cea92013e8903be1fe766e0c25573f2ae67f3078dfe60f72cfed9",
+      "license": "MIT",
+      "licenseSource": "https://github.com/layabox/LayaAir/blob/v3.4.0/LICENSE"
+    },
+    "galacean": {
+      "package": "@galacean/engine",
+      "version": "1.6.13",
+      "integrity": "sha512-5zDZV+VA35Yd7I0PKU91Iw6Q2aeMqLCVligFenqwpWMy6/vC4X5nM5BF8KDEe9BMDZmSunmG46ASCOow/o94Hg==",
+      "release": "https://github.com/galacean/engine/releases/tag/v1.6.13",
+      "license": "MIT",
+      "licenseSource": "https://github.com/galacean/engine/blob/v1.6.13/LICENSE"
+    }
+  },
+  "wechatDeveloperTools": {
+    "installedVersion": "2.02.2607271",
+    "application": "/Applications/wechatwebdevtools.app",
+    "cli": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+    "verification": "local-installation"
+  },
+  "build": {
+    "typescript": "5.9.3",
+    "esbuild": "0.28.1",
+    "tsx": "4.23.2"
+  }
+}

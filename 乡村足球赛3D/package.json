@@ -4,10 +4,26 @@
   "private": true,
   "type": "module",
   "description": "Clean-room 3D rural football game for WeChat Mini Game",
+  "packageManager": "npm@11.8.0",
   "scripts": {
-    "check": "node tools/check-scaffold.mjs"
+    "bootstrap": "node tools/fetch-layaair.mjs",
+    "check": "npm run check:scaffold && npm run verify:toolchain",
+    "check:scaffold": "node tools/check-scaffold.mjs",
+    "verify:toolchain": "node tools/verify-toolchain.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/**/*.test.ts"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24.13.1 <25",
+    "npm": "11.8.0"
+  },
+  "dependencies": {
+    "@galacean/engine": "1.6.13"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "esbuild": "0.28.1",
+    "tsx": "4.23.2",
+    "typescript": "5.9.3"
   }
 }

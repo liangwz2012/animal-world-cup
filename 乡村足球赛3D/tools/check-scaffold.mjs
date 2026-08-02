@@ -9,11 +9,13 @@ const files = [
   'AGENTS.md',
   'README.md',
   'package.json',
+  'toolchain.lock.json',
   'docs/PRODUCT.md',
   'docs/ARCHITECTURE.md',
   'docs/MILESTONES.md',
   'docs/ACCEPTANCE.md',
   'docs/STATUS.md',
+  'docs/research/TOOLCHAIN_FREEZE.md',
   'docs/goals/M0-engine-decision.md',
   'docs/adr/README.md'
 ];
