@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "asset": "assets/built/m0/m0-gold.glb",
+  "bytes": 495620,
+  "gltfVersion": "2.0",
+  "generator": "Khronos glTF Blender I/O v5.1.20",
+  "structureSha256": "a768739f2dd79809b9d614f6d25bfb6ef28647512ebd584d2cfee0d68e96af6f",
+  "meshes": 46,
+  "materials": 14,
+  "nodes": 66,
+  "skins": 1,
+  "joints": 17,
+  "animations": [
+    "idle",
+    "jog",
+    "pass",
+    "shoot",
+    "sprint",
+    "stumble"
+  ]
+}

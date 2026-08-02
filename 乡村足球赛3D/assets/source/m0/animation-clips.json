@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "skeleton": "RuralPlayerGold",
+  "fps": 30,
+  "clips": [
+    {
+      "name": "idle",
+      "semantic": "idle",
+      "durationTicks": 30,
+      "loop": true,
+      "rootMotion": false,
+      "contacts": []
+    },
+    {
+      "name": "jog",
+      "semantic": "jog",
+      "durationTicks": 30,
+      "loop": true,
+      "rootMotion": false,
+      "contacts": [
+        { "tick": 8, "foot": "left", "kind": "ground" },
+        { "tick": 23, "foot": "right", "kind": "ground" }
+      ]
+    },
+    {
+      "name": "sprint",
+      "semantic": "sprint",
+      "durationTicks": 30,
+      "loop": true,
+      "rootMotion": false,
+      "contacts": [
+        { "tick": 7, "foot": "left", "kind": "ground" },
+        { "tick": 22, "foot": "right", "kind": "ground" }
+      ]
+    },
+    {
+      "name": "pass",
+      "semantic": "pass",
+      "durationTicks": 30,
+      "loop": false,
+      "rootMotion": false,
+      "contacts": [
+        { "tick": 14, "foot": "right", "kind": "ball", "windowTicks": 2 }
+      ],
+      "supportFoot": "left"
+    },
+    {
+      "name": "shoot",
+      "semantic": "shoot",
+      "durationTicks": 30,
+      "loop": false,
+      "rootMotion": false,
+      "contacts": [
+        { "tick": 15, "foot": "right", "kind": "ball", "windowTicks": 2 }
+      ],
+      "supportFoot": "left"
+    },
+    {
+      "name": "stumble",
+      "semantic": "stumble",
+      "durationTicks": 30,
+      "loop": false,
+      "rootMotion": false,
+      "contacts": [
+        { "tick": 11, "foot": "left", "kind": "ground" },
+        { "tick": 21, "foot": "right", "kind": "ground" }
+      ]
+    }
+  ]
+}

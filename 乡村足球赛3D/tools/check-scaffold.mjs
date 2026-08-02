@@ -17,6 +17,10 @@ const files = [
   'docs/STATUS.md',
   'docs/research/TOOLCHAIN_FREEZE.md',
   'docs/contracts/MATCH_CORE.md',
+  'docs/contracts/M0_ASSET_GOLD.md',
+  'assets/source/m0/animation-clips.json',
+  'assets/source/m0/skeleton.json',
+  'assets/source/m0/ASSET_PROVENANCE.md',
   'docs/goals/M0-engine-decision.md',
   'docs/adr/README.md'
 ];

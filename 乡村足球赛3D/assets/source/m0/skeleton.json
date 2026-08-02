@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "name": "RuralPlayerGold",
+  "forwardAxis": "-Y",
+  "upAxis": "Z",
+  "unit": "meter",
+  "maximumDeformBones": 65,
+  "bones": [
+    "root",
+    "hips",
+    "spine",
+    "chest",
+    "neck",
+    "head",
+    "upper_leg.L",
+    "shin.L",
+    "foot.L",
+    "upper_leg.R",
+    "shin.R",
+    "foot.R",
+    "upper_arm.L",
+    "forearm.L",
+    "hand.L",
+    "upper_arm.R",
+    "forearm.R",
+    "hand.R"
+  ]
+}

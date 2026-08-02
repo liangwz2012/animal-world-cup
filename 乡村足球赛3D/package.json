@@ -7,10 +7,13 @@
   "packageManager": "npm@11.8.0",
   "scripts": {
     "bootstrap": "node tools/fetch-layaair.mjs",
+    "build:assets:m0": "node tools/build-m0-assets.mjs",
     "check": "npm run check:scaffold && npm run verify:toolchain && npm run typecheck && npm test",
+    "check:m0": "npm run bootstrap && npm run build:assets:m0 && npm run check",
     "check:scaffold": "node tools/check-scaffold.mjs",
     "verify:toolchain": "node tools/verify-toolchain.mjs",
     "generate:replay": "tsx tools/generate-m0-replay.ts",
+    "verify:assets:m0": "node tools/verify-m0-gltf.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/**/*.test.ts"
   },
