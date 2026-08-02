@@ -16,6 +16,7 @@ const files = [
   'docs/ACCEPTANCE.md',
   'docs/STATUS.md',
   'docs/research/TOOLCHAIN_FREEZE.md',
+  'docs/contracts/MATCH_CORE.md',
   'docs/goals/M0-engine-decision.md',
   'docs/adr/README.md'
 ];

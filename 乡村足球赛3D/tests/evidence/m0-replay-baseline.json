@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "generatedFor": "M0",
+  "replay": "tests/fixtures/m0-replay.json",
+  "seed": 1592598566,
+  "ticks": 240,
+  "checksum": "322232d0",
+  "eventCounts": {
+    "kick": 1,
+    "ball-bounce": 1,
+    "possession": 1
+  }
+}

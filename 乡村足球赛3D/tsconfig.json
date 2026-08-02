@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@rural-football/match-core": ["packages/match-core/src/index.ts"],
+      "@rural-football/presentation-3d": ["packages/presentation-3d/src/index.ts"],
+      "@rural-football/platform-wechat": ["packages/platform-wechat/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/**/*.ts",
+    "tests/**/*.ts",
+    "experiments/**/*.ts"
+  ]
+}
