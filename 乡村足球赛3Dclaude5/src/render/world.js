@@ -67,14 +67,15 @@ export function createWorld({ platform, renderer, match, home, away, culture, ti
 
   const scene = new THREE.Scene();
   const daylight = TIME_OF_DAY[timeOfDay] || TIME_OF_DAY.noon;
-  const skyTop = hexToColor(culture.sky.top).lerp(hexToColor("#F0B27A"), daylight.warm * 0.55);
-  const skyBottom = hexToColor(culture.sky.bottom).lerp(hexToColor("#F6C08A"), daylight.warm * 0.4);
+  const skyTop = hexToColor(culture.sky.top).lerp(hexToColor("#F0B27A"), daylight.warm * 0.28);
+  const skyBottom = hexToColor(culture.sky.bottom).lerp(hexToColor("#F6C08A"), daylight.warm * 0.55);
   if (daylight.id === "night") {
     skyTop.multiplyScalar(0.22).add(new THREE.Color(0x0a1224));
     skyBottom.multiplyScalar(0.3).add(new THREE.Color(0x101a2c));
   }
   scene.background = skyBottom.clone();
-  scene.fog = new THREE.FogExp2(skyBottom.clone().lerp(skyTop, 0.35), culture.fog.density * (daylight.id === "night" ? 1.6 : 1));
+  const fogScale = daylight.id === "night" ? 1.6 : daylight.id === "dusk" ? 0.76 : 1;
+  scene.fog = new THREE.FogExp2(skyBottom.clone().lerp(skyTop, 0.35), culture.fog.density * fogScale);
 
   // 天空穹顶：上下渐变，比纯色背景多一层空气感
   const skyGeom = new THREE.SphereGeometry(320, 16, 10);
@@ -92,9 +93,22 @@ export function createWorld({ platform, renderer, match, home, away, culture, ti
   sky.frustumCulled = false;
   scene.add(sky);
 
+  // 黄昏远景太阳只负责色彩和构图，不参与阴影计算。
+  const sunDiscGeom = new THREE.SphereGeometry(6.2, 14, 9);
+  const sunDiscMat = new THREE.MeshBasicMaterial({
+    color: daylight.id === "dusk" ? 0xffd38a : 0xffedbd,
+    fog: false,
+    depthWrite: false,
+  });
+  const sunDisc = new THREE.Mesh(sunDiscGeom, sunDiscMat);
+  sunDisc.position.set(46, daylight.id === "dusk" ? 29 : 44, -145);
+  sunDisc.visible = daylight.id !== "night" && daylight.id !== "rain";
+  scene.add(sunDisc);
+
   // 皮克斯式三点布光：暖主光定形，天地反弹光把暗部提亮，冷轮廓光把人从背景里"抠"出来。
   const ambientColor = hexToColor(culture.lighting.ambient);
-  const hemi = new THREE.HemisphereLight(skyTop.getHex(), hexToColor(culture.ground.grass).getHex(), 1.05 * daylight.exposure);
+  const duskLift = daylight.id === "dusk" ? 1.16 : 1;
+  const hemi = new THREE.HemisphereLight(skyTop.getHex(), hexToColor(culture.ground.grass).getHex(), 1.05 * daylight.exposure * duskLift);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(
     hexToColor(culture.sky.sun).lerp(hexToColor("#FFB56B"), daylight.warm).getHex(),
@@ -110,7 +124,7 @@ export function createWorld({ platform, renderer, match, home, away, culture, ti
   );
   rim.position.set(-Math.cos(sunAngle) * 40, 26, 52);
   scene.add(rim);
-  const fill = new THREE.AmbientLight(ambientColor.getHex(), 0.5 * daylight.exposure);
+  const fill = new THREE.AmbientLight(ambientColor.getHex(), (daylight.id === "dusk" ? 0.68 : 0.5) * daylight.exposure);
   scene.add(fill);
 
   const stadium = buildStadium({
@@ -123,12 +137,18 @@ export function createWorld({ platform, renderer, match, home, away, culture, ti
   });
   scene.add(stadium.group);
 
-  // 夜灯：村里球场的四根大灯泡
-  if (daylight.id === "night") {
+  // 黄昏灯杆刚亮、夜场全亮；灯具几何由 stadium 合批，这里只补低成本光色。
+  if (daylight.id === "night" || daylight.id === "dusk") {
+    const lampIntensity = daylight.id === "night" ? 1.25 : 0.42;
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        const lamp = new THREE.PointLight(0xffe9c0, 1.35, 70, 1.6);
-        lamp.position.set(sx * (match.format.pitch.length / 2 + 4), 9, sz * (match.format.pitch.width / 2 + 4));
+        if (quality === "low" && sz > 0) continue;
+        const lamp = new THREE.PointLight(0xffe5b3, lampIntensity, 62, 1.65);
+        lamp.position.set(
+          sx * (match.format.pitch.length / 2 - Math.min(6.5, match.format.pitch.length * 0.1)),
+          10.6,
+          sz * (match.format.pitch.width / 2 + 7.2),
+        );
         scene.add(lamp);
       }
     }
@@ -151,7 +171,7 @@ export function createWorld({ platform, renderer, match, home, away, culture, ti
   const shadowTexture = new THREE.CanvasTexture(shadowCanvas);
   const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.75, depthWrite: false });
   const toonGradient = createToonGradient(platform);
-  const outlineMaterial = makeOutlineMaterial(0.016);
+  const outlineMaterial = makeOutlineMaterial(quality === "low" ? 0.009 : 0.012);
   const views = new Map();
   for (const player of match.players) {
     const team = player.side === "home" ? home : away;
@@ -321,8 +341,8 @@ export function createWorld({ platform, renderer, match, home, away, culture, ti
       const focusZ = clamp(ballZ * 0.7, -halfW, halfW);
       // 横屏是主玩法机位。拉这么近是因为乡村队的身材、背号和村寨名才是卖点，
       // 远机位下球员只有四十几像素高，脸和球衣全白做。
-      const heightBase = match.format.perSide >= 7 ? 15.5 : 13.5;
-      const back = match.format.perSide >= 7 ? 18.5 : 16;
+      const heightBase = match.format.perSide >= 7 ? 12.2 : 10.5;
+      const back = match.format.perSide >= 7 ? 22.5 : 20.8;
       cameraState.targetX = damp(cameraState.targetX, focusX, 3.2, dt);
       cameraState.targetZ = damp(cameraState.targetZ, focusZ, 2.6, dt);
       cameraState.x = damp(cameraState.x, focusX * 0.72, 3, dt);
@@ -339,7 +359,7 @@ export function createWorld({ platform, renderer, match, home, away, culture, ti
       cameraState.z,
     );
     // 视线略抬，让远处的村子进画面
-    camera.lookAt(cameraState.targetX, 1.9 + clamp(ballY * 0.2, 0, 1.4), cameraState.targetZ);
+    camera.lookAt(cameraState.targetX, 2.35 + clamp(ballY * 0.18, 0, 1.2), cameraState.targetZ);
   }
 
   // 屏幕方向 → 球场方向。竖屏机位是顺着长边看，横屏是侧面转播位，换算规则不同。
@@ -378,6 +398,8 @@ export function createWorld({ platform, renderer, match, home, away, culture, ti
     shadowTexture.dispose();
     skyGeom.dispose();
     skyMat.dispose();
+    sunDiscGeom.dispose();
+    sunDiscMat.dispose();
   }
 
   return { renderer, scene, camera, views, captureTick, update, resize, shake, screenToWorld, dispose, stadium };

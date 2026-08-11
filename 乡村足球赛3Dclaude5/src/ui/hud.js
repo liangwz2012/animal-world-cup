@@ -34,14 +34,14 @@ function drawButtonTexture(surface, label, color, pressed) {
   surface.clear();
   const cx = w / 2;
   const cy = h / 2;
-  ctx.globalAlpha = pressed ? 0.95 : 0.72;
+  ctx.globalAlpha = pressed ? 0.92 : 0.58;
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(cx, cy, w * 0.44, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
   ctx.lineWidth = w * 0.045;
-  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.strokeStyle = "rgba(255,255,255,0.72)";
   ctx.stroke();
   ctx.fillStyle = "#FFFFFF";
   ctx.font = `bold ${Math.floor(w * 0.36)}px ${FONT}`;
@@ -103,8 +103,8 @@ export function createHud({ platform, layer, match, home, away }) {
     const w = platform.width;
     const h = platform.height;
     const safeBottom = Math.max(18, h - (platform.safeArea?.bottom ?? h) + 18);
-    const scale = Math.min(1.25, Math.max(0.82, Math.min(w, h) / 420));
-    const stickR = 80 * scale;
+    const scale = Math.min(1.12, Math.max(0.76, (Math.min(w, h) / 420) * 0.88));
+    const stickR = 76 * scale;
     const stickX = Math.max(24, w * 0.035) + stickR;
     const stickY = h - safeBottom - stickR - 8;
 
@@ -114,8 +114,8 @@ export function createHud({ platform, layer, match, home, away }) {
     quads.score.setPosition(w > h ? (w - scoreW) / 2 : 10, Math.max(8, (platform.safeArea?.top ?? 0) + 6));
     quads.stamina.setSize(150 * scale, 19 * scale);
     quads.stamina.setPosition(stickX - stickR, stickY - stickR - 26 * scale);
-    quads.toast.setSize(Math.min(420, w * 0.78), Math.min(420, w * 0.78) * (64 / 384));
-    quads.toast.setPosition(w / 2, h * 0.28);
+    quads.toast.setSize(Math.min(334, w * 0.64), Math.min(334, w * 0.64) * (58 / 384));
+    quads.toast.setPosition(w / 2, h * 0.21);
 
     quads.stickBase.setSize(stickR * 2, stickR * 2);
     quads.stickBase.setPosition(stickX, stickY);
@@ -385,7 +385,7 @@ export function createHud({ platform, layer, match, home, away }) {
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.fillStyle = tone;
-    ctx.font = `bold 40px ${FONT}`;
+    ctx.font = `bold 34px ${FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(String(text).slice(0, 18), w / 2, h / 2);
@@ -394,7 +394,7 @@ export function createHud({ platform, layer, match, home, away }) {
 
   function toast(text, tone) {
     state.toastText = text;
-    state.toastUntil = platform.now() + 2200;
+    state.toastUntil = platform.now() + 1700;
     drawToast(text, tone);
     quads.toast.setVisible(true);
   }

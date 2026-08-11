@@ -21,7 +21,8 @@ function defaultConfig() {
     townIndex: DEFAULT_HOME.townIndex,
     formatId: "5v5",
     difficulty: "normal",
-    timeOfDay: "noon",
+    // B 版视觉标杆默认黄昏：暖阳、刚亮起的灯杆和村居更有层次。
+    timeOfDay: "dusk",
     quality: "high",
   };
 }

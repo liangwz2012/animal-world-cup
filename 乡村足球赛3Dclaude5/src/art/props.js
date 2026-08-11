@@ -187,8 +187,8 @@ function coveredBridge(b, p, { span = 12, width = 2.6, roofed = true, arch = fal
 
 // ---- 新农村：白墙小楼 + 彩钢瓦顶 + 太阳能热水器 + 水泥路 + 广场设施 ----
 // 现在的村子不是清一色土坯房，二层小楼、瓷砖外墙、蓝红铁皮顶才是常见样子。
-const NEW_ROOF = ["#2E5E8A", "#B8402E", "#2E7350", "#6B6E74"];
-const NEW_WALL = ["#F2ECE0", "#E8DCC4", "#DCE4E8", "#F0E2D2"];
+const NEW_ROOF = ["#4B5B5A", "#785248", "#4D6861", "#536A72"];
+const NEW_WALL = ["#F2ECE0", "#E9DFC9", "#E2E8E7", "#F0E4D5"];
 
 function newVillageHouse(b, p, prng, { storeys = 2, w = 5.4, d = 4.4, floorH = 2.9 } = {}) {
   const wall = NEW_WALL[Math.floor(prng.next() * NEW_WALL.length)];
@@ -203,8 +203,21 @@ function newVillageHouse(b, p, prng, { storeys = 2, w = 5.4, d = 4.4, floorH = 2
     b.pop();
     // 窗
     for (const sx of [-1, 0, 1]) {
+      b.push(new THREE.Matrix4().makeTranslation(sx * w * 0.3, i * floorH + floorH * 0.6, d / 2 + 0.025));
+      b.box(w * 0.23, floorH * 0.39, 0.055, "#EEE7D8", 0.02);
+      b.pop();
       b.push(new THREE.Matrix4().makeTranslation(sx * w * 0.3, i * floorH + floorH * 0.6, d / 2 + 0.04));
       b.box(w * 0.2, floorH * 0.34, 0.08, "#6E93A6");
+      b.pop();
+    }
+  }
+  if (storeys > 1) {
+    b.push(new THREE.Matrix4().makeTranslation(0, floorH + 0.12, d / 2 + 0.42));
+    b.box(w * 0.72, 0.18, 0.86, "#D5C9B0", 0.04);
+    b.pop();
+    for (const sx of [-1, 1]) {
+      b.push(new THREE.Matrix4().makeTranslation(sx * w * 0.33, floorH + 0.48, d / 2 + 0.76));
+      b.cyl(0.045, 0.05, 0.72, "#687477", 5, 0.02);
       b.pop();
     }
   }
@@ -309,6 +322,61 @@ function waterTower(b, p) {
   b.push(new THREE.Matrix4().makeTranslation(0, 6.4, 0));
   b.addGeometry(new THREE.ConeGeometry(1.6, 0.7, 10), "#2E5E8A", 0.04);
   b.pop();
+}
+
+function villageServiceCenter(b, p, prng) {
+  newVillageHouse(b, p, prng, { storeys: 2, w: 8.4, d: 5.2, floorH: 2.8 });
+  // 无文字的公共服务入口与遮雨檐，避免出现敏感标牌。
+  b.push(new THREE.Matrix4().makeTranslation(0, 2.35, 3.1));
+  b.box(5.8, 0.2, 1.7, "#506B70", 0.03);
+  b.pop();
+  for (const sx of [-1, 1]) {
+    b.push(new THREE.Matrix4().makeTranslation(sx * 2.35, 1.15, 3.1));
+    b.cyl(0.08, 0.1, 2.3, "#737C7E", 6, 0.02);
+    b.pop();
+  }
+  b.push(new THREE.Matrix4().makeTranslation(0, 1.15, 2.66));
+  b.box(2.3, 2.2, 0.1, "#496C78", 0.02);
+  b.pop();
+}
+
+function marketStall(b, p, prng) {
+  const awnings = ["#B94A3E", "#3F7187", "#D8AA43", "#4F7A57"];
+  const awning = awnings[Math.floor(prng.next() * awnings.length)];
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      b.push(new THREE.Matrix4().makeTranslation(sx * 1.45, 1.25, sz * 0.9));
+      b.cyl(0.045, 0.055, 2.5, "#6C6557", 5, 0.02);
+      b.pop();
+    }
+  }
+  b.push(new THREE.Matrix4().makeTranslation(0, 2.55, 0));
+  b.box(3.3, 0.16, 2.15, awning, 0.08);
+  b.pop();
+  b.push(new THREE.Matrix4().makeTranslation(0, 0.74, 0.15));
+  b.box(3, 0.72, 1.15, "#A97949", 0.08);
+  b.pop();
+  for (let i = 0; i < 7; i += 1) {
+    const x = -1.15 + (i % 4) * 0.76;
+    const z = -0.18 + Math.floor(i / 4) * 0.48;
+    b.push(new THREE.Matrix4().makeTranslation(x, 1.18, z));
+    b.sphere(0.18 + prng.next() * 0.08, i % 3 === 0 ? "#D79C36" : i % 3 === 1 ? "#6F9343" : "#B14A38", 6, 0.08);
+    b.pop();
+  }
+}
+
+function farmTricycle(b, p) {
+  b.push(new THREE.Matrix4().makeTranslation(0, 0.62, 0));
+  b.box(2.5, 0.9, 1.45, "#3F785F", 0.08);
+  b.pop();
+  b.push(new THREE.Matrix4().makeTranslation(1.55, 0.75, 0));
+  b.box(0.95, 1.15, 1.1, "#467B88", 0.07);
+  b.pop();
+  for (const [x, z] of [[-0.9, -0.78], [-0.9, 0.78], [1.7, 0]]) {
+    b.push(new THREE.Matrix4().makeTranslation(x, 0.33, z).multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2)));
+    b.cyl(0.34, 0.34, 0.18, "#292B29", 10, 0.04);
+    b.pop();
+  }
 }
 
 const BUILDERS = {
@@ -720,8 +788,11 @@ const BUILDERS = {
     b.box(6, 1.4, 0.2, "#C0392B");
     b.pop();
   },
-  "new-village-house": (b, p, prng) => newVillageHouse(b, p, prng, { storeys: prng.chance(0.65) ? 2 : 1 }),
+  "new-village-house": (b, p, prng) => newVillageHouse(b, p, prng, { storeys: 2 }),
   "new-village-block": (b, p, prng) => newVillageHouse(b, p, prng, { storeys: 3, w: 6.4, d: 4.8 }),
+  "village-service-center": villageServiceCenter,
+  "market-stall": marketStall,
+  "farm-tricycle": farmTricycle,
   "solar-lamp": solarLamp,
   "basketball-hoop": basketballHoop,
   "notice-board": noticeBoard,
