@@ -1,0 +1,26 @@
+{
+  "name": "rural-football-3d-claude5",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "《乡村足球赛 3D》微信小游戏 —— 村超质感球员、真实地名、地域文化球场",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "build:web": "node tools/build.mjs --target=web",
+    "build:wechat": "node tools/build.mjs --target=wechat",
+    "serve": "node tools/serve.mjs",
+    "verify": "node tools/verify.mjs",
+    "test": "node --test tests/*.test.js",
+    "check": "npm run build && npm test && npm run verify",
+    "sync:places": "node tools/sync-places.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  }
+}
