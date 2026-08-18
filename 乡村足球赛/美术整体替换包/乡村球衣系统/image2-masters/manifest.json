@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "generator": "OpenAI Image2",
+  "masters": {
+    "cunchao-red": {
+      "sourceSha256": "80429a16bc986ef8d5ef73a768e73b1f0fc1a006c39f2599213cf4d1a979e2e8",
+      "sourcePixels": [
+        1224,
+        1285
+      ],
+      "compressedFile": "cunchao-red.webp",
+      "compressedSha256": "97cc73f61ec1f56bb90dde454c8988602a9e9e644d91d1333cbc5b4530b77e8e",
+      "compressedPixels": [
+        488,
+        512
+      ],
+      "compressedBytes": 63014,
+      "backgroundIsolation": "source-alpha"
+    },
+    "cunchao-green": {
+      "sourceSha256": "cd67f858d30db36d7657058d1b8150e4a4abee51164f87a1194495716a6b7437",
+      "sourcePixels": [
+        1229,
+        1280
+      ],
+      "compressedFile": "cunchao-green.webp",
+      "compressedSha256": "6e4acf363046f4f36bccd0cbcd78bdb18f13d0a15d872d02073501ca40369361",
+      "compressedPixels": [
+        492,
+        512
+      ],
+      "compressedBytes": 50210,
+      "backgroundIsolation": "edge-connected-light-removal"
+    },
+    "cunchao-navy": {
+      "sourceSha256": "5c2d44b19ca5e98505ef31c85bb9bab1edeafc71712bf8c37e0c1e4a681aed27",
+      "sourcePixels": [
+        1229,
+        1280
+      ],
+      "compressedFile": "cunchao-navy.webp",
+      "compressedSha256": "821c688496b267308deb17d34283dde0a25ef093aa976ad1367cc1576b578311",
+      "compressedPixels": [
+        492,
+        512
+      ],
+      "compressedBytes": 49156,
+      "backgroundIsolation": "edge-connected-light-removal"
+    },
+    "cunchao-sky": {
+      "sourceSha256": "8ad589857ed76723c7e7d1167bb0e72f819160870f9f0ee44ff927a3e77f85b7",
+      "sourcePixels": [
+        1229,
+        1280
+      ],
+      "compressedFile": "cunchao-sky.webp",
+      "compressedSha256": "53438bcf0b61d699482d094169cbb20317d1b62b974f1296d98e27918b781c9e",
+      "compressedPixels": [
+        492,
+        512
+      ],
+      "compressedBytes": 51896,
+      "backgroundIsolation": "edge-connected-light-removal"
+    },
+    "cunchao-orange": {
+      "sourceSha256": "38ba9efdee49ffeac9a3713d1e890aa2fb0ac83f71e56972dad37549d412e07e",
+      "sourcePixels": [
+        1225,
+        1284
+      ],
+      "compressedFile": "cunchao-orange.webp",
+      "compressedSha256": "34008e256c0a0b5b64f94bf61c80b6c7b1fd0309d8207789dc84a9c1f755a644",
+      "compressedPixels": [
+        488,
+        512
+      ],
+      "compressedBytes": 58378,
+      "backgroundIsolation": "edge-connected-light-removal"
+    },
+    "cunchao-purple": {
+      "sourceSha256": "f0294faa1879ade3bfda63a73cbdf8e28903381b0ae986f2b7b4d2f705013577",
+      "sourcePixels": [
+        1224,
+        1285
+      ],
+      "compressedFile": "cunchao-purple.webp",
+      "compressedSha256": "5483d5fbc2ad7d5368834d96a4d2f13ef77e6cf1d68e3ce211c58ae972a0e7fd",
+      "compressedPixels": [
+        488,
+        512
+      ],
+      "compressedBytes": 53032,
+      "backgroundIsolation": "edge-connected-light-removal"
+    },
+    "cunchao-teal": {
+      "sourceSha256": "c2a70475dc6f654cd6352df96183929b2021780beba47da4aa3f12740bfe1dfe",
+      "sourcePixels": [
+        1224,
+        1285
+      ],
+      "compressedFile": "cunchao-teal.webp",
+      "compressedSha256": "90651aa3dc16129796d9d3fcbacd4c1d513569d44f5104df6139b90b2bc986d5",
+      "compressedPixels": [
+        488,
+        512
+      ],
+      "compressedBytes": 52414,
+      "backgroundIsolation": "edge-connected-light-removal"
+    },
+    "cunchao-black": {
+      "sourceSha256": "452db58b0a69ac658d89e146118ec105f8c020ca19bcf8ff38d4f96af3520960",
+      "sourcePixels": [
+        1224,
+        1285
+      ],
+      "compressedFile": "cunchao-black.webp",
+      "compressedSha256": "0fc2a9a9ae0a4fb85b1209535098047e119141cee9d3429322deffbf641545a0",
+      "compressedPixels": [
+        488,
+        512
+      ],
+      "compressedBytes": 52570,
+      "backgroundIsolation": "edge-connected-light-removal"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "teams": [],
+  "features": {
+    "leaderboard": {
+      "enabled": false,
+      "apiUrl": "https://coaiz.com/rural-rank/v1"
+    },
+    "friend": {
+      "enabled": false,
+      "wssUrl": "wss://coaiz.com/rural-ws"
+    },
+    "monetization": {
+      "enabled": false,
+      "playGateEnabled": false,
+      "adUnlockEnabled": false,
+      "rewardedAdUnitId": ""
+    }
+  }
+}

@@ -1,0 +1,15 @@
+generated/
+runtime-assets/
+shell-assets/
+node_modules/
+.tmp/
+.vscode/
+.DS_Store
+*.log
+.generated-build/
+.runtime-assets-build/
+.shell-assets-build/
+美术替换备份/
+server/data/
+# 微信开发者工具本地私有配置（每台机器不同，不入库）
+project.private.config.json

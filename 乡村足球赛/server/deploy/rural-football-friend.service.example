@@ -1,0 +1,27 @@
+[Unit]
+Description=Rural Football Friend Room Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rural-football
+Group=rural-football
+WorkingDirectory=/opt/rural-football
+EnvironmentFile=/etc/rural-football/rural-football.env
+Environment=HOST=127.0.0.1
+Environment=PORT=8787
+Environment=DEV_AUTH=0
+ExecStart=/usr/bin/node /opt/rural-football/server/friend-room-server.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/rural-football
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+

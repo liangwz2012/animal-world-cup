@@ -1,0 +1,469 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "race": "source-assets/public/match-runtime-min/data/player/races/rural_v2_01/race.json",
+    "kit": "source-assets/public/match-runtime-min/data/teams/argentina/home"
+  },
+  "invariants": {
+    "preserveSkeletonAndAnimations": true,
+    "preservePhysicsAndCollision": true,
+    "preserveRaceAnchorsUntilGoldStandardPasses": true,
+    "runtimePngColorType": "RGBA",
+    "transparentCorners": true,
+    "generatedReferenceMaxEdge": 768,
+    "shirtTexturePixelScale": 1,
+    "minorKitTexturePixelScale": 1,
+    "kitAttachmentLogicalSizeUnchanged": true
+  },
+  "directions": {
+    "head_front": "strict-front-eyes-level-nose-centered",
+    "head_back": "strict-rear-no-face-features",
+    "horizontalMovement": "runtime-bone-rotation-and-mirroring"
+  },
+  "characterParts": {
+    "arm_left": {
+      "asset": "arm_left.png",
+      "canvas": [
+        14,
+        11
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 14,
+        "height": 11
+      },
+      "visibleRatio": 0.74026,
+      "anchor": {
+        "x": 15.84,
+        "y": -1.23,
+        "rotation": 65.6
+      },
+      "declaredFrame": [
+        14,
+        11
+      ]
+    },
+    "arm_right": {
+      "asset": "arm_right.png",
+      "canvas": [
+        15,
+        17
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 15,
+        "height": 17
+      },
+      "visibleRatio": 0.74902,
+      "anchor": {
+        "x": 15.78,
+        "y": -3.74,
+        "rotation": 133.58
+      },
+      "declaredFrame": [
+        15,
+        17
+      ]
+    },
+    "hand_left": {
+      "asset": "hand_left.png",
+      "canvas": [
+        25,
+        28
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 3,
+        "y": 3,
+        "width": 17,
+        "height": 20
+      },
+      "visibleRatio": 0.35,
+      "anchor": {
+        "x": 11.76,
+        "y": -0.21,
+        "rotation": 46.17
+      },
+      "declaredFrame": [
+        25,
+        28
+      ]
+    },
+    "hand_right": {
+      "asset": "hand_right.png",
+      "canvas": [
+        23,
+        38
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 5,
+        "y": 4,
+        "width": 16,
+        "height": 27
+      },
+      "visibleRatio": 0.350114,
+      "anchor": {
+        "x": 6.75,
+        "y": -2.99,
+        "rotation": 101.88
+      },
+      "declaredFrame": [
+        23,
+        38
+      ]
+    },
+    "head_front": {
+      "asset": "head.png",
+      "canvas": [
+        81,
+        77
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 6,
+        "y": 2,
+        "width": 69,
+        "height": 73
+      },
+      "visibleRatio": 0.64438,
+      "anchor": {
+        "x": 28.16,
+        "y": 0.96,
+        "rotation": -90.13
+      },
+      "declaredFrame": [
+        81,
+        77
+      ]
+    },
+    "head_back": {
+      "asset": "head_back.png",
+      "canvas": [
+        81,
+        77
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 6,
+        "y": 2,
+        "width": 69,
+        "height": 73
+      },
+      "visibleRatio": 0.646625,
+      "anchor": {
+        "x": 28.14,
+        "y": -2.69,
+        "rotation": -90.13
+      },
+      "declaredFrame": [
+        81,
+        77
+      ]
+    },
+    "leg_left_knee": {
+      "asset": "knee.png",
+      "canvas": [
+        8,
+        9
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 8,
+        "height": 9
+      },
+      "visibleRatio": 0.722222,
+      "anchor": {
+        "x": 12.49,
+        "y": -0.02,
+        "rotation": 80.83
+      },
+      "declaredFrame": [
+        8,
+        9
+      ]
+    },
+    "leg_right_knee": {
+      "asset": "knee.png",
+      "canvas": [
+        8,
+        9
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 8,
+        "height": 9
+      },
+      "visibleRatio": 0.722222,
+      "anchor": {
+        "x": 10.71,
+        "y": 0.05,
+        "rotation": 88.07
+      },
+      "declaredFrame": [
+        8,
+        9
+      ]
+    },
+    "neck": {
+      "asset": "neck.png",
+      "canvas": [
+        20,
+        18
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 1,
+        "y": 1,
+        "width": 18,
+        "height": 16
+      },
+      "visibleRatio": 0.6,
+      "anchor": {
+        "x": 6.61,
+        "y": -1.96,
+        "rotation": -84.56
+      },
+      "declaredFrame": [
+        20,
+        18
+      ]
+    }
+  },
+  "kitParts": {
+    "shirt_back.png": {
+      "canvas": [
+        56,
+        52
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 56,
+        "height": 52
+      },
+      "visibleRatio": 0.909341
+    },
+    "shirt_front.png": {
+      "canvas": [
+        56,
+        52
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 56,
+        "height": 52
+      },
+      "visibleRatio": 0.910714
+    },
+    "shoes_left.png": {
+      "canvas": [
+        16,
+        6
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 16,
+        "height": 6
+      },
+      "visibleRatio": 0.916667
+    },
+    "shoes_right.png": {
+      "canvas": [
+        16,
+        6
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 16,
+        "height": 6
+      },
+      "visibleRatio": 0.916667
+    },
+    "shorts_leg_left.png": {
+      "canvas": [
+        12,
+        16
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 16
+      },
+      "visibleRatio": 0.885417
+    },
+    "shorts_leg_right.png": {
+      "canvas": [
+        12,
+        16
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 16
+      },
+      "visibleRatio": 0.885417
+    },
+    "shorts.png": {
+      "canvas": [
+        55,
+        8
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 55,
+        "height": 8
+      },
+      "visibleRatio": 0.988636
+    },
+    "sleeve_left.png": {
+      "canvas": [
+        14,
+        22
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 14,
+        "height": 22
+      },
+      "visibleRatio": 0.733766
+    },
+    "sleeve_right.png": {
+      "canvas": [
+        23,
+        18
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 23,
+        "height": 18
+      },
+      "visibleRatio": 0.698068
+    },
+    "socks_left.png": {
+      "canvas": [
+        11,
+        14
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 11,
+        "height": 14
+      },
+      "visibleRatio": 0.844156
+    },
+    "socks_right.png": {
+      "canvas": [
+        11,
+        14
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 11,
+        "height": 14
+      },
+      "visibleRatio": 0.844156
+    },
+    "socks.png": {
+      "canvas": [
+        11,
+        14
+      ],
+      "channels": 4,
+      "hasAlpha": true,
+      "visibleBounds": {
+        "x": 0,
+        "y": 0,
+        "width": 11,
+        "height": 14
+      },
+      "visibleRatio": 0.844156
+    }
+  },
+  "bodyProfiles": {
+    "balanced": {
+      "legacyRootScale": [
+        1,
+        1
+      ],
+      "label": "标准"
+    },
+    "tall-slim": {
+      "legacyRootScale": [
+        0.9,
+        1.1
+      ],
+      "label": "高瘦"
+    },
+    "compact-strong": {
+      "legacyRootScale": [
+        1.1,
+        0.94
+      ],
+      "label": "矮壮"
+    },
+    "tall-strong": {
+      "legacyRootScale": [
+        1.04,
+        1.08
+      ],
+      "label": "高壮"
+    },
+    "large": {
+      "legacyRootScale": [
+        1.08,
+        1.08
+      ],
+      "label": "同比例偏大"
+    }
+  }
+}

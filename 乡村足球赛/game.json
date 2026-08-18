@@ -1,0 +1,20 @@
+{
+  "deviceOrientation": "landscape",
+  "showStatusBar": false,
+  "subpackages": [
+    {
+      "name": "runtime-assets",
+      "root": "runtime-assets"
+    },
+    {
+      "name": "region_data",
+      "root": "region_data"
+    }
+  ],
+  "networkTimeout": {
+    "request": 10000,
+    "connectSocket": 10000,
+    "uploadFile": 10000,
+    "downloadFile": 30000
+  }
+}

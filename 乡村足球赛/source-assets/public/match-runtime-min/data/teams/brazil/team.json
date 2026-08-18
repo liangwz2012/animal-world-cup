@@ -1,0 +1,445 @@
+{
+  "rating": 2010,
+  "code": "BRA",
+  "flag": "flag.png",
+  "continent": "south_america",
+  "kits": {
+    "goalkeeper": {
+      "arm_left_sleeve": {
+        "name": "goalkeeper/sleeve_left.png",
+        "color": "ffffffff",
+        "x": 8.88,
+        "y": -2.01,
+        "rotation": 76.85,
+        "width": 14,
+        "height": 22
+      },
+      "arm_right_sleeve": {
+        "name": "goalkeeper/sleeve_right.png",
+        "color": "ffffffff",
+        "x": 8.04,
+        "y": -1.78,
+        "rotation": 130.74,
+        "width": 23,
+        "height": 18
+      },
+      "shirt_back": {
+        "name": "goalkeeper/shirt_back.png",
+        "color": "ffffffff",
+        "x": 24.8,
+        "y": 1.45,
+        "rotation": -88.19,
+        "width": 56,
+        "height": 52
+      },
+      "shirt_front": {
+        "name": "goalkeeper/shirt_front.png",
+        "x": 24.8,
+        "y": 1.45,
+        "rotation": -88.19,
+        "width": 56,
+        "height": 52,
+        "color": "ffffffff"
+      },
+      "leg_left_shoe": {
+        "name": "goalkeeper/shoes_left.png",
+        "color": "ffffffff",
+        "x": 4.62,
+        "y": 0.29,
+        "rotation": 0.35,
+        "width": 16,
+        "height": 6
+      },
+      "leg_left_shorts": {
+        "name": "goalkeeper/shorts_leg_left.png",
+        "color": "ffffffff",
+        "x": 2.61,
+        "y": 0.45,
+        "rotation": 80.83,
+        "width": 12,
+        "height": 16
+      },
+      "leg_left_sock": {
+        "name": "goalkeeper/socks_left.png",
+        "color": "ffffffff",
+        "x": 6.76,
+        "y": 0.63,
+        "rotation": 110.26,
+        "width": 11,
+        "height": 14
+      },
+      "leg_right_shoe": {
+        "name": "goalkeeper/shoes_right.png",
+        "color": "ffffffff",
+        "x": 3.8,
+        "y": -0.26,
+        "rotation": 4.17,
+        "width": 16,
+        "height": 6
+      },
+      "leg_right_shorts": {
+        "name": "goalkeeper/shorts_leg_right.png",
+        "color": "ffffffff",
+        "x": 1.14,
+        "y": 0.39,
+        "rotation": 81.11,
+        "width": 12,
+        "height": 16
+      },
+      "leg_right_sock": {
+        "name": "goalkeeper/socks_right.png",
+        "color": "ffffffff",
+        "x": 5.51,
+        "y": 0.76,
+        "rotation": 110.01,
+        "width": 11,
+        "height": 14
+      },
+      "number": {
+        "name": "../../player/kit/number.png",
+        "color": "f0bc3fff",
+        "x": 17.18,
+        "y": 0.16,
+        "rotation": -89.44,
+        "width": 33,
+        "height": 18
+      },
+      "pelvis_shorts": {
+        "name": "goalkeeper/shorts.png",
+        "color": "ffffffff",
+        "x": -1.27,
+        "y": 0.02,
+        "width": 55,
+        "height": 8
+      },
+      "hand_left_glove": {
+        "name": "goalkeeper/hand_left.png",
+        "x": 20.29,
+        "y": -0.1,
+        "rotation": 44.65,
+        "width": 26,
+        "height": 24,
+        "color": "ffffffff"
+      },
+      "hand_right_glove": {
+        "name": "goalkeeper/hand_right.png",
+        "x": 18.57,
+        "y": -0.32,
+        "rotation": 74.29,
+        "width": 26,
+        "height": 25,
+        "color": "ffffffff"
+      }
+    },
+    "home": {
+      "arm_left_sleeve": {
+        "name": "home/sleeve_left.png",
+        "color": "ffffffff",
+        "x": 8.88,
+        "y": -2.01,
+        "rotation": 76.85,
+        "width": 14,
+        "height": 22
+      },
+      "arm_right_sleeve": {
+        "name": "home/sleeve_right.png",
+        "color": "ffffffff",
+        "x": 8.04,
+        "y": -1.78,
+        "rotation": 130.74,
+        "width": 23,
+        "height": 18
+      },
+      "shirt_back": {
+        "name": "home/shirt_back.png",
+        "color": "ffffffff",
+        "x": 24.8,
+        "y": 1.45,
+        "rotation": -88.19,
+        "width": 56,
+        "height": 52
+      },
+      "shirt_front": {
+        "name": "home/shirt_front.png",
+        "color": "ffffffff",
+        "x": 24.8,
+        "y": 1.45,
+        "rotation": -88.19,
+        "width": 56,
+        "height": 52
+      },
+      "leg_left_shoe": {
+        "name": "home/shoes_left.png",
+        "color": "ffffffff",
+        "x": 4.62,
+        "y": 0.29,
+        "rotation": 0.35,
+        "width": 16,
+        "height": 6
+      },
+      "leg_left_shorts": {
+        "name": "home/shorts_leg_left.png",
+        "color": "ffffffff",
+        "x": 2.61,
+        "y": 0.45,
+        "rotation": 80.83,
+        "width": 12,
+        "height": 16
+      },
+      "leg_left_sock": {
+        "name": "home/socks_left.png",
+        "color": "ffffffff",
+        "x": 6.76,
+        "y": 0.63,
+        "rotation": 110.26,
+        "width": 11,
+        "height": 14
+      },
+      "leg_right_shoe": {
+        "name": "home/shoes_right.png",
+        "color": "ffffffff",
+        "x": 3.8,
+        "y": -0.26,
+        "rotation": 4.17,
+        "width": 16,
+        "height": 6
+      },
+      "leg_right_shorts": {
+        "name": "home/shorts_leg_right.png",
+        "color": "ffffffff",
+        "x": 1.14,
+        "y": 0.39,
+        "rotation": 81.11,
+        "width": 12,
+        "height": 16
+      },
+      "leg_right_sock": {
+        "name": "home/socks_right.png",
+        "color": "ffffffff",
+        "x": 5.51,
+        "y": 0.76,
+        "rotation": 110.01,
+        "width": 11,
+        "height": 14
+      },
+      "number": {
+        "name": "../../player/kit/number.png",
+        "color": "f0bc3fff",
+        "x": 17.18,
+        "y": 0.16,
+        "rotation": -89.44,
+        "width": 33,
+        "height": 18
+      },
+      "pelvis_shorts": {
+        "name": "home/shorts.png",
+        "color": "ffffffff",
+        "x": -1.27,
+        "y": 0.02,
+        "width": 55,
+        "height": 8
+      }
+    },
+    "away": {
+      "arm_left_sleeve": {
+        "name": "away/sleeve_left.png",
+        "color": "ffffffff",
+        "x": 8.88,
+        "y": -2.01,
+        "rotation": 76.85,
+        "width": 14,
+        "height": 22
+      },
+      "arm_right_sleeve": {
+        "name": "away/sleeve_right.png",
+        "color": "ffffffff",
+        "x": 8.04,
+        "y": -1.78,
+        "rotation": 130.74,
+        "width": 23,
+        "height": 18
+      },
+      "shirt_back": {
+        "name": "away/shirt_back.png",
+        "color": "ffffffff",
+        "x": 24.8,
+        "y": 1.45,
+        "rotation": -88.19,
+        "width": 56,
+        "height": 52
+      },
+      "shirt_front": {
+        "name": "away/shirt_front.png",
+        "color": "ffffffff",
+        "x": 24.8,
+        "y": 1.45,
+        "rotation": -88.19,
+        "width": 56,
+        "height": 52
+      },
+      "leg_left_shoe": {
+        "name": "away/shoes_left.png",
+        "color": "ffffffff",
+        "x": 4.62,
+        "y": 0.29,
+        "rotation": 0.35,
+        "width": 16,
+        "height": 6
+      },
+      "leg_left_shorts": {
+        "name": "away/shorts_leg_left.png",
+        "color": "ffffffff",
+        "x": 2.61,
+        "y": 0.45,
+        "rotation": 80.83,
+        "width": 12,
+        "height": 16
+      },
+      "leg_left_sock": {
+        "name": "away/socks_left.png",
+        "color": "ffffffff",
+        "x": 6.76,
+        "y": 0.63,
+        "rotation": 110.26,
+        "width": 11,
+        "height": 14
+      },
+      "leg_right_shoe": {
+        "name": "away/shoes_right.png",
+        "color": "ffffffff",
+        "x": 3.8,
+        "y": -0.26,
+        "rotation": 4.17,
+        "width": 16,
+        "height": 6
+      },
+      "leg_right_shorts": {
+        "name": "away/shorts_leg_right.png",
+        "color": "ffffffff",
+        "x": 1.14,
+        "y": 0.39,
+        "rotation": 81.11,
+        "width": 12,
+        "height": 16
+      },
+      "leg_right_sock": {
+        "name": "away/socks_right.png",
+        "color": "ffffffff",
+        "x": 5.51,
+        "y": 0.76,
+        "rotation": 110.01,
+        "width": 11,
+        "height": 14
+      },
+      "number": {
+        "name": "../../player/kit/number.png",
+        "color": "e53b32ff",
+        "x": 17.18,
+        "y": 0.16,
+        "rotation": -89.44,
+        "width": 33,
+        "height": 18
+      },
+      "pelvis_shorts": {
+        "name": "away/shorts.png",
+        "color": "ffffffff",
+        "x": -1.27,
+        "y": 0.02,
+        "width": 55,
+        "height": 8
+      }
+    }
+  },
+  "id": "brazil",
+  "kitColors": {
+    "home": "2e7350",
+    "away": "176bc1",
+    "goalkeeper": "c94b7a"
+  },
+  "players": [
+    {
+      "race": "rural_v2_01",
+      "role": "G",
+      "number": 1,
+      "skin": {}
+    },
+    {
+      "race": "rural_02",
+      "role": "D",
+      "number": 2,
+      "skin": {}
+    },
+    {
+      "race": "rural_03",
+      "role": "D",
+      "number": 3,
+      "skin": {}
+    },
+    {
+      "race": "rural_04",
+      "role": "D",
+      "number": 4,
+      "skin": {}
+    },
+    {
+      "race": "rural_05",
+      "role": "M",
+      "number": 5,
+      "skin": {}
+    },
+    {
+      "race": "rural_06",
+      "role": "M",
+      "number": 6,
+      "skin": {}
+    },
+    {
+      "race": "rural_07",
+      "role": "M",
+      "number": 7,
+      "skin": {}
+    },
+    {
+      "race": "rural_08",
+      "role": "A",
+      "number": 8,
+      "skin": {}
+    },
+    {
+      "race": "rural_09",
+      "role": "A",
+      "number": 9,
+      "skin": {}
+    },
+    {
+      "race": "rural_10",
+      "role": "A",
+      "number": 10,
+      "skin": {}
+    },
+    {
+      "race": "rural_11",
+      "role": "G",
+      "number": 11,
+      "skin": {}
+    },
+    {
+      "race": "rural_12",
+      "role": "M",
+      "number": 12,
+      "skin": {}
+    },
+    {
+      "race": "rural_13",
+      "role": "M",
+      "number": 13,
+      "skin": {}
+    },
+    {
+      "race": "rural_14",
+      "role": "M",
+      "number": 14,
+      "skin": {}
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+{
+  "appid": "wx6755751392105ee3",
+  "compileType": "game",
+  "libVersion": "3.15.2",
+  "projectname": "乡村足球赛",
+  "miniprogramRoot": "./",
+  "packOptions": {
+    "ignore": [
+      {
+        "value": "tools",
+        "type": "folder"
+      },
+      {
+        "value": "node_modules",
+        "type": "folder"
+      },
+      {
+        "value": ".vscode",
+        "type": "folder"
+      },
+      {
+        "value": "server",
+        "type": "folder"
+      },
+      {
+        "value": "README.md",
+        "type": "file"
+      },
+      {
+        "value": "project.private.config.json",
+        "type": "file"
+      },
+      {
+        "value": "package.json",
+        "type": "file"
+      },
+      {
+        "value": "package-lock.json",
+        "type": "file"
+      },
+      {
+        "value": "STATUS.md",
+        "type": "file"
+      },
+      {
+        "value": ".gitignore",
+        "type": "file"
+      },
+      {
+        "value": ".DS_Store",
+        "type": "file"
+      },
+      {
+        "value": "AGENTS.md",
+        "type": "file"
+      },
+      {
+        "value": "region_data/NOTICE.md",
+        "type": "file"
+      },
+      {
+        "value": ".generated-build",
+        "type": "folder"
+      },
+      {
+        "value": ".runtime-assets-build",
+        "type": "folder"
+      },
+      {
+        "value": ".shell-assets-build",
+        "type": "folder"
+      },
+      {
+        "value": "source-assets",
+        "type": "folder"
+      },
+      {
+        "value": "美术整体替换包",
+        "type": "folder"
+      },
+      {
+        "value": "美术替换备份",
+        "type": "folder"
+      },
+      {
+        "value": ".tmp",
+        "type": "folder"
+      },
+      {
+        "value": ".superpowers",
+        "type": "folder"
+      },
+      {
+        "value": "Kimi人物素材",
+        "type": "folder"
+      },
+      {
+        "value": "docs",
+        "type": "folder"
+      },
+      {
+        "value": "乡村足球赛人物头像",
+        "type": "folder"
+      },
+      {
+        "value": "提审素材",
+        "type": "folder"
+      }
+    ],
+    "include": []
+  },
+  "watchOptions": {
+    "ignore": [
+      ".superpowers/**",
+      ".tmp/**",
+      "docs/**",
+      "server/**",
+      "tools/**",
+      "source-assets/**",
+      "美术整体替换包/**",
+      "美术替换备份/**",
+      "乡村足球赛人物头像/**",
+      "提审素材/**"
+    ]
+  },
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "postcss": false,
+    "urlCheck": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": false,
+    "enhance": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "simulatorPluginLibVersion": {},
+  "isGameTourist": false,
+  "editorSetting": {}
+}

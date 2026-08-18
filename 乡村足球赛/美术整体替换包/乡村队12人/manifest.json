@@ -1,0 +1,356 @@
+{
+  "schemaVersion": 2,
+  "teamPreset": "balanced-village-team",
+  "averageAge": 34.43,
+  "ageGenerationRange": [
+    18,
+    58
+  ],
+  "runtimeContract": {
+    "keepRaceJsonTransforms": true,
+    "keepSkeletonAndPhysics": true,
+    "background": "transparent",
+    "colorType": "RGBA",
+    "assets": {
+      "portrait.png": [
+        192,
+        192
+      ],
+      "head.png": [
+        81,
+        77
+      ],
+      "head_back.png": [
+        81,
+        77
+      ],
+      "neck.png": [
+        20,
+        18
+      ],
+      "arm_left.png": [
+        14,
+        11
+      ],
+      "arm_right.png": [
+        15,
+        17
+      ],
+      "hand_left.png": [
+        25,
+        28
+      ],
+      "hand_right.png": [
+        23,
+        38
+      ],
+      "knee.png": [
+        8,
+        9
+      ]
+    }
+  },
+  "generationMethod": {
+    "assetEconomyPolicy": {
+      "highResolutionGenerationByDefault": false,
+      "preferredProduction": "真实生图模型生成768×512三视图母版，再本地自动派生全部运行小图",
+      "candidateBatchLayout": "4×2八人低像素联系表，仅用于筛选；入选后再生成单人三视图",
+      "forbidLocalCandidateImitation": true,
+      "maxStoredReferenceEdge": 768,
+      "deleteHighResolutionPngAfterSlicing": true,
+      "reason": "避免浪费空间、时间、生图额度和上下文 Token"
+    },
+    "style": "精致欢乐的3D卡通足球游戏角色，乡村真实生活气质，清晰轮廓，统一光照和材质",
+    "ordinaryPeoplePolicy": {
+      "goal": "角色首先像中国县城与乡村里会真实出现的普通人和业余球员，而不是偶像、网红或职业球星",
+      "referenceBasis": "参考公开村超报道中农民、木工、装修工、摊贩、教师、司机、学生等普通参赛者的共同气质，不复刻任何真实个人肖像",
+      "requiredVariation": [
+        "方脸、圆脸、长脸、宽脸等脸型自然分布",
+        "高低发际线、短发、寸头、少量灰发和自然稀疏等发型差异",
+        "晒痕、笑纹、轻微肤色不均、胡茬、眼镜等生活痕迹",
+        "精瘦、结实、敦实、修长等健康体型差异",
+        "允许轻微自然不对称，但不得做猎奇、羞辱性或病态丑化"
+      ],
+      "forbiddenBeautyBias": [
+        "全员偶像脸或网红脸",
+        "全员大眼、高鼻梁、尖下巴、完美对称",
+        "西式超级英雄骨相",
+        "韩式精修发型与影楼磨皮",
+        "统一年轻、统一白皙、统一健美身材"
+      ]
+    },
+    "sourceSheet": {
+      "layout": "三等分横向角色源图",
+      "left": "胸像三分之四视角，用于portrait",
+      "center": "仅头部严格正面视角，双眼水平、鼻尖居中，用于head；占框和中心必须与原骨架一致",
+      "right": "仅头部严格背面视角，不得出现眼睛、鼻子或嘴，用于head_back；与正面同尺度、同基线",
+      "background": "#FF00FF"
+    },
+    "avoid": [
+      "动物头或动物四肢",
+      "真实人物肖像",
+      "品牌标志",
+      "行政机关标志",
+      "文字和水印",
+      "职业制服替代球队球衣",
+      "夸张改变身材和骨骼比例",
+      "偶像化、网红化、全员精致帅脸",
+      "刻意丑化、猎奇五官或羞辱性 caricature",
+      "洋红背景残边进入运行素材"
+    ],
+    "presets": {
+      "balanced-village-team": {
+        "ageRange": [
+          18,
+          46
+        ],
+        "targetAverage": [
+          28,
+          35
+        ]
+      },
+      "youth-academy": {
+        "ageRange": [
+          12,
+          20
+        ],
+        "targetAverage": [
+          15,
+          19
+        ]
+      },
+      "veteran-cup": {
+        "ageRange": [
+          45,
+          70
+        ],
+        "targetAverage": [
+          50,
+          62
+        ]
+      },
+      "all-ages-exhibition": {
+        "ageRange": [
+          12,
+          70
+        ],
+        "targetAverage": [
+          30,
+          45
+        ]
+      }
+    }
+  },
+  "players": [
+    {
+      "id": "butcher-captain",
+      "name": "韦国强",
+      "age": 45,
+      "gender": "男",
+      "profession": "屠户兼宴席掌勺",
+      "position": "门将",
+      "number": 1,
+      "skinTone": "#B2764A",
+      "face": "方脸盘、浓眉、短胡茬、眼角笑纹",
+      "hair": "黑色短发夹几根灰发",
+      "detail": "沉稳可靠的老队长气质",
+      "accent": "#7A4A2B",
+      "headHorizontalFacing": "front"
+    },
+    {
+      "id": "sugarcane-defender",
+      "name": "蒙大田",
+      "age": 40,
+      "gender": "男",
+      "profession": "甘蔗种植大户",
+      "position": "后卫",
+      "number": 2,
+      "skinTone": "#9E6238",
+      "face": "宽脸、晒得黝黑、笑声爽朗",
+      "hair": "朴素短发、发际线略高",
+      "detail": "稳健厚实",
+      "accent": "#5C7A33",
+      "headHorizontalFacing": "right"
+    },
+    {
+      "id": "pe-teacher-defender",
+      "name": "覃秀丽",
+      "age": 32,
+      "gender": "女",
+      "profession": "村小体育老师",
+      "position": "后卫",
+      "number": 3,
+      "skinTone": "#D89A70",
+      "face": "利落鹅蛋脸、明亮眼神、晒斑几颗",
+      "hair": "运动短马尾",
+      "detail": "专业自信",
+      "accent": "#2F6EA3",
+      "headHorizontalFacing": "right"
+    },
+    {
+      "id": "rider-winger",
+      "name": "吴跃进",
+      "age": 24,
+      "gender": "男",
+      "profession": "乡镇外卖骑手",
+      "position": "边卫",
+      "number": 4,
+      "skinTone": "#C98A5E",
+      "face": "瘦长脸、阳光笑容、单眼皮",
+      "hair": "清爽短发",
+      "detail": "速度感强",
+      "accent": "#E77A22",
+      "headHorizontalFacing": "right"
+    },
+    {
+      "id": "steelworker-midfielder",
+      "name": "石铁柱",
+      "age": 29,
+      "gender": "男",
+      "profession": "钢筋工",
+      "position": "中场",
+      "number": 5,
+      "skinTone": "#A66A42",
+      "face": "硬朗脸型、粗眉、下颌有胡茬",
+      "hair": "短寸头",
+      "detail": "有力量但不夸张",
+      "accent": "#4D6B52",
+      "headHorizontalFacing": "left"
+    },
+    {
+      "id": "noodle-playmaker",
+      "name": "岑月娥",
+      "age": 31,
+      "gender": "女",
+      "profession": "镇上米粉店老板娘",
+      "position": "中场",
+      "number": 6,
+      "skinTone": "#E0A87E",
+      "face": "柔和脸型、专注神情、薄唇",
+      "hair": "低马尾、额前碎发",
+      "detail": "亲和且有组织力",
+      "accent": "#9A6A8C",
+      "headHorizontalFacing": "right"
+    },
+    {
+      "id": "shopkeeper-midfielder",
+      "name": "罗桂香",
+      "age": 47,
+      "gender": "女",
+      "profession": "村小卖部兼合作社账房",
+      "position": "后腰",
+      "number": 7,
+      "skinTone": "#CE9668",
+      "face": "成熟圆脸、明显笑纹、温和",
+      "hair": "短卷发夹少量灰发",
+      "detail": "经验丰富、冷静",
+      "accent": "#8B6A3C",
+      "headHorizontalFacing": "left"
+    },
+    {
+      "id": "graduate-forward",
+      "name": "杨帆",
+      "age": 21,
+      "gender": "男",
+      "profession": "返乡大学生、电商卖特产",
+      "position": "前锋",
+      "number": 8,
+      "skinTone": "#D69B72",
+      "face": "年轻清秀、眼神坚定、略显瘦",
+      "hair": "自然蓬松短发",
+      "detail": "朝气和冲劲",
+      "accent": "#3F8C67",
+      "headHorizontalFacing": "right"
+    },
+    {
+      "id": "woman-striker",
+      "name": "韦春花",
+      "age": 25,
+      "gender": "女",
+      "profession": "县城幼儿园老师、女足尖子",
+      "position": "前锋",
+      "number": 9,
+      "skinTone": "#C8895F",
+      "face": "运动感强、锐利眼神、颧骨略高",
+      "hair": "高马尾",
+      "detail": "爆发力和自信",
+      "accent": "#C94848",
+      "headHorizontalFacing": "left"
+    },
+    {
+      "id": "market-winger",
+      "name": "陆小妹",
+      "age": 26,
+      "gender": "女",
+      "profession": "赶集卖卤味、兼职村播",
+      "position": "边锋",
+      "number": 10,
+      "skinTone": "#E2A67C",
+      "face": "圆脸、活泼笑容、小虎牙",
+      "hair": "双股编发收束",
+      "detail": "有镜头感但不网红化",
+      "accent": "#D76B9A",
+      "headHorizontalFacing": "right"
+    },
+    {
+      "id": "doctor-goalkeeper",
+      "name": "何济民",
+      "age": 36,
+      "gender": "男",
+      "profession": "村卫生室医生",
+      "position": "门将",
+      "number": 11,
+      "skinTone": "#C48760",
+      "face": "斯文长脸、沉着、戴细框眼镜",
+      "hair": "整洁侧分短发",
+      "detail": "冷静可靠",
+      "accent": "#4B7F86",
+      "headHorizontalFacing": "left"
+    },
+    {
+      "id": "mechanic-apprentice",
+      "name": "梁小满",
+      "age": 18,
+      "gender": "男",
+      "profession": "职校汽修学徒",
+      "position": "中场",
+      "number": 12,
+      "skinTone": "#D28E64",
+      "face": "少年感圆脸、认真表情、几颗青春痘",
+      "hair": "短碎发",
+      "detail": "青涩但有韧劲",
+      "accent": "#6B6F82",
+      "headHorizontalFacing": "right"
+    },
+    {
+      "id": "fishpond-farmer",
+      "name": "何水生",
+      "age": 50,
+      "gender": "男",
+      "profession": "鱼塘养殖户",
+      "position": "中场",
+      "number": 13,
+      "skinTone": "#A06844",
+      "face": "方脸盘、花白短胡茬、眉毛淡",
+      "hair": "几乎光头的极短寸头、晒得发亮",
+      "detail": "憨厚壮实",
+      "accent": "#2F5D8A",
+      "headHorizontalFacing": "left"
+    },
+    {
+      "id": "bamboo-craftsman",
+      "name": "梁师傅",
+      "age": 58,
+      "gender": "男",
+      "profession": "竹编手艺人",
+      "position": "中场",
+      "number": 14,
+      "skinTone": "#C08A62",
+      "face": "清瘦长脸、花白山羊胡、眼角深纹",
+      "hair": "花白稀疏后梳",
+      "detail": "温和专注",
+      "accent": "#8A7A4A",
+      "headHorizontalFacing": "right"
+    }
+  ]
+}

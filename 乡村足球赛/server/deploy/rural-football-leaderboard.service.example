@@ -1,0 +1,25 @@
+[Unit]
+Description=Rural Football Leaderboard Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rural-football
+Group=rural-football
+WorkingDirectory=/opt/rural-football
+EnvironmentFile=/etc/rural-football/rural-football.env
+Environment=HOST=127.0.0.1
+Environment=PORT=8788
+ExecStart=/usr/bin/node /opt/rural-football/server/leaderboard-service.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/rural-football
+
+[Install]
+WantedBy=multi-user.target
+

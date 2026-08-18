@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "canvas": [
+    4096,
+    2048
+  ],
+  "worldScale": [
+    1.25,
+    1.25
+  ],
+  "horizontalSpectatorScale": [
+    0.5,
+    0.58
+  ],
+  "verticalSpectatorScale": [
+    0.58,
+    0.5
+  ],
+  "cameraLayer": "stadium.top",
+  "source": "美术整体替换包/省份球场与观众/观众母版/乡村四周人类观众透明母版.webp",
+  "outputBytes": 792575
+}
