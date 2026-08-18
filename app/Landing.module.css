@@ -576,8 +576,85 @@
 .watch:hover { background: #f4eed9; transform: translateY(-2px); }
 .watch:active { transform: translateY(1px); box-shadow: 0 3px 0 rgba(120, 90, 50, 0.25); }
 
+/* LAN versus: a full-width third action under the Play/Watch pair. Storybook
+   blue to read as the "two-player / 联机" path, distinct from the green Play. */
+.actionsLan {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 520px;
+  margin: 10px auto 0;
+}
+.lan, .online {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  box-sizing: border-box; width: 100%; white-space: nowrap;
+  border: 2px solid #2f5aa8; border-radius: 16px; padding: 12px 16px;
+  font-size: 16px; font-weight: 900; font-family: inherit; cursor: pointer;
+  color: #fff7e2; background: #3a6fce;
+  box-shadow: 0 5px 0 #2f5aa8, 0 10px 20px rgba(30, 50, 90, 0.3);
+  transition: transform 120ms ease, background 120ms ease;
+}
+.lan:hover { background: #4880e0; transform: translateY(-2px); }
+.lan:active { transform: translateY(1px); box-shadow: 0 3px 0 #2f5aa8; }
+.online {
+  border-color: #875d24;
+  color: #fff7e2;
+  background: #a9742d;
+  box-shadow: 0 5px 0 #875d24, 0 10px 20px rgba(80, 55, 20, 0.28);
+}
+.online:hover { background: #b9853b; transform: translateY(-2px); }
+.online:active { transform: translateY(1px); box-shadow: 0 3px 0 #875d24; }
+
+.onlineBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(28, 45, 20, 0.72);
+  backdrop-filter: blur(8px);
+}
+.onlineDialog {
+  width: min(520px, 100%);
+  padding: 20px;
+  border: 4px solid #fffef8;
+  border-radius: 20px;
+  background: #fffef8;
+  box-shadow: 0 18px 50px rgba(20, 35, 15, 0.45);
+  color: #405e31;
+}
+.onlineHead { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.onlineHead h2 { margin: 0; font-size: 22px; letter-spacing: 0; }
+.onlineClose {
+  width: 38px; height: 38px; border: 0; border-radius: 50%;
+  background: #edf3e7; color: #4f8a2f; font-size: 26px; line-height: 1; cursor: pointer;
+}
+.onlineModes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.onlineMode {
+  min-height: 74px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  border: 2px solid rgba(93, 144, 56, 0.32); border-radius: 14px;
+  background: #f3f8ee; color: #4f8a2f; font: 900 15px inherit; cursor: pointer;
+}
+.onlineMode:hover { border-color: #5d9038; background: #e8f2df; }
+.onlineJoin { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 14px; }
+.onlineJoin input {
+  min-width: 0; height: 46px; box-sizing: border-box; border: 2px solid rgba(120, 90, 50, 0.22);
+  border-radius: 12px; padding: 0 14px; background: #fff; color: #39542d;
+  font: 900 18px/1 inherit; letter-spacing: 0; text-transform: uppercase;
+}
+.onlineJoin button {
+  min-width: 112px; border: 0; border-radius: 12px; padding: 0 16px;
+  background: #5d9038; color: #fff7e2; font: 900 14px inherit; cursor: pointer;
+}
+.onlineJoin button:disabled { opacity: 0.42; cursor: not-allowed; }
+
 @media (max-width: 720px), (max-height: 560px) {
   .segBtn { padding: 8px 12px; font-size: 13px; max-width: 38vw; }
+  .actionsLan { gap: 8px; margin-top: 4px; }
+  .lan, .online { padding: 9px 10px; font-size: 13px; }
+  .onlineModes { grid-template-columns: 1fr; }
 }
 
 @media (max-height: 440px) {

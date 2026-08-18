@@ -57,7 +57,10 @@ export default function MatchAudio() {
     const tick = () => {
       const ball = window.__matchGame && window.__matchGame.pitch && window.__matchGame.pitch.ball;
       if (ball) {
-        const sp = ball.speed || 0;
+        const remoteVelocity = window.__onlineRemoteFrame?.ball?.velocity;
+        const sp = remoteVelocity
+          ? Math.hypot(remoteVelocity.x || 0, remoteVelocity.y || 0, remoteVelocity.z || 0)
+          : ball.speed || 0;
         const jump = sp - lastSpeed;
         lastSpeed = sp;
         if (cooldown > 0) cooldown -= 1;

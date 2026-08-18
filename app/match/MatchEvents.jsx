@@ -35,7 +35,11 @@ export default function MatchEvents() {
       if (r > lastR || b > lastB) {
         const teamId = r > lastR ? slugs.red : slugs.blue;
         show({ kind: "goal", title: t("event.goal"), teamId, line: `${r} : ${b}` });
-      } else if (!shownHalf && (pitch.states.name === "HalfEnded" || pitch.secondHalf)) {
+      } else if (!shownHalf && (
+        window.__onlineRemoteFrame?.state?.name === "HalfEnded" ||
+        pitch.states.name === "HalfEnded" ||
+        pitch.secondHalf
+      )) {
         // HalfEnded = the first-half whistle (the right moment); secondHalf
         // flip is only a late fallback in case a poll tick missed the state
         shownHalf = true;

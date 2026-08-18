@@ -319,6 +319,7 @@ export default function MatchChrome() {
   const [touch, setTouch] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [invite, setInvite] = useState({ open: false, busy: false, poster: null, copied: false });
+  const [onlineInput, setOnlineInput] = useState(null);
   const landscape = usePageLandscapeMode({
     enabled: touch,
     auto: false,
@@ -331,6 +332,7 @@ export default function MatchChrome() {
     const q = params.get("light");
     setLight(modes.includes(q) ? q : modes[Math.floor(Math.random() * modes.length)]);
     setPlay(params.get("play") === "1");
+    setOnlineInput(params.get("onlineInput"));
     setTouch(
       params.get("touch") === "1" ||
       (typeof window !== "undefined" &&
@@ -511,7 +513,11 @@ export default function MatchChrome() {
                       ref={(el) => {
                         if (el && !el.__rematchWired) {
                           el.__rematchWired = true;
-                          el.addEventListener("click", () => { sfx.play("ui_click"); window.location.reload(); });
+                          el.addEventListener("click", () => {
+                            sfx.play("ui_click");
+                            if (typeof window.__onlineRematch === "function") window.__onlineRematch();
+                            else window.location.reload();
+                          });
                         }
                       }}>
                 {t("match.rematch")}
@@ -531,8 +537,8 @@ export default function MatchChrome() {
       ) : null}
 
 
-      {play && !touch && !result ? <ControlsLegend t={t} /> : null}
-      {play && touch && !loading && !result ? <TouchControls /> : null}
+      {play && onlineInput !== "pads" && !touch && !result ? <ControlsLegend t={t} /> : null}
+      {play && onlineInput !== "pads" && touch && !loading && !result ? <TouchControls /> : null}
       {guideOpen && !result ? <MatchGuide play={play} touch={touch} t={t} onClose={closeGuide} /> : null}
       <InvitePosterModal invite={invite} t={t} onClose={closeInvite} />
 

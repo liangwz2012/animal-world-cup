@@ -12,6 +12,7 @@ import LangSwitcher from "./i18n/LangSwitcher";
 import { useLocale } from "./i18n/LocaleProvider";
 import { PLAYABLE_TEAMS, portraitSrc, runtimeHeadSrc } from "./data/teams";
 import { FORMATIONS } from "./data/formations";
+import { normalizeRoomCode } from "../online/shared";
 import FormationDiagram from "./ui/FormationDiagram";
 import { IconShareForward } from "./ui/Icons";
 import { createInvitePoster } from "./match/createInvitePoster";
@@ -54,6 +55,27 @@ function EyeIcon() {
          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" />
       <circle cx="12" cy="12" r="2.6" />
+    </svg>
+  );
+}
+
+function LanIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="2.5" y="4" width="8" height="16" rx="2" />
+      <rect x="13.5" y="4" width="8" height="16" rx="2" />
+      <path d="M6.5 17.2h0M17.5 17.2h0" />
+    </svg>
+  );
+}
+
+function OnlineIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.4 2.5 3.6 5.3 3.6 8.5S14.4 18 12 20.5C9.6 18 8.4 15.2 8.4 12S9.6 6 12 3.5Z" />
     </svg>
   );
 }
@@ -168,6 +190,8 @@ export default function Landing() {
   const [side, setSide] = useState("home"); // your team's kit: home / away
   const [landscapePrompt, setLandscapePrompt] = useState(false);
   const [invite, setInvite] = useState({ open: false, busy: false, poster: null, copied: false });
+  const [onlineOpen, setOnlineOpen] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
   const wrapRef = useRef(null);
   const refit = useCallback((fakeLandscape = false) => {
     const w = wrapRef.current;
@@ -287,6 +311,27 @@ export default function Landing() {
     setInvite((cur) => ({ ...cur, open: false }));
   }
 
+  function goOnline(mode) {
+    const params = new URLSearchParams({
+      create: mode,
+      red: mine,
+      blue: opp,
+      ai: String(diff),
+      side,
+      time: String(time),
+      redForm: mineForm,
+      blueForm: oppForm,
+    });
+    router.push(`/online?${params.toString()}`);
+  }
+
+  function joinOnline(event) {
+    event.preventDefault();
+    const room = normalizeRoomCode(joinCode);
+    if (room.length !== 6) return;
+    router.push(`/online?room=${room}`);
+  }
+
   return (
     <main className={css.stage}>
       <div className={css.pattern} aria-hidden />
@@ -369,8 +414,43 @@ export default function Landing() {
             <CtrlIcon /> {t("home.kickoff")}
           </button>
         </div>
+        <div className={css.actionsLan}>
+          <button type="button" className={css.online} style={{ gridColumn: "1 / -1" }} onClick={() => setOnlineOpen(true)}>
+            <OnlineIcon /> {t("home.online")}
+          </button>
+        </div>
       </div>
       <LandingInviteModal invite={invite} t={t} onClose={closeInvite} />
+
+      {onlineOpen ? (
+        <div className={css.onlineBackdrop} role="presentation" onClick={() => setOnlineOpen(false)}>
+          <section className={css.onlineDialog} role="dialog" aria-modal="true"
+                   aria-labelledby="online-title" onClick={(event) => event.stopPropagation()}>
+            <header className={css.onlineHead}>
+              <h2 id="online-title">{t("online.choose")}</h2>
+              <button type="button" className={css.onlineClose} onClick={() => setOnlineOpen(false)}
+                      aria-label={t("online.close")}>×</button>
+            </header>
+            <div className={css.onlineModes}>
+              <button type="button" className={css.onlineMode} onClick={() => goOnline("direct")}>
+                <CtrlIcon /> <span>{t("online.direct")}</span>
+              </button>
+              <button type="button" className={css.onlineMode} onClick={() => goOnline("controllers")}>
+                <LanIcon /> <span>{t("online.controllers")}</span>
+              </button>
+            </div>
+            <form className={css.onlineJoin} onSubmit={joinOnline}>
+              <input value={joinCode}
+                     onChange={(event) => setJoinCode(normalizeRoomCode(event.target.value))}
+                     placeholder={t("online.code")} maxLength={6} autoCapitalize="characters"
+                     autoCorrect="off" spellCheck={false} aria-label={t("online.code")} />
+              <button type="submit" disabled={normalizeRoomCode(joinCode).length !== 6}>
+                {t("online.join")}
+              </button>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

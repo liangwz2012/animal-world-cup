@@ -1463,3 +1463,25 @@ body.ac-touch-play .tc-btn--sprint {
   background: rgba(242,183,5,0.35);
   color: rgba(58,46,10,0.86);
 }
+
+.online-match-badge {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 96;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 7px;
+  background: rgba(27, 44, 23, 0.72);
+  color: #fff7e2;
+  font: 900 11px/1 "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  letter-spacing: 0;
+  backdrop-filter: blur(8px);
+}
+.online-match-badge i { width: 8px; height: 8px; border-radius: 50%; background: #e3b94a; }
+.online-match-badge--online i { background: #72d34d; }
+.online-match-badge--closed i, .online-match-badge--error i { background: #ef6d58; }

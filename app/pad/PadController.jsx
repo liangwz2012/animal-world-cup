@@ -11,6 +11,7 @@
 // and avoids syncing the non-deterministic engine across devices.
 import { useEffect, useRef, useState } from "react";
 import { createLanClient } from "../lan/lanClient";
+import { createOnlineClient } from "../online/onlineClient";
 
 const SVG = (props) => (
   <svg viewBox="0 0 24 24" width={props.s || 30} height={props.s || 30} fill="none"
@@ -31,11 +32,13 @@ const SprintIcon = () => <SVG s={28}><path d="M6 6l6 6-6 6" /><path d="M13 6l6 6
 
 const SIDE = { 0: { key: "P1", cls: "pad--red" }, 1: { key: "P2", cls: "pad--blue" } };
 
-export default function PadController({ room }) {
+export default function PadController({ room, transport = "lan", requestedSlot = null, invite = "" }) {
   // status: "connecting" | "joining" | "ready" | "playing" | "full" | "no-room" | "closed"
   const [status, setStatus] = useState("connecting");
   const [slot, setSlot] = useState(null);
+  const statusRef = useRef("connecting");
   const lanRef = useRef(null);
+  const seqRef = useRef(0);
   const baseRef = useRef(null);
   const thumbRef = useRef(null);
   const stick = useRef({ id: null, cx: 0, cy: 0, r: 56 });
@@ -44,44 +47,115 @@ export default function PadController({ room }) {
 
   useEffect(() => {
     if (!room) { setStatus("no-room"); return undefined; }
-    const lan = createLanClient({
-      onOpen() { setStatus("joining"); },
-      onClose() { setStatus((s) => (s === "closed" ? s : "connecting")); },
+    let resumeToken = "";
+    const setPadStatus = (next) => {
+      statusRef.current = typeof next === "function" ? next(statusRef.current) : next;
+      setStatus(statusRef.current);
+    };
+    const neutralize = (send = false) => {
+      const current = input.current;
+      current.vx = 0;
+      current.vy = 0;
+      current.shoot = false;
+      current.sprint = false;
+      stick.current.id = null;
+      if (thumbRef.current) thumbRef.current.style.transform = "translate(0px,0px)";
+      if (send && statusRef.current === "playing") {
+        lanRef.current?.send({
+          t: "input",
+          seq: ++seqRef.current,
+          d: { vx: 0, vy: 0, shoot: false, sprint: false },
+        });
+      }
+    };
+    if (transport === "online") {
+      try { resumeToken = sessionStorage.getItem(`animalCupOnline:pad:${room}:${requestedSlot}`) || ""; } catch {}
+      if (invite) {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete("invite");
+        window.history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}`);
+      }
+    }
+    const handlers = {
       onMessage(msg) {
-        if (msg.t === "joined") { setSlot(msg.slot); setStatus("ready"); }
+        if (msg.t === "joined") {
+          setSlot(msg.slot);
+          setPadStatus(msg.started ? "playing" : "ready");
+          if (transport === "online" && msg.token) {
+            resumeToken = msg.token;
+            try { sessionStorage.setItem(`animalCupOnline:pad:${room}:${msg.slot}`, msg.token); } catch {}
+          }
+        }
         else if (msg.t === "slot") { setSlot(msg.slot); }
-        else if (msg.t === "start") { setStatus("playing"); if (typeof msg.slot === "number") setSlot(msg.slot); }
-        else if (msg.t === "ended") { setStatus("ready"); }
-        else if (msg.t === "joinErr") { setStatus(msg.reason === "full" ? "full" : "no-room"); }
-        else if (msg.t === "closed") { setStatus("closed"); }
+        else if (msg.t === "start") { setPadStatus("playing"); if (typeof msg.slot === "number") setSlot(msg.slot); }
+        else if (msg.t === "rematch") { setPadStatus("playing"); }
+        else if (msg.t === "ended") { neutralize(true); setPadStatus("ready"); }
+        else if (msg.t === "joinErr") {
+          neutralize(false);
+          setPadStatus(["full", "slot-full"].includes(msg.reason) ? "full" : msg.reason === "no-room" ? "no-room" : "denied");
+          if (transport === "online") lanRef.current?.close();
+        }
+        else if (msg.t === "closed") {
+          neutralize(false);
+          setPadStatus("closed");
+          if (transport === "online") lanRef.current?.close();
+        }
       },
-    });
+    };
+    const lan = transport === "online"
+      ? createOnlineClient({
+          room,
+          hello: () => ({ t: "hello", role: "pad", slot: requestedSlot, invite, token: resumeToken }),
+          onStatus(next, detail) {
+            if (next === "open") setPadStatus("joining");
+            else if (next === "connecting") setPadStatus("connecting");
+            else if (next === "error") setPadStatus(detail === "no-room" ? "no-room" : "denied");
+          },
+          ...handlers,
+        })
+      : createLanClient({
+          onOpen() { setPadStatus("joining"); },
+          onClose() { setPadStatus((current) => (current === "closed" ? current : "connecting")); },
+          ...handlers,
+        });
     lanRef.current = lan;
     // (re)join on every connect — a dropped phone re-takes its place
-    lan.setHello(() => ({ t: "join", room, name: navigator.platform || "Pad" }));
+    if (transport === "lan") lan.setHello(() => ({ t: "join", room, name: navigator.platform || "Pad" }));
 
     // stream continuous state at ~30Hz (only while joined)
     const iv = setInterval(() => {
+      if (statusRef.current !== "playing") return;
       const i = input.current;
-      lan.send({ t: "input", d: { vx: i.vx, vy: i.vy, shoot: i.shoot, sprint: i.sprint } });
+      lan.send({ t: "input", seq: ++seqRef.current, d: { vx: i.vx, vy: i.vy, shoot: i.shoot, sprint: i.sprint } });
     }, 33);
 
     // lock the page from scrolling/zooming under the controls
     const prevent = (e) => e.preventDefault();
+    const release = () => neutralize(true);
+    const onVisibility = () => { if (document.hidden) release(); };
     document.addEventListener("touchmove", prevent, { passive: false });
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("blur", release);
+    window.addEventListener("pagehide", release);
 
     return () => {
       clearInterval(iv);
+      neutralize(true);
       document.removeEventListener("touchmove", prevent);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", release);
+      window.removeEventListener("pagehide", release);
       lan.close();
     };
-  }, [room]);
+  }, [room, transport, requestedSlot, invite]);
 
   // send an immediate frame carrying a one-shot tap (so taps never wait for the tick)
   function sendTap(key) {
+    if (statusRef.current !== "playing") return;
     const i = input.current;
     lanRef.current && lanRef.current.send({
       t: "input",
+      seq: ++seqRef.current,
       d: { vx: i.vx, vy: i.vy, shoot: i.shoot, sprint: i.sprint, [key]: true },
     });
   }
@@ -161,6 +235,7 @@ function PadStatus({ status, room }) {
     joining: ["加入房间…", "Joining room…"],
     full: ["房间已满", "This room already has 2 players."],
     "no-room": ["房间不存在", "Room not found — check the code or rescan."],
+    denied: ["邀请无效", "This controller invite is invalid or reserved."],
     closed: ["主机已离开", "The host left. Ask them to restart."],
   };
   const [zh, en] = MSG[status] || ["…", "…"];
