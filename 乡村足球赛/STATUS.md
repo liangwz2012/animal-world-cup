@@ -129,7 +129,7 @@
 
 - 2026-08-19：整个 `乡村足球赛` 目录已由用户授权正式入库（提交 `b96cc1e8`，1265 个文件；构建产物、备份、私有配置按 .gitignore 排除）；
 - 父仓库分叉已合并（合并提交 `8a7e9206`，网页端 5 个冲突文件按「保留本地改版 + 保留远端公网联机新功能」并集解决，`next build` 通过）；
-- 当前 `main` 领先远端 50 个提交；因本机暂无法连通 GitHub，推送待网络恢复后执行 `git push origin main` 完成云备份。
+- 云备份已完成：git 已配置 github.com 代理（127.0.0.1:7890），gh 已登录并注册为 git 凭据助手；原仓库（NeoXu954）无写权限，已通过 `gh repo fork` 建立 liangwz2012/animal-world-cup 并将 main 全量推送到 fork（remote 名 `fork`）；后续推送用 `git push fork main`。
 
 ## 2026-08-16 Image2 球衣门禁
 
