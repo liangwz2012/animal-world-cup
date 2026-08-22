@@ -37,6 +37,7 @@ assert.ok(redLineup.some((player) => player.role === "D") && blueLineup.some((pl
 assert.ok(redLineup.some((player) => player.role === "M") && blueLineup.some((player) => player.role === "M"), "主客队都必须有中场");
 assert.ok(redLineup.some((player) => player.role === "A") && blueLineup.some((player) => player.role === "A"), "主客队都必须有前锋");
 assert.equal(redLineup[0].id, "graduate-forward", "返乡大学生必须是选队页主队第一视觉主角");
+assert.ok(redLineup.some((player) => player.id === "shopkeeper-midfielder" && player.vocation === "小卖部老板"), "小卖部老板必须保留在主队选队人物中");
 assert.equal(redLineup[0].age, undefined, "对外比赛配置不重复携带年龄隐私字段");
 assert.equal(RURAL_SQUAD.find((player) => player.id === "graduate-forward").age, 30, "返乡大学生年龄应约 30 岁");
 assert.equal(RURAL_SQUAD.find((player) => player.id === "shopkeeper-midfielder").vocation, "小卖部老板");

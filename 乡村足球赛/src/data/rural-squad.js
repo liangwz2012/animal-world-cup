@@ -26,7 +26,7 @@ const RURAL_MATCH_LINEUP_INDEXES = Object.freeze({
   blue: Object.freeze([10, 3, 11, 12, 9, 13, 8]),
 });
 const RURAL_HOME_LINEUP_INDEXES = Object.freeze({
-  red: Object.freeze([7, 0, 1, 2, 4, 5]),
+  red: Object.freeze([7, 0, 1, 2, 6, 5]),
   blue: Object.freeze([3, 10, 11, 12, 9, 8]),
 });
 
