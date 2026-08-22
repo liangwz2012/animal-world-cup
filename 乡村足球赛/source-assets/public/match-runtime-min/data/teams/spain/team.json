@@ -358,87 +358,66 @@
   },
   "players": [
     {
-      "race": "rural_v2_01",
-      "role": "G",
-      "number": 1,
-      "skin": {}
-    },
-    {
-      "race": "rural_02",
-      "role": "D",
-      "number": 2,
-      "skin": {}
-    },
-    {
-      "race": "rural_03",
-      "role": "D",
-      "number": 3,
-      "skin": {}
-    },
-    {
-      "race": "rural_04",
-      "role": "D",
-      "number": 4,
-      "skin": {}
-    },
-    {
-      "race": "rural_05",
-      "role": "M",
-      "number": 5,
-      "skin": {}
-    },
-    {
-      "race": "rural_06",
-      "role": "M",
-      "number": 6,
-      "skin": {}
-    },
-    {
-      "race": "rural_07",
-      "role": "M",
-      "number": 7,
-      "skin": {}
-    },
-    {
-      "race": "rural_08",
-      "role": "A",
-      "number": 8,
-      "skin": {}
-    },
-    {
-      "race": "rural_09",
-      "role": "A",
-      "number": 9,
-      "skin": {}
-    },
-    {
-      "race": "rural_10",
-      "role": "A",
-      "number": 10,
-      "skin": {}
-    },
-    {
-      "race": "rural_11",
+      "id": "doctor-goalkeeper",
+      "name": "何济民",
+      "vocation": "村医",
       "role": "G",
       "number": 11,
+      "race": "rural_11",
       "skin": {}
     },
     {
-      "race": "rural_12",
-      "role": "M",
+      "id": "rider-winger",
+      "name": "吴跃进",
+      "vocation": "外卖骑手",
+      "role": "D",
+      "number": 4,
+      "race": "rural_04",
+      "skin": {}
+    },
+    {
+      "id": "mechanic-apprentice",
+      "name": "梁小满",
+      "vocation": "汽修学徒",
+      "role": "D",
       "number": 12,
+      "race": "rural_12",
       "skin": {}
     },
     {
-      "race": "rural_13",
-      "role": "M",
+      "id": "fishpond-farmer",
+      "name": "何水生",
+      "vocation": "养鱼户",
+      "role": "D",
       "number": 13,
+      "race": "rural_13",
       "skin": {}
     },
     {
-      "race": "rural_14",
+      "id": "market-winger",
+      "name": "陆小妹",
+      "vocation": "卤味摊主",
+      "role": "M",
+      "number": 10,
+      "race": "rural_10",
+      "skin": {}
+    },
+    {
+      "id": "bamboo-craftsman",
+      "name": "梁师傅",
+      "vocation": "竹编师傅",
       "role": "M",
       "number": 14,
+      "race": "rural_14",
+      "skin": {}
+    },
+    {
+      "id": "woman-striker",
+      "name": "韦春花",
+      "vocation": "女足球员",
+      "role": "A",
+      "number": 9,
+      "race": "rural_09",
       "skin": {}
     }
   ]

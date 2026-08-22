@@ -12,7 +12,7 @@ import {
 } from "./lib/rural-art-contract.mjs";
 
 const require = createRequire(import.meta.url);
-const { ruralRaceId, ruralPlayers } = require("../src/data/rural-squad.js");
+const { ruralMatchPlayersForSide, ruralRaceId } = require("../src/data/rural-squad.js");
 const toolsDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(toolsDir, "..");
 const rosterDir = path.join(projectDir, "美术整体替换包", "乡村队12人", "players");
@@ -70,11 +70,12 @@ for (const [index] of manifest.players.entries()) {
 for (const teamId of TEAM_IDS) {
   for (const runtimeRoot of [sourceRuntime, builtRuntime]) {
     const team = JSON.parse(await fs.readFile(path.join(runtimeRoot, "data", "teams", teamId, "team.json"), "utf8"));
-    assert.equal(team.players.length, 14, `${teamId} 必须包含完整 14 人名单`);
+    const expected = ruralMatchPlayersForSide(teamId === "argentina" ? "red" : "blue");
+    assert.equal(team.players.length, 7, `${teamId} 必须包含真实 7 人首发名单`);
     assert.deepEqual(
       team.players.map((player) => player.race),
-      ruralPlayers().map((player) => player.race),
-      `${teamId} 必须引用金标准 rural_v2_01 与其余 11 名乡村球员`,
+      expected.map((player) => player.race),
+      `${teamId} 的比赛人物必须与选队页对应阵营一致`,
     );
   }
 }

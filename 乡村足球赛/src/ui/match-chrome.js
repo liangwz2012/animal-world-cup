@@ -337,11 +337,9 @@ function createMatchChrome(options) {
 
   function portraitPath(teamId) {
     const side = sideForTeam(teamId);
-    const region = config && config[`${side}Region`] || {};
-    const seed = String(region.leafCode || region.displayName || teamId || side);
-    let hash = side === "blue" ? 7 : 0;
-    for (let index = 0; index < seed.length; index += 1) hash = (Math.imul(hash, 31) + seed.charCodeAt(index)) >>> 0;
-    const player = RURAL_SQUAD[hash % RURAL_SQUAD.length];
+    const player = side === "red"
+      ? RURAL_SQUAD.find((item) => item.id === "graduate-forward")
+      : RURAL_SQUAD.find((item) => item.id === "rider-winger");
     return player ? `shell-assets/squad/${player.id}.png` : `shell-assets/portraits/${teamId}.png`;
   }
 

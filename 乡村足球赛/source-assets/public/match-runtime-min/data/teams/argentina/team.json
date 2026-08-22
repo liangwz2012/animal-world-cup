@@ -358,87 +358,66 @@
   },
   "players": [
     {
-      "race": "rural_v2_01",
+      "id": "butcher-captain",
+      "name": "韦国强",
+      "vocation": "屠户",
       "role": "G",
       "number": 1,
+      "race": "rural_v2_01",
       "skin": {}
     },
     {
-      "race": "rural_02",
+      "id": "sugarcane-defender",
+      "name": "蒙大田",
+      "vocation": "种植大户",
       "role": "D",
       "number": 2,
+      "race": "rural_02",
       "skin": {}
     },
     {
-      "race": "rural_03",
+      "id": "pe-teacher-defender",
+      "name": "覃秀丽",
+      "vocation": "体育老师",
       "role": "D",
       "number": 3,
+      "race": "rural_03",
       "skin": {}
     },
     {
-      "race": "rural_04",
-      "role": "D",
-      "number": 4,
-      "skin": {}
-    },
-    {
-      "race": "rural_05",
+      "id": "steelworker-midfielder",
+      "name": "石铁柱",
+      "vocation": "钢筋工",
       "role": "M",
       "number": 5,
+      "race": "rural_05",
       "skin": {}
     },
     {
-      "race": "rural_06",
+      "id": "noodle-playmaker",
+      "name": "岑月娥",
+      "vocation": "米粉店主",
       "role": "M",
       "number": 6,
+      "race": "rural_06",
       "skin": {}
     },
     {
-      "race": "rural_07",
+      "id": "shopkeeper-midfielder",
+      "name": "罗桂香",
+      "vocation": "小卖部老板",
       "role": "M",
       "number": 7,
+      "race": "rural_07",
       "skin": {}
     },
     {
-      "race": "rural_08",
+      "id": "graduate-forward",
+      "name": "杨帆",
+      "vocation": "返乡大学生",
       "role": "A",
       "number": 8,
-      "skin": {}
-    },
-    {
-      "race": "rural_09",
-      "role": "A",
-      "number": 9,
-      "skin": {}
-    },
-    {
-      "race": "rural_10",
-      "role": "A",
-      "number": 10,
-      "skin": {}
-    },
-    {
-      "race": "rural_11",
-      "role": "G",
-      "number": 11,
-      "skin": {}
-    },
-    {
-      "race": "rural_12",
-      "role": "M",
-      "number": 12,
-      "skin": {}
-    },
-    {
-      "race": "rural_13",
-      "role": "M",
-      "number": 13,
-      "skin": {}
-    },
-    {
-      "race": "rural_14",
-      "role": "M",
-      "number": 14,
+      "race": "rural_08",
       "skin": {}
     }
   ]

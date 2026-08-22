@@ -154,6 +154,7 @@ const currentNodes = () => {
 };
 const homeSquadSprites = currentNodes().filter((node) => typeof node.path === "string" && node.path.startsWith("shell-assets/squad/"));
 assert.equal(homeSquadSprites.length, 12, "首页左右必须各紧凑展示6名乡村人物");
+assert.match(homeSquadSprites[0].path, /graduate-forward\.png$/, "返乡大学生必须位于主队第一张人物卡");
 assert.equal(new Set(homeSquadSprites.map((node) => node.path)).size, 12, "主客队 6+6 必须使用完整且互不重复的12张半身像");
 const redSquadPaths = new Set(homeSquadSprites.slice(0, 6).map((node) => node.path));
 const blueSquadPaths = new Set(homeSquadSprites.slice(6, 12).map((node) => node.path));

@@ -15,8 +15,8 @@ const require = createRequire(import.meta.url);
 const {
   RURAL_SQUAD,
   legacyRuralRaceId,
+  ruralMatchPlayersForSide,
   ruralRaceId,
-  ruralPlayers,
 } = require("../src/data/rural-squad.js");
 
 const toolsDir = path.dirname(fileURLToPath(import.meta.url));
@@ -141,11 +141,10 @@ async function installStagedRaces() {
 }
 
 async function updateTeamRosters() {
-  const roster = ruralPlayers();
   for (const teamId of TEAM_IDS) {
     const target = path.join(teamsDir, teamId, "team.json");
     const team = JSON.parse(await fs.readFile(target, "utf8"));
-    team.players = roster;
+    team.players = ruralMatchPlayersForSide(teamId === "argentina" ? "red" : "blue");
     await fs.writeFile(target, JSON.stringify(team, null, 2) + "\n");
   }
 }

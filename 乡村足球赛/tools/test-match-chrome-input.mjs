@@ -172,6 +172,8 @@ const captainPortraits = chrome.root.children
   .flatMap((layer) => layer.children || [])
   .filter((node) => node instanceof Sprite && node.__ruralCaptainFacing);
 assert.equal(captainPortraits.length, 2, "比分栏必须显示两名队长头像");
+assert.match(captainPortraits.find((node) => node.__ruralCaptainFacing === "right").path, /graduate-forward\.png$/, "主队 HUD 必须固定显示返乡大学生主角");
+assert.match(captainPortraits.find((node) => node.__ruralCaptainFacing === "left").path, /rider-winger\.png$/, "客队 HUD 必须显示真实客队名单人物");
 assert.equal(captainPortraits.find((node) => node.__ruralCaptainFacing === "right").scale.x < 0, true, "左侧队长必须面向右侧");
 assert.equal(captainPortraits.find((node) => node.__ruralCaptainFacing === "left").scale.x > 0, true, "右侧队长必须面向左侧");
 
