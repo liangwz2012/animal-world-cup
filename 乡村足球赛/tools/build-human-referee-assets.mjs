@@ -85,6 +85,22 @@ async function makeBlackKit(source, target, expected) {
   await validateRgbaPng(target, expected, { transparentCorners: false });
 }
 
+async function makeLabeledShirt(basePath, targetPath, fontSize, y) {
+  const label = Buffer.from(`
+    <svg width="56" height="52" xmlns="http://www.w3.org/2000/svg">
+      <text x="28" y="${y}" text-anchor="middle"
+        font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif"
+        font-size="${fontSize}" font-weight="900"
+        fill="#F7E39A" stroke="#351E10" stroke-width="0.9" paint-order="stroke">裁判</text>
+    </svg>
+  `);
+  await sharp(basePath)
+    .composite([{ input: label, left: 0, top: 0 }])
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
+    .toFile(targetPath);
+  await validateRgbaPng(targetPath, [56, 52], { transparentCorners: false });
+}
+
 async function main() {
   await fs.mkdir(kitDir, { recursive: true });
   for (const [sourceName, [targetName, expected]] of Object.entries(HUMAN_PARTS)) {
@@ -97,6 +113,9 @@ async function main() {
   for (const [sourceName, [targetName, expected]] of Object.entries(KIT_PARTS)) {
     await makeBlackKit(path.join(kitDir, sourceName), path.join(kitDir, targetName), expected);
   }
+  const shirtBase = path.join(kitDir, "human_shirt.png");
+  await makeLabeledShirt(shirtBase, path.join(kitDir, "human_shirt_front.png"), 9, 28);
+  await makeLabeledShirt(shirtBase, path.join(kitDir, "human_shirt_back.png"), 11, 29);
   console.info("[art:referee] PASS：标准人类裁判员分层与墨黑红金乡村裁判服已生成；斑马旧素材仍保留用于回退");
 }
 

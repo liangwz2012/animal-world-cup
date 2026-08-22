@@ -16,10 +16,8 @@ const sourceKitDir = path.join(projectDir, "source-assets", "public", "rural-foo
 const runtimeKitDir = path.join(projectDir, "runtime-assets", "rural-football", "kit-ref");
 const standalonePath = path.join(
   projectDir,
-  "source-assets",
-  "public",
-  "match-runtime-min",
-  "standalone-match.js",
+  "generated",
+  "standalone.static.js",
 );
 
 const RUNTIME_SPECS = Object.freeze({
@@ -32,6 +30,8 @@ const RUNTIME_SPECS = Object.freeze({
   "human_hand_right.png": [23, 38],
   "human_knee.png": [8, 9],
   "human_shirt.png": [56, 52],
+  "human_shirt_front.png": [56, 52],
+  "human_shirt_back.png": [56, 52],
   "human_sleeve_left.png": [14, 22],
   "human_sleeve_right.png": [23, 18],
   "human_shorts.png": [55, 8],
@@ -83,6 +83,7 @@ async function main() {
   assert.equal(legacyFiles.length, 0, "正式素材目录不得再保留旧斑马裁判部件");
   const source = await fs.readFile(standalonePath, "utf8");
   for (const file of Object.keys(RUNTIME_SPECS)) {
+    if (file === "human_shirt.png") continue; // 仅作正背带字球衣的安全回退母版
     if (!source.includes(file)) throw new Error(`比赛运行时未接入 ${file}`);
   }
   if (source.includes('facingCamera?"zebra_head.png"') || source.includes("var zebraParts=")) {
@@ -91,6 +92,15 @@ async function main() {
   if (!source.includes("for(var hp in humanParts)") || !source.includes("sp2[hp].tint=16777215")) {
     throw new Error("人类裁判身体分层循环存在变量或贴图映射错误");
   }
+  if (!source.includes('facingCamera?"human_shirt_front.png":"human_shirt_back.png"')) {
+    throw new Error("裁判正背球衣没有按朝向切换");
+  }
+  const baseShirt = await fs.readFile(path.join(sourceKitDir, "human_shirt.png"));
+  const frontShirt = await fs.readFile(path.join(sourceKitDir, "human_shirt_front.png"));
+  const backShirt = await fs.readFile(path.join(sourceKitDir, "human_shirt_back.png"));
+  assert.notDeepEqual(frontShirt, baseShirt, "裁判正面必须实际写入“裁判”文字");
+  assert.notDeepEqual(backShirt, baseShirt, "裁判背面必须实际写入“裁判”文字");
+  assert.notDeepEqual(frontShirt, backShirt, "裁判正背文字字号布局必须分别生成");
   console.info("[test:referee] PASS：标准人类裁判员已按原骨架尺寸接入，正背方向、墨黑红金乡村裁判服与回退素材均合格");
 }
 

@@ -300,6 +300,18 @@ function patchShim(source) {
 function patchStandalone(source) {
   source = replaceOnce(
     source,
+    'refKitMap={chest_shirt:"human_shirt.png",arm_left_sleeve:',
+    'refKitMap={arm_left_sleeve:',
+    "裁判正背球衣拆分",
+  );
+  source = replaceOnce(
+    source,
+    'for(var slot in refKitMap)sp2[slot]&&(sp2[slot].texture=RefTex.fromImage(KREF+refKitMap[slot]),sp2[slot].tint=16777215);sp2.head&&',
+    'for(var slot in refKitMap)sp2[slot]&&(sp2[slot].texture=RefTex.fromImage(KREF+refKitMap[slot]),sp2[slot].tint=16777215);sp2.chest_shirt&&(sp2.chest_shirt.texture=RefTex.fromImage(KREF+(refR.spine.facingCamera?"human_shirt_front.png":"human_shirt_back.png")),sp2.chest_shirt.tint=16777215);sp2.head&&',
+    "裁判按朝向切换带字正背球衣",
+  );
+  source = replaceOnce(
+    source,
     'onMatchLoaded:function(){window.__bootTrace("onMatchLoaded: setupMatch"),setupMatch(this);var self=this,stadiumRenderer=this.game.stadium;',
     'onMatchLoaded:function(){window.__bootTrace("onMatchLoaded: setupMatch"),setupMatch(this);this.game.__ruralBodyProfilesReady=!1;var self=this,stadiumRenderer=this.game.stadium;',
     "每局重置球员体型应用状态",
