@@ -65,6 +65,8 @@ assert.equal(platform.canvas, canvas);
 assert.equal(detectPhysicalMobileDevice({ getDeviceInfo: () => ({ platform: "ios" }) }), true);
 assert.equal(detectPhysicalMobileDevice({ getDeviceInfo: () => ({ platform: "android" }) }), true);
 assert.equal(detectPhysicalMobileDevice({ getDeviceInfo: () => ({ platform: "devtools" }) }), false);
+assert.equal(detectPhysicalMobileDevice({ getDeviceInfo: () => ({ platform: "windows" }) }), false);
+assert.equal(detectPhysicalMobileDevice({ getDeviceInfo: () => ({ platform: "mac" }) }), false);
 
 const testImage = new globalThis.Image();
 testImage.__rfSrc = "runtime-assets/rural-football/images/fans-stat-regression.png";

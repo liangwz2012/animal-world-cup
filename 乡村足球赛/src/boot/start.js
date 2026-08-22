@@ -1,5 +1,6 @@
 const { installMiniWindow } = require("../platform/adapter");
 const { installTouchInput } = require("../input/touch");
+const { installDesktopKeyboardInput } = require("../input/desktop-keyboard");
 const { createMatchSyncBridge } = require("../net/match-sync");
 const { createTouchControlsOverlay } = require("../ui/touch-controls");
 const { createDynamicJerseyComposer } = require("../ui/dynamic-jersey");
@@ -406,7 +407,7 @@ function detectPhysicalMobileDevice(wxApi) {
   // 其余一律按真机低内存降级（含平台名缺失/异常的定制安卓、鸿蒙 next 变体）。
   // 旧逻辑用移动端黑名单正则，异常平台名会被误判为桌面 → 在低端机上跑高内存
   // 观众烘焙导致卡死/崩溃，正是最该避免的路径。
-  if (platform === "devtools") return false;
+  if (platform === "devtools" || platform === "windows" || platform === "win32" || platform === "mac" || platform === "macos") return false;
   return true;
 }
 
@@ -738,6 +739,7 @@ async function bootOriginalRuntime(options) {
     inputHost.innerHeight || root.innerHeight || 720,
     platform.info && platform.info.safeArea,
   );
+  const desktopKeyboard = installDesktopKeyboardInput(inputHost, wxApi, touchInput);
   inputHost.__ORIGINAL_RUNTIME_SHARED_TOUCH_INPUT__ = touchInput;
   // 微信小游戏的 GameGlobal 与原版脚本闭包中的 window 可能不是同一对象。
   // 原版必须读取 inputHost.__touchInput；GameGlobal 这里只保留可观测镜像。
@@ -1153,6 +1155,7 @@ async function bootOriginalRuntime(options) {
     root,
     inputHost,
     touchInput,
+    desktopKeyboard,
     matchSync,
     startMatch,
     setRemoteInput(input, metadata) {

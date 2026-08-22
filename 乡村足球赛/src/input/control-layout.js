@@ -31,7 +31,7 @@ function computeControlLayout(width, height, safeArea, overrides) {
   const thumbRadius = 30 * scale;
   const padSize = 208 * scale;
   const actionRadius = 31 * scale;
-  const sprintRadius = 28 * scale;
+  const shootRadius = 35 * scale;
   // 横向内边距封顶：底部两角是拇指区，横屏刘海/灵动岛在顶部中央，不应把摇杆和
   // 动作键群按整段刘海安全区(可达 ~50px)往屏幕中间推。这里只保留“圆角安全余量”
   // 级别的内边距，让两簇控件贴回左右下角——这是大屏机型“波轮太右/按钮太左”的根因修复。
@@ -97,24 +97,24 @@ function computeControlLayout(width, height, safeArea, overrides) {
         mode: "pulse",
       },
       tackle: {
-        x: padLeft + 177 * scale,
-        y: padTop + 104 * scale,
+        x: padLeft + 104 * scale,
+        y: padTop + 177 * scale,
         radius: actionRadius,
         hitRadius: 36 * scale,
         mode: "pulse",
       },
       shoot: {
         x: padLeft + 104 * scale,
-        y: padTop + 177 * scale,
-        radius: actionRadius,
-        hitRadius: 36 * scale,
+        y: padTop + 104 * scale,
+        radius: shootRadius,
+        hitRadius: 40 * scale,
         mode: "hold",
       },
       sprint: {
-        x: padLeft + 104 * scale,
+        x: padLeft + 177 * scale,
         y: padTop + 104 * scale,
-        radius: sprintRadius,
-        hitRadius: 32 * scale,
+        radius: actionRadius,
+        hitRadius: 36 * scale,
         mode: "hold",
       },
     },
@@ -137,8 +137,8 @@ function pointInCircle(x, y, circle) {
 
 function hitTestControl(layout, x, y) {
   if (pointInCircle(x, y, layout.stick)) return "stick";
-  // 中央冲刺键与四周动作键接近，先检测较小的中央键。
-  const order = ["sprint", "lob", "pass", "tackle", "shoot"];
+  // 中央射门键与四周动作键接近，优先检测中央主按钮。
+  const order = ["shoot", "lob", "pass", "sprint", "tackle"];
   for (const action of order) {
     if (pointInCircle(x, y, layout.actions[action])) return action;
   }

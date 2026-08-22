@@ -546,4 +546,33 @@ assert.equal(touchStart, null, "销毁页面必须注销真机触摸监听");
 assert.equal(mouseDown, null, "销毁页面必须注销 PC 鼠标监听");
 assert.equal(canvasListeners.mousedown, undefined, "销毁页面必须注销 Canvas 鼠标监听");
 
+const desktopShell = createGameShell({
+  PIXI,
+  canvas,
+  wxApi,
+  width: 1280,
+  height: 720,
+  resolution: 1,
+  pixelRatio: 1,
+  desktopControls: true,
+  config: defaults(),
+  onAction() {},
+  requestFrame() { return 1; },
+  cancelFrame() {},
+});
+desktopShell.showPreMatch(defaults(), { kind: "ai", title: "开赛前设置" });
+const desktopTexts = [];
+const collectDesktop = (node) => {
+  if (!node) return;
+  if (typeof node.text === "string") desktopTexts.push(node.text);
+  for (const child of node.children || []) collectDesktop(child);
+};
+collectDesktop(desktopShell.stage);
+for (const label of ["WASD  移动", "方向键  右手动作", "SPACE  射门", "电脑版微信键盘操作"]) {
+  assert.ok(desktopTexts.includes(label), `电脑版赛前教学必须显示：${label}`);
+}
+assert.equal(desktopTexts.includes("左手"), false, "电脑版教学不得继续显示手机左手摇杆说明");
+assert.equal(desktopTexts.includes("右手"), false, "电脑版教学不得继续显示手机右手触屏说明");
+desktopShell.destroy();
+
 console.info("[test:game-shell] PASS：主包头像、高 DPI、Android 触点和开发者工具鼠标正常");

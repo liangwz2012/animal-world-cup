@@ -104,8 +104,8 @@ function installTouchInput(globalObject, wxApi, width, height, safeArea) {
 
   const clusterCenter = (kind) => {
     if (kind === "stick") return { x: layout.stick.x, y: layout.stick.y };
-    const sprint = layout.actions && layout.actions.sprint;
-    return { x: sprint ? sprint.x : currentWidth, y: sprint ? sprint.y : currentHeight };
+    const shoot = layout.actions && layout.actions.shoot;
+    return { x: shoot ? shoot.x : currentWidth, y: shoot ? shoot.y : currentHeight };
   };
 
   const persistOverrides = () => { overrides = customize.save(globalObject, overrides); };

@@ -238,6 +238,7 @@ function createGameShell(options) {
   let config = normalizeConfig(options.config);
   // 好友对战入口开关：缺省读 friend-service-config，测试可显式覆盖。
   let onlineFeatures = normalizeOnlineFeatures(options.onlineFeatures);
+  const desktopControls = options.desktopControls === true;
   let friendEntryEnabled = options.friendEntryEnabled != null
     ? !!options.friendEntryEnabled
     : onlineFeatures.friend.enabled || FRIEND_ENTRY_ENABLED !== false;
@@ -962,21 +963,6 @@ function createGameShell(options) {
     });
     design.addChild(center(text(`对手阵型  ${config.blueFormation}`, 18, 0x71805e, "800"), formationPanelX + 355, contentY + 318));
 
-    const joystickX = controlsPanelX + 145;
-    const joystickY = contentY + 230;
-    const joystick = new PIXI.Graphics();
-    joystick.lineStyle(5, 0x5d9038, 0.8);
-    joystick.beginFill(0xffffff, 0.78);
-    joystick.drawCircle(joystickX, joystickY, 100);
-    joystick.endFill();
-    joystick.lineStyle(3, 0xb5c995, 0.85);
-    joystick.drawCircle(joystickX, joystickY, 66);
-    joystick.beginFill(0x5d9038, 1);
-    joystick.drawCircle(joystickX - 20, joystickY + 19, 35);
-    joystick.endFill();
-    design.addChild(joystick);
-    design.addChild(center(text("左手", 20, 0x7c8a63, "800"), joystickX, contentY + 371));
-
     function controlKey(cx, cy, radius, label, fill, labelSize) {
       const key = new PIXI.Graphics();
       key.lineStyle(3, 0x426d2a, 0.82);
@@ -986,14 +972,55 @@ function createGameShell(options) {
       design.addChild(key);
       design.addChild(center(text(label, labelSize || 14, 0x31481f, "900"), cx, cy));
     }
-    const keyX = controlsPanelX + 372;
-    const keyY = contentY + 220;
-    controlKey(keyX, keyY - 78, 36, "挑传", 0xf1f8e8, 15);
-    controlKey(keyX - 78, keyY, 36, "传球", 0xf1f8e8, 15);
-    controlKey(keyX + 78, keyY, 36, "射门", 0xffe6b6, 15);
-    controlKey(keyX, keyY + 78, 36, "铲球", 0xf1f8e8, 15);
-    controlKey(keyX, keyY, 44, "冲刺", 0xf9c44d, 17);
-    design.addChild(center(text("右手", 20, 0x7c8a63, "800"), keyX, contentY + 371));
+
+    if (desktopControls) {
+      const keycap = (x, y, w, h, label, primary) => {
+        rounded(design, x + 2, y + 4, w, h, 10, 0x253314, 0.16, 0, 0, 0);
+        rounded(design, x, y, w, h, 10, primary ? 0xffc13d : 0xfffef8, 1, primary ? 0xd97924 : 0xb8c79e, 1, 2);
+        design.addChild(center(text(label, primary ? 17 : 15, 0x31481f, "900"), x + w / 2, y + h / 2));
+      };
+      const wasdX = controlsPanelX + 72;
+      const wasdY = contentY + 116;
+      keycap(wasdX + 58, wasdY, 52, 52, "W", false);
+      keycap(wasdX, wasdY + 58, 52, 52, "A", false);
+      keycap(wasdX + 58, wasdY + 58, 52, 52, "S", false);
+      keycap(wasdX + 116, wasdY + 58, 52, 52, "D", false);
+      design.addChild(center(text("WASD  移动", 18, 0x5d7350, "800"), wasdX + 84, contentY + 270));
+
+      const arrowsX = controlsPanelX + 302;
+      const arrowsY = contentY + 106;
+      keycap(arrowsX + 56, arrowsY, 54, 54, "↑ 挑", false);
+      keycap(arrowsX, arrowsY + 60, 54, 54, "← 传", false);
+      keycap(arrowsX + 56, arrowsY + 60, 54, 54, "↓ 铲", false);
+      keycap(arrowsX + 112, arrowsY + 60, 54, 54, "→ 冲", false);
+      design.addChild(center(text("方向键  右手动作", 18, 0x5d7350, "800"), arrowsX + 83, contentY + 270));
+      keycap(controlsPanelX + 138, contentY + 300, 224, 54, "SPACE  射门", true);
+      design.addChild(center(text("电脑版微信键盘操作", 16, 0x7c8a63, "800"), controlsPanelX + contentW / 2, contentY + 371));
+    } else {
+      const joystickX = controlsPanelX + 145;
+      const joystickY = contentY + 230;
+      const joystick = new PIXI.Graphics();
+      joystick.lineStyle(5, 0x5d9038, 0.8);
+      joystick.beginFill(0xffffff, 0.78);
+      joystick.drawCircle(joystickX, joystickY, 100);
+      joystick.endFill();
+      joystick.lineStyle(3, 0xb5c995, 0.85);
+      joystick.drawCircle(joystickX, joystickY, 66);
+      joystick.beginFill(0x5d9038, 1);
+      joystick.drawCircle(joystickX - 20, joystickY + 19, 35);
+      joystick.endFill();
+      design.addChild(joystick);
+      design.addChild(center(text("左手", 20, 0x7c8a63, "800"), joystickX, contentY + 371));
+
+      const keyX = controlsPanelX + 372;
+      const keyY = contentY + 220;
+      controlKey(keyX, keyY - 78, 36, "挑传", 0xf1f8e8, 15);
+      controlKey(keyX - 78, keyY, 36, "传球", 0xf1f8e8, 15);
+      controlKey(keyX, keyY, 44, "射门", 0xffe6b6, 17);
+      controlKey(keyX + 78, keyY, 36, "冲刺", 0xf9c44d, 15);
+      controlKey(keyX, keyY + 78, 36, "铲球", 0xf1f8e8, 15);
+      design.addChild(center(text("右手", 20, 0x7c8a63, "800"), keyX, contentY + 371));
+    }
 
     // 传球方向图例：比赛内的小脚印会围绕当前操控球员指向可接应队友。
     const passHintX = controlsPanelX + 46;

@@ -23,6 +23,10 @@ const root = {
 };
 const input = installTouchInput(root, wxMock, 1000, 500);
 const layout = computeControlLayout(1000, 500);
+assert.equal(layout.actions.shoot.x, layout.actions.lob.x, "手机射门键必须位于动作区水平中心");
+assert.equal(layout.actions.shoot.y, layout.actions.pass.y, "手机射门键必须位于动作区垂直中心");
+assert.ok(layout.actions.sprint.x > layout.actions.shoot.x && layout.actions.sprint.y === layout.actions.shoot.y, "手机冲刺键必须位于射门键最右侧");
+assert.ok(layout.actions.tackle.y > layout.actions.shoot.y && layout.actions.tackle.x === layout.actions.shoot.x, "手机铲球键必须位于射门键最下方");
 const touch = (identifier, x, y) => ({ identifier, clientX: x, clientY: y });
 
 const stickRight = touch("stick", layout.stick.x + layout.stick.radius, layout.stick.y);

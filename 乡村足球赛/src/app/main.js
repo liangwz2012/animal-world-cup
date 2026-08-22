@@ -33,6 +33,7 @@ const { createLeaderboardClient } = require("../net/leaderboard-client");
 const { createSeasonJourney } = require("../data/season-journey");
 const { createDailyChallenge } = require("../data/daily-challenge");
 const { regionalShareTitle } = require("../data/regional-share");
+const { isDesktopWechat } = require("../input/desktop-keyboard");
 
 // 仅用于开发者工具无法把鼠标转换成 wx.onTouch 的衔接验收；提交前保持 false。
 const DEV_AUTO_START_AI = false;
@@ -1169,6 +1170,7 @@ function startRuralFootballApp() {
         config: currentConfig,
         campaign: campaignView(),
         onlineFeatures,
+        desktopControls: isDesktopWechat(context.wxApi),
         onAction: handleShellAction,
         requestFrame: context.inputHost.requestAnimationFrame && context.inputHost.requestAnimationFrame.bind(context.inputHost),
         cancelFrame: context.inputHost.cancelAnimationFrame && context.inputHost.cancelAnimationFrame.bind(context.inputHost),
