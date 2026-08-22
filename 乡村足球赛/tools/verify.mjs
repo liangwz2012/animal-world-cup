@@ -75,6 +75,10 @@ async function main() {
       && /Object\.(?:entries|fromEntries)\s*\(/.test(source)) {
       throw new Error(`${path.relative(projectDir, file)} 使用 Object.entries/fromEntries；旧版微信开发工具会错误生成缺失的 Babel helper`);
     }
+    if (file.startsWith(path.join(projectDir, "src"))
+      && /\bwx\.(?:getFuzzyLocation|getLocation)\s*\(/.test(source)) {
+      throw new Error(`${path.relative(projectDir, file)} 调用了定位接口；本版本明确采用手动选择家乡，不申请位置权限`);
+    }
   }
 
   const generatedMatch = await fs.readFile(path.join(projectDir, "generated/match.static.js"), "utf8");

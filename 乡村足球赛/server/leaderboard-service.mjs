@@ -8,7 +8,13 @@ import { createWxCodeVerifier } from "./wx-auth.mjs";
 import { createWxTextSecurityChecker } from "./wx-content-security.mjs";
 
 const require = createRequire(import.meta.url);
-const { createRegionalTeam, snapshotRegion, validScopeKey } = require("../src/data/region-league.js");
+const {
+  createRegionalTeam,
+  regionMatchesScope,
+  regionalTeamKey,
+  snapshotRegion,
+  validScopeKey,
+} = require("../src/data/region-league.js");
 const { mergeRegionalSeedRows } = require("../src/data/leaderboard-seeds.js");
 
 const MAX_BODY_BYTES = 32 * 1024;
@@ -16,7 +22,7 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const RANKED_MATCH_TTL_MS = 30 * 60 * 1000;
 const MIN_RANKED_SETTLE_DELAY_MS = 8 * 1000;
 const MIN_RANK_MATCHES = 5;
-const METRICS = new Set(["points", "wins", "goals", "winRate", "cleanSheets", "streak"]);
+const METRICS = new Set(["points", "goals", "winRate"]);
 const TEAM_IDS = new Set(["england", "france", "germany", "spain", "portugal", "brazil", "argentina", "usa"]);
 const FORMATION_IDS = new Set(["2-3-1", "3-2-1", "2-2-2", "3-1-2", "1-3-2", "2-1-3"]);
 const DEFAULT_RATE_LIMITS = Object.freeze({
@@ -409,13 +415,16 @@ export class LeaderboardStore {
     for (const [id, rawPlayer] of Object.entries(this.data.players)) {
       const player = this.normalizePlayer(rawPlayer);
       const region = regionView(player);
-      if (!region || region.scope.key !== selectedScope || player.stats.matches < MIN_RANK_MATCHES) continue;
-      const previous = teams.get(region.code) || {
-        code: region.code,
-        nickname: region.name,
-        teamName: region.name,
+      if (!region || !regionMatchesScope(region, selectedScope) || player.stats.matches < MIN_RANK_MATCHES) continue;
+      const teamKey = regionalTeamKey(region);
+      if (!teamKey) continue;
+      const previous = teams.get(teamKey) || {
+        code: teamKey,
+        nickname: region.fullTeamName,
+        teamName: region.fullTeamName,
+        fullTeamName: region.fullTeamName,
         teamLevel: region.level,
-        scope: region.scope,
+        path: region.path,
         stats: blankStats(),
         contributors: 0,
         self: false,
@@ -423,7 +432,7 @@ export class LeaderboardStore {
       mergeTeamStats(previous.stats, player.stats);
       previous.contributors += 1;
       previous.self = previous.self || id === userId;
-      teams.set(region.code, previous);
+      teams.set(teamKey, previous);
     }
     const ordered = [...teams.values()]
       .sort((left, right) => metricValue(right.stats, selectedMetric) - metricValue(left.stats, selectedMetric)
@@ -436,6 +445,8 @@ export class LeaderboardStore {
       self: team.self,
       nickname: team.teamName,
       teamName: team.teamName,
+      fullTeamName: team.fullTeamName,
+      path: team.path,
       teamLevel: team.teamLevel,
       contributors: team.contributors,
       value: metricValue(team.stats, selectedMetric),
@@ -447,13 +458,12 @@ export class LeaderboardStore {
       },
     }));
     const merged = mergeRegionalSeedRows(all, selectedScope, selectedMetric, 8);
-    const sample = ordered[0];
     return {
       metric: selectedMetric,
       regional: true,
       scope: {
         key: selectedScope,
-        title: sample && sample.scope.title || merged.scope.title,
+        title: merged.scope.title,
       },
       rows: merged.rows.slice(0, 50),
       self: merged.rows.find((row) => row.self) || null,
@@ -584,6 +594,15 @@ export class LeaderboardService {
       const body = await readJsonBody(request);
       const session = this.session(request);
       this.consumeRate(request, "region", session.userId);
+      const customName = safeText(body && body.customName, 18);
+      if (customName) {
+        if (!this.checkProfileText) throw apiError(503, "CONTENT_CHECK_CONFIG_MISSING", "自定义村队名安全检查尚未配置");
+        try {
+          await this.checkProfileText({ content: customName, openid: session.userId });
+        } catch (error) {
+          throw mapContentSecurityError(error);
+        }
+      }
       const region = await this.store.setRegion(session.userId, body);
       return sendJson(response, 200, { ok: true, region });
     }

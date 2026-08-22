@@ -20,6 +20,7 @@
     "test:game-options": "node tools/test-game-options.mjs",
     "test:administrative-regions": "node tools/test-administrative-regions.mjs",
     "test:region-league": "node tools/test-region-league.mjs",
+    "test:home-region-storage": "node tools/test-home-region-storage.mjs",
     "test:regional-stadiums": "node tools/test-regional-stadiums.mjs",
     "test:rural-audience": "node tools/test-rural-audience-assets.mjs",
     "test:dynamic-jersey": "node tools/test-dynamic-jersey.mjs && node tools/test-runtime-jersey-labels.mjs",
@@ -35,6 +36,7 @@
     "test:platform": "node tools/test-platform.mjs",
     "test:build-output-sync": "node tools/test-build-output-sync.mjs",
     "test:runtime-subpackage": "node tools/test-runtime-subpackage-identity.mjs",
+    "test:boot-order": "node tools/test-boot-order.mjs",
     "test:desktop-bundle": "node tools/test-desktop-bundle-guard.mjs",
     "test:critical-textures": "node tools/test-critical-textures.mjs && node tools/test-critical-textures-retry.mjs",
     "test:friend-invite": "node tools/test-friend-invite.mjs && node tools/test-friend-service-config.mjs",
@@ -60,7 +62,7 @@
     "server:leaderboard": "node server/leaderboard-service.mjs",
     "server:config": "node server/remote-config-service.mjs",
     "test:play-gate": "node tools/test-play-gate.mjs",
-    "check": "npm run build && npm run verify && npm run test:game-options && npm run test:administrative-regions && npm run test:region-league && npm run test:regional-stadiums && npm run test:rural-audience && npm run test:dynamic-jersey && npm run test:rural-jerseys && npm run test:rural-squad && npm run test:rural-rig && npm run test:referee && npm run test:body-profiles && npm run test:touch && npm run test:controls-ui && npm run test:game-shell && npm run test:match-chrome-input && npm run test:platform && npm run test:build-output-sync && npm run test:runtime-subpackage && npm run test:desktop-bundle && npm run test:critical-textures && npm run test:friend-invite && npm run test:friend-input && npm run test:room-client && npm run test:content-security && npm run test:friend-server && npm run test:match-sync && npm run test:friend-flow && npm run test:remote-config && npm run test:remote-config-service && npm run test:leaderboard && npm run test:leaderboard-service && npm run test:leaderboard-client && npm run test:season-journey && npm run test:rematch-route && npm run test:daily-challenge && npm run test:play-gate && npm run test:share-card && npm run test:deployment",
+    "check": "npm run build && npm run verify && npm run test:game-options && npm run test:administrative-regions && npm run test:region-league && npm run test:home-region-storage && npm run test:regional-stadiums && npm run test:rural-audience && npm run test:dynamic-jersey && npm run test:rural-jerseys && npm run test:rural-squad && npm run test:rural-rig && npm run test:referee && npm run test:body-profiles && npm run test:touch && npm run test:controls-ui && npm run test:game-shell && npm run test:match-chrome-input && npm run test:platform && npm run test:build-output-sync && npm run test:runtime-subpackage && npm run test:boot-order && npm run test:desktop-bundle && npm run test:critical-textures && npm run test:friend-invite && npm run test:friend-input && npm run test:room-client && npm run test:content-security && npm run test:friend-server && npm run test:match-sync && npm run test:friend-flow && npm run test:remote-config && npm run test:remote-config-service && npm run test:leaderboard && npm run test:leaderboard-service && npm run test:leaderboard-client && npm run test:season-journey && npm run test:rematch-route && npm run test:daily-challenge && npm run test:play-gate && npm run test:share-card && npm run test:deployment",
     "release:check": "npm run check && node tools/release-check.mjs"
   },
   "dependencies": {

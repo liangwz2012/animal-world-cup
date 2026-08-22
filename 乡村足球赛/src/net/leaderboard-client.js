@@ -103,7 +103,10 @@ function createLeaderboardClient(options = {}) {
       return authed("PUT", "/profile", { nickname: profile && profile.nickname, avatarUrl: profile && profile.avatarUrl });
     },
     async updateRegion(region) {
-      return authed("PUT", "/region", { code: region && (region.code || region.locationCode) });
+      return authed("PUT", "/region", {
+        code: region && (region.code || region.locationCode),
+        customName: region && region.customName || "",
+      });
     },
     async createRankedMatch(config) {
       return authed("POST", "/ranked-matches", { config });

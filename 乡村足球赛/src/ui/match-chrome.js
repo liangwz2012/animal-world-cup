@@ -1,6 +1,8 @@
 const { TEAMS } = require("../data/game-options");
 const { RURAL_SQUAD } = require("../data/rural-squad");
-const { matchShareTitle, matchShareCaption, generateMatchShareCard } = require("./share-card");
+const { matchShareCaption, generateMatchShareCard } = require("./share-card");
+const { regionalShareTitle } = require("../data/regional-share");
+const { features: remoteFeatures } = require("../data/feature-flags");
 const compliance = require("../data/release-compliance");
 
 function clamp(value, min, max) {
@@ -478,10 +480,8 @@ function createMatchChrome(options) {
     const localIsBlue = config.localRole === "guest" && config.friendPhase === "friend";
     const myScore = localIsBlue ? score[1] : score[0];
     const foeScore = localIsBlue ? score[0] : score[1];
-    const myTeamId = localIsBlue ? config.blueTeam : config.redTeam;
-    const foeTeamId = localIsBlue ? config.redTeam : config.blueTeam;
     const payload = {
-      title: matchShareTitle({ myName: teamDisplayName(myTeamId), foeName: teamDisplayName(foeTeamId), myScore, foeScore }),
+      title: regionalShareTitle(config, remoteFeatures() && remoteFeatures().regionalShare),
       imageUrl: lastShareCard || lastScreenshot || undefined,
       query: `red=${config.redTeam}&blue=${config.blueTeam}`,
     };
@@ -667,8 +667,6 @@ function createMatchChrome(options) {
     // 生成战报分享卡（离屏绘制，异步；失败时分享回落截图/裸标题）
     const myScore = localIsBlue ? score[1] : score[0];
     const foeScore = localIsBlue ? score[0] : score[1];
-    const myTeamId = localIsBlue ? config.blueTeam : config.redTeam;
-    const foeTeamId = localIsBlue ? config.redTeam : config.blueTeam;
     generateMatchShareCard(wxApi, {
       score,
       redName: teamDisplayName(config.redTeam),
@@ -681,9 +679,7 @@ function createMatchChrome(options) {
       lastShareCard = path;
       if (inputHost) {
         inputHost.__RURAL_FOOTBALL_LAST_SHARE_CARD__ = path;
-        inputHost.__RURAL_FOOTBALL_LAST_SHARE_TITLE__ = matchShareTitle({
-          myName: teamDisplayName(myTeamId), foeName: teamDisplayName(foeTeamId), myScore, foeScore,
-        });
+        inputHost.__RURAL_FOOTBALL_LAST_SHARE_TITLE__ = regionalShareTitle(config, remoteFeatures() && remoteFeatures().regionalShare);
       }
     });
 

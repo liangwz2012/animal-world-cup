@@ -3,6 +3,7 @@ const { installTouchInput } = require("../input/touch");
 const { createMatchSyncBridge } = require("../net/match-sync");
 const { createTouchControlsOverlay } = require("../ui/touch-controls");
 const { createDynamicJerseyComposer } = require("../ui/dynamic-jersey");
+const { createMatchWatchdog } = require("../data/match-watchdog");
 const { attachRuntimeJerseyLabels } = require("../ui/runtime-jersey-labels");
 const { createBodyProfileController } = require("../data/player-body-profiles");
 const RURAL_RACE_CATALOG = require("../../generated/rural-race-catalog.static");
@@ -191,7 +192,15 @@ function reportFatal(error) {
       title: "原版引擎移植失败",
       // 附 build 号与音频模式：真机截图即可确认包版本与音频降级路径
       content: `[SRCFIX-10 音频:${root.__ANIMAL_AUDIO_MODE__ || "未初始化"}] ${failedStage}: ${normalized.message}`.slice(0, 500),
-      showCancel: false,
+      // 分包下载失败等偶发错误给用户一键重试入口，免去找入口杀掉重开。
+      showCancel: true,
+      confirmText: "重试",
+      cancelText: "知道了",
+      success(result) {
+        if (result && result.confirm && typeof wx !== "undefined" && typeof wx.restartMiniProgram === "function") {
+          try { wx.restartMiniProgram(); } catch (restartError) {}
+        }
+      },
     });
   }
 }
@@ -201,18 +210,25 @@ function isRecoverableTextureCacheError(error) {
   return /frameId\s+["']?[^\n]+does not exist in the texture cache|Texture\.fromFrame|fromFrame\b[^\n]*texture cache/i.test(detail);
 }
 
-function loadRuntimeSubpackage(wxApi, onProgress) {
-  if (!wxApi || !wxApi.loadSubpackage) return Promise.resolve();
-  setStage("A1_SUBPACKAGE_LOADING");
+function loadRuntimeSubpackageOnce(wxApi, onProgress, attempt) {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    // 单次尝试兜底超时：success/fail 都不回调时不能永久挂起启动链。
+    const timer = setTimeout(() => done(reject, new Error(`runtime-assets 分包加载超时(第${attempt}次)`)), 30000);
+    function done(fn, value) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn(value);
+    }
     const task = wxApi.loadSubpackage({
       // 分包别名必须与实际根目录一致。此前这里用 camelCase 别名，而根目录是
       // runtime-assets；部分开发者工具会把它缓存成一个不存在的 JS 模块，之后即使
       // 文件已经在磁盘上仍持续报 loadSubpackage:fail module not found。
       // 统一为目录名后，工具和真机都按同一个物理分包入口解析。
       name: "runtime-assets",
-      success: resolve,
-      fail: (result) => reject(new Error(`runtime-assets 分包加载失败: ${JSON.stringify(result || {})}`)),
+      success: () => done(resolve),
+      fail: (result) => done(reject, new Error(`runtime-assets 分包加载失败(第${attempt}次): ${JSON.stringify(result || {})}`)),
     });
     if (task && task.onProgressUpdate) {
       task.onProgressUpdate((result) => {
@@ -222,6 +238,62 @@ function loadRuntimeSubpackage(wxApi, onProgress) {
       });
     }
   });
+}
+
+// 真机分包下载走 CDN，弱网或 CDN 抖动会偶发失败；失败后不再直接宣判 FATAL，
+// 自动重试最多 3 次（指数间隔），把偶发失败收敛为一次稍长的加载。
+async function loadRuntimeSubpackage(wxApi, onProgress) {
+  if (!wxApi || !wxApi.loadSubpackage) return;
+  setStage("A1_SUBPACKAGE_LOADING");
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await loadRuntimeSubpackageOnce(wxApi, onProgress, attempt);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`[original-runtime-latest] 分包第 ${attempt} 次加载失败`, error && error.message || error);
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 800 * attempt));
+    }
+  }
+  throw lastError || new Error("runtime-assets 分包加载失败");
+}
+
+// region_data 必须同样抢在引擎加载前落盘，原因：引擎在 A2 require 时会用自带
+// 校验的 define 覆盖全局 define（模块名只允许 a-z、0-9、_ 和 /，见引擎
+// InvalidModuleNameError）。微信原生端执行分包入口 game.js 时走当前全局 define
+// 注册模块，"region_data/game.js" 含点号会被判非法——选到县级触发乡镇分包按需
+// 加载时必崩；开发者工具的模块系统宽松，永远不会暴露。提前到本阶段加载后，
+// 后续 require 只查已注册表，不再触发注册。
+async function loadRegionDataSubpackage(wxApi) {
+  if (!wxApi || !wxApi.loadSubpackage) return;
+  setStage("A1_REGION_DATA_LOADING");
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        const timer = setTimeout(() => done(reject, new Error(`region_data 分包加载超时(第${attempt}次)`)), 30000);
+        function done(fn, value) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          fn(value);
+        }
+        wxApi.loadSubpackage({
+          name: "region_data",
+          success: () => done(resolve),
+          fail: (result) => done(reject, new Error(`region_data 分包加载失败(第${attempt}次): ${JSON.stringify(result || {})}`)),
+        });
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`[original-runtime-latest] region_data 分包第 ${attempt} 次加载失败`, error && error.message || error);
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 800 * attempt));
+    }
+  }
+  throw lastError || new Error("region_data 分包加载失败");
 }
 
 // 全局钩子（wx.onError / unhandledrejection / window.error）是最后的安全网，
@@ -679,12 +751,20 @@ async function bootOriginalRuntime(options) {
 
   if (!options.onPlatformReady && wxApi && wxApi.showLoading) wxApi.showLoading({ title: "原版引擎加载中", mask: true });
   if (typeof options.onProgress === "function") options.onProgress(0);
-  // 分包下载与引擎模块解析并行：下载在原生侧进行，JS 线程同时解析主包内的
-  // swig/shim/match/standalone。这些模块顶层只注册 AMD 定义，不读分包文件；
-  // 真正依赖分包资源的关键图集步骤仍在 await 之后执行。
-  const subpackageLoad = loadRuntimeSubpackage(wxApi, options.onProgress);
-  subpackageLoad.catch(() => setStage("A1_SUBPACKAGE_LOADING"));
+  // 必须先等分包落盘再加载引擎模块：i18n 等 AMD 模块工厂在 require 时会
+  // 通过文件 shim 同步读取分包里的语言目录并立即 activate("en")；真机上分包
+  // 未下载完成时文件不存在，会直接抛 "Unknown language code: en" 启动失败。
+  // 开发者工具里文件本来就在本地磁盘，所以只有真机能暴露这个顺序依赖。
+  await loadRuntimeSubpackage(wxApi, options.onProgress);
+  // region_data 也必须此刻落盘：它若在引擎 define 覆盖全局后再按需加载，
+  // 原生端注册 "region_data/game.js"（含点号）会被引擎校验器判非法而崩溃。
+  // 加载 Promise 登记到全局：用户提前下钻乡镇时复用同一个加载，不重复 loadSubpackage。
+  const regionDataLoad = loadRegionDataSubpackage(wxApi);
+  root.__RURAL_REGION_DATA_PROMISE__ = regionDataLoad;
+  regionDataLoad.catch(() => {});
+  await regionDataLoad;
   setStage("A2_STATIC_MODULES_LOADING");
+  if (typeof options.onProgress === "function") options.onProgress(92);
 
   const swigExport = require("../../generated/swig.static");
   if (!root.swig) root.swig = swigExport && swigExport.default || swigExport;
@@ -694,8 +774,6 @@ async function bootOriginalRuntime(options) {
   require("../../generated/shim.static");
   require("../../generated/match.static");
   require("../../generated/standalone.static");
-  await subpackageLoad;
-  if (typeof options.onProgress === "function") options.onProgress(92);
   // 开发者工具热重载可能复用上一版 standalone 模块，从而不会
   // 再执行模块顶层的 touchInput2 绑定。这里始终重新镜像；内核每帧
   // 都动态读 window.__touchInput2，因此对已缓存模块也能立即生效。
@@ -745,6 +823,22 @@ async function bootOriginalRuntime(options) {
   if (typeof options.onProgress === "function") options.onProgress(100);
 
   const runtimeEvents = bindRuntimeEventBus(root, inputHost);
+  // 球员卡死看门狗：真机出现过外场球员整场钉住不动的独有异常（无头仿真证明
+  // 引擎 AI 无此问题）。活球时非门将连续 10 秒未移动即强制归位并打日志。
+  // 好友局客机只镜像快照、没有本地物理权威，必须跳过。
+  const engineModule = (id) => {
+    try {
+      return typeof inputHost.require === "function" ? inputHost.require(id) : null;
+    } catch (error) {
+      return null;
+    }
+  };
+  const matchWatchdog = createMatchWatchdog({
+    getGame: () => visibleMatchGame(root, inputHost),
+    getPlayerGlobals: () => engineModule("players/global"),
+    getPlayerStates: () => engineModule("players/states"),
+    getUsers: () => engineModule("users"),
+  });
   const dynamicJersey = createDynamicJerseyComposer({
     wxApi,
     root,
@@ -814,6 +908,8 @@ async function bootOriginalRuntime(options) {
     root.__ORIGINAL_RUNTIME_ACTIVE__ = true;
     textureRecoveryAttempts = 0;
     textureRecoveryPending = false;
+    matchWatchdog.stop();
+    if (!currentMatchOptions || currentMatchOptions.syncRole !== "guest") matchWatchdog.start();
     root.__ORIGINAL_RUNTIME_LATEST_ERROR__ = null;
     root.__ORIGINAL_RUNTIME_LATEST_MATCH__ = event && event.detail || {};
     setStage("B2_VISIBLE_MATCH_STARTED", JSON.stringify(root.__ORIGINAL_RUNTIME_LATEST_MATCH__));
@@ -896,6 +992,7 @@ async function bootOriginalRuntime(options) {
 
   function startMatch(matchOptions) {
     clearVisibleMatchWatchdog();
+    matchWatchdog.stop();
     fatalReported = false;
     root.__ORIGINAL_RUNTIME_LATEST_ERROR__ = null;
     root.__ORIGINAL_RUNTIME_BOOT_ERROR__ = null;

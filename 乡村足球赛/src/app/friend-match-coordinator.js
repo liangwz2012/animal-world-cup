@@ -4,6 +4,8 @@ const { buildFriendInviteQuery, parseFriendInvite } = require("../net/friend-inv
 const { endpointErrorMessage } = require("../net/room-endpoint");
 const { createFriendAuth, resolveFriendService } = require("../net/friend-service-config");
 const { createFriendInputSampler } = require("../net/friend-input-sampler");
+const { regionalShareTitle } = require("../data/regional-share");
+const { features: remoteFeatures } = require("../data/feature-flags");
 
 function roomFrom(message) {
   return message && (message.room || message.state) || null;
@@ -34,11 +36,17 @@ function mergeRoomConfig(base, wire, roomId) {
   const source = wire && typeof wire === "object" ? wire : {};
   const redLabel = typeof source.redLabel === "string" ? source.redLabel : current.redJersey.locationLabel;
   const blueLabel = typeof source.blueLabel === "string" ? source.blueLabel : current.blueJersey.locationLabel;
+  const redRegion = current.redRegion && Array.isArray(current.redRegion.path) && current.redRegion.path.length
+    ? current.redRegion
+    : Object.assign({}, current.redRegion, { customName: redLabel });
+  const blueRegion = current.blueRegion && Array.isArray(current.blueRegion.path) && current.blueRegion.path.length
+    ? current.blueRegion
+    : Object.assign({}, current.blueRegion, { customName: blueLabel });
   return normalizeConfig(Object.assign({}, current, source, {
     mode: "friend",
     roomId: roomId || source.roomId || current.roomId,
-    redRegion: Object.assign({}, current.redRegion, { customName: redLabel }),
-    blueRegion: Object.assign({}, current.blueRegion, { customName: blueLabel }),
+    redRegion,
+    blueRegion,
   }));
 }
 
@@ -163,7 +171,7 @@ function createFriendMatchCoordinator(options) {
   function sharePayload(base) {
     if (!invite) return Object.assign({}, base || {});
     return Object.assign({}, base || {}, {
-      title: "我在乡村足球赛等你，来代表家乡踢一场！",
+      title: regionalShareTitle(frozenConfig, remoteFeatures() && remoteFeatures().regionalShare),
       query: buildFriendInviteQuery(invite),
     });
   }

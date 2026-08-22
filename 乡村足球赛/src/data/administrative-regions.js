@@ -69,6 +69,20 @@ for (const rows of coreChildren.values()) rows.sort((left, right) => left.code.l
 
 function loadTownModule(options) {
   if (options && typeof options.loadTowns === "function") return options.loadTowns();
+  // 启动阶段已在加载 region_data 分包时，复用同一个加载 Promise，
+  // 避免并发触发第二次 loadSubpackage（原生端重复注册可能异常）。
+  const host = typeof GameGlobal !== "undefined" ? GameGlobal : (typeof globalThis !== "undefined" ? globalThis : {});
+  if (host.__RURAL_REGION_DATA_PROMISE__) {
+    return Promise.resolve(host.__RURAL_REGION_DATA_PROMISE__).then(() => require("../../region_data/game"))
+      .catch((error) => {
+        // 启动期加载失败后，原生端不能再安全地按需注册该分包（引擎 define 校验），
+        // 明确提示用户重启，而不是留下空白列表。
+        try {
+          if (typeof wx !== "undefined" && wx.showToast) wx.showToast({ title: "乡镇数据加载失败，请重启小游戏重试", icon: "none" });
+        } catch (toastError) {}
+        throw error;
+      });
+  }
   const wxApi = options && options.wxApi;
   if (!wxApi || typeof wxApi.loadSubpackage !== "function") return Promise.resolve().then(() => require("../../region_data/game"));
   return new Promise((resolve, reject) => {
@@ -113,6 +127,18 @@ async function entry(code, options) {
   } catch (error) {
     return null;
   }
+}
+
+async function pathTo(code, options) {
+  const result = [];
+  let current = await entry(code, options);
+  const seen = new Set();
+  while (current && !seen.has(current.code) && result.length < 4) {
+    seen.add(current.code);
+    result.unshift(current);
+    current = current.parentCode ? await entry(current.parentCode, options) : null;
+  }
+  return result;
 }
 
 function sortSelection(items) {
@@ -208,6 +234,7 @@ module.exports = {
   entry,
   ensureTowns,
   genericName,
+  pathTo,
   resolveJerseyLocation,
   search,
   stats,

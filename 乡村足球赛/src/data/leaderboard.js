@@ -1,14 +1,13 @@
 const STORAGE_KEY = "rural-football:leaderboard:v1";
 const MAX_RECENT_MATCHES = 80;
 const MIN_RANK_MATCHES = 5;
+const { regionIdentity } = require("./region-identity");
+const { ruralScopeOptions, validScopeKey } = require("./region-league");
 
 const METRICS = Object.freeze([
   { id: "points", label: "积分", value: (stats) => stats.points },
-  { id: "wins", label: "胜场", value: (stats) => stats.wins },
   { id: "goals", label: "进球", value: (stats) => stats.goalsFor },
   { id: "winRate", label: "胜率", value: (stats) => stats.matches ? Math.round(stats.wins * 1000 / stats.matches) / 10 : 0, suffix: "%" },
-  { id: "cleanSheets", label: "零封", value: (stats) => stats.cleanSheets },
-  { id: "streak", label: "连胜", value: (stats) => stats.bestWinStreak },
 ]);
 
 function number(value, fallback = 0) {
@@ -60,14 +59,21 @@ function normalizeRegion(input) {
   const scope = source.scope && typeof source.scope === "object" ? source.scope : {};
   const code = safeText(source.code, 18);
   const level = safeText(source.level, 12);
-  const scopeKey = safeText(scope.key, 32);
+  const scopeKey = validScopeKey(scope.key);
   if (!code || !["province", "city", "county", "town"].includes(level)
-    || !(scopeKey === "CN:province" || /^\d{6}:(?:city|county|town)$/.test(scopeKey))) return null;
+    || !scopeKey) return null;
+  const identity = regionIdentity(source.path, source.customName);
+  const scopes = ruralScopeOptions(identity);
   return {
     version: 1,
     code,
     name: safeText(source.name, 18),
     officialName: safeText(source.officialName, 32),
+    customName: safeText(identity.customName, 18),
+    fullRegionName: safeText(identity.fullRegionName || source.fullRegionName, 96),
+    fullTeamName: safeText(identity.fullTeamName || source.fullTeamName || source.name, 120),
+    path: identity.path,
+    scopes,
     level,
     scope: {
       key: scopeKey,
@@ -158,7 +164,11 @@ function createLeaderboard(options = {}) {
     for (const metric of METRICS) values[metric.id] = metric.value(stats);
     return {
       profile: Object.assign({}, state.profile),
-      region: state.region && Object.assign({}, state.region, { scope: Object.assign({}, state.region.scope) }),
+      region: state.region && Object.assign({}, state.region, {
+        scope: Object.assign({}, state.region.scope),
+        path: Array.isArray(state.region.path) ? state.region.path.map((item) => Object.assign({}, item)) : [],
+        scopes: Array.isArray(state.region.scopes) ? state.region.scopes.map((item) => Object.assign({}, item)) : [],
+      }),
       stats,
       values,
       qualified: stats.matches >= MIN_RANK_MATCHES,

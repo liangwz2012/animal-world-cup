@@ -6,12 +6,14 @@ const { BODY_PROFILES } = require("../data/player-body-profiles");
 const { SoundBank } = require("../audio/sound-bank");
 const { createFriendMatchCoordinator } = require("./friend-match-coordinator");
 const { resolveRematchRoute } = require("./rematch-route");
+const { setRemoteState } = require("../data/feature-flags");
 const { DEFAULT_FEATURES, initTeamConfig, normalizeFeatures } = require("../net/remote-config");
 const { createPlayGate } = require("../monetize/play-gate");
 const { createLeaderboard } = require("../data/leaderboard");
 const { regionalSeedLeaderboard } = require("../data/leaderboard-seeds");
+const { readHomeRegionStorage, writeHomeRegionStorage } = require("../data/home-region-storage");
 const { children: regionChildren, entry: regionEntry } = require("../data/administrative-regions");
-const { createRegionalTeam } = require("../data/region-league");
+const { createRegionalTeam, ruralScopeOptions, scopeKeyFor } = require("../data/region-league");
 const {
   createRegionTeamSelection,
   jerseyIdentity,
@@ -30,6 +32,7 @@ const {
 const { createLeaderboardClient } = require("../net/leaderboard-client");
 const { createSeasonJourney } = require("../data/season-journey");
 const { createDailyChallenge } = require("../data/daily-challenge");
+const { regionalShareTitle } = require("../data/regional-share");
 
 // 仅用于开发者工具无法把鼠标转换成 wx.onTouch 的衔接验收；提交前保持 false。
 const DEV_AUTO_START_AI = false;
@@ -68,8 +71,11 @@ function startRuralFootballApp() {
     } catch (_) {}
   };
   let currentConfig = normalizeConfig(Object.assign(defaults(), { redCaptainProfile: loadCaptainProfile() }));
+  const storedHomeRegion = readHomeRegionStorage(wxApi);
+  let homeRegionRestorePromise = Promise.resolve(currentConfig);
   let regionPickerPath = [];
   let regionPickerContext = null;
+  let leaderboardScopeId = "nation";
   const sound = new SoundBank(wxApi);
   // 排行榜的本地账本始终可用；头像/昵称只在用户主动点击加入排行榜后才请求。
   const leaderboard = createLeaderboard({ wxApi });
@@ -90,6 +96,9 @@ function startRuralFootballApp() {
       enabled: onlineFeatures.monetization.playGateEnabled,
       adUnlockEnabled: onlineFeatures.monetization.adUnlockEnabled,
       adUnitId: onlineFeatures.monetization.rewardedAdUnitId,
+      freePerDay: onlineFeatures.monetization.freeMatchesPerDay,
+      singleUnlock: onlineFeatures.monetization.singleUnlockMatches,
+      dayPassThreshold: onlineFeatures.monetization.dayPassThreshold,
       shareUnlockEnabled: false,
       present: (payload) => {
         if (shell && typeof shell.showUnlockPanel === "function") return shell.showUnlockPanel(payload);
@@ -98,8 +107,23 @@ function startRuralFootballApp() {
     });
   }
 
-  function applyOnlineFeatures(nextFeatures) {
-    onlineFeatures = normalizeFeatures(nextFeatures);
+  function applyOnlineFeatures(nextFeatures, meta) {
+    const raw = nextFeatures && typeof nextFeatures === "object" ? Object.assign({}, nextFeatures) : {};
+    const maintenance = meta && meta.maintenance;
+    const onlineBlocked = !!(maintenance && maintenance.onlineBlocked);
+    // 云端维护开关：服务故障或合规应急时一键关停联网入口（含场次闸门/广告），本地单机不受影响。
+    if (onlineBlocked) {
+      raw.leaderboard = { enabled: false };
+      raw.friend = { enabled: false };
+      raw.monetization = { enabled: false };
+    }
+    onlineFeatures = normalizeFeatures(raw);
+    setRemoteState({
+      features: onlineFeatures,
+      announcement: meta && meta.announcement,
+      maintenance,
+      events: meta && meta.events,
+    });
     rebuildCloudClients();
     if (shell && typeof shell.setOnlineFeatures === "function") shell.setOnlineFeatures(onlineFeatures);
     if (friendCoordinator && onlineFeatures.friend.enabled && pendingLaunchOptions) {
@@ -190,7 +214,12 @@ function startRuralFootballApp() {
     console.info("[rural-football-app] BEGIN_MATCH", JSON.stringify(prepared));
     if (!shell) return;
     if (!runtime) {
-      if (bootFailed) return;
+      if (bootFailed) {
+        if (typeof wx !== "undefined" && wx.showToast) {
+          try { wx.showToast({ title: "资源加载失败，请重启小游戏重试", icon: "none" }); } catch (error) {}
+        }
+        return;
+      }
       pendingBeginConfig = prepared;
       shell.showTransitionLoading("比赛资源加载中，请稍候");
       return;
@@ -258,33 +287,56 @@ function startRuralFootballApp() {
     }, 190);
   }
 
-  function selectedRegionScope() {
+  function selectedRegionScope(scopeId) {
     const region = leaderboard.snapshot().region;
-    return region && region.scope && region.scope.key || "CN:province";
+    return scopeKeyFor(region, scopeId || leaderboardScopeId);
   }
 
   function showLeaderboard(metric, scopeOverride) {
     if (!shell || typeof shell.showLeaderboard !== "function") return;
-    const scope = scopeOverride || selectedRegionScope();
+    const ruralFeature = onlineFeatures.ruralLeaderboard || {};
+    const metricOrder = Array.isArray(ruralFeature.metrics) && ruralFeature.metrics.length
+      ? ruralFeature.metrics
+      : ["points", "goals", "winRate"];
+    const scopeOrder = Array.isArray(ruralFeature.scopes) && ruralFeature.scopes.length
+      ? ruralFeature.scopes
+      : ["nation", "province", "city", "county", "town"];
+    if (["nation", "province", "city", "county", "town"].includes(scopeOverride)) leaderboardScopeId = scopeOverride;
+    if (!scopeOrder.includes(leaderboardScopeId)) {
+      leaderboardScopeId = scopeOrder.includes(ruralFeature.defaultScope) ? ruralFeature.defaultScope : "nation";
+    }
+    const selectedMetric = metricOrder.includes(metric) ? metric : metricOrder[0] || "points";
+    const scope = typeof scopeOverride === "string" && scopeOverride.includes(":")
+      ? scopeOverride
+      : selectedRegionScope(leaderboardScopeId);
     const local = leaderboard.snapshot();
-    const baseline = regionalSeedLeaderboard(scope, metric || "points", 8);
+    local.metrics = metricOrder.map((id) => local.metrics.find((item) => item.id === id)).filter(Boolean);
+    const scopeOptions = ruralScopeOptions(local.region).map((item) => Object.assign({}, item, {
+      enabled: item.enabled && scopeOrder.includes(item.id),
+    }));
+    const baseline = regionalSeedLeaderboard(scope, selectedMetric, 8);
+    const onlineLeaderboardEnabled = !!(onlineFeatures.leaderboard.enabled && ruralFeature.enabled);
     shell.showLeaderboard(Object.assign({}, local, {
-      onlineEnabled: onlineFeatures.leaderboard.enabled,
+      onlineEnabled: onlineLeaderboardEnabled,
       online: false,
       remoteRows: baseline.rows,
       remoteMetric: baseline.metric,
       remoteScope: baseline.scope,
+      remoteScopeId: leaderboardScopeId,
+      remoteScopeOptions: scopeOptions,
     }));
-    if (!leaderboardClient.available()) return;
-    leaderboardClient.fetchLeaderboard(metric || "points", scope).then((result) => {
+    if (!onlineLeaderboardEnabled || !leaderboardClient.available()) return;
+    leaderboardClient.fetchLeaderboard(selectedMetric, scope).then((result) => {
       if (!shell || typeof shell.showLeaderboard !== "function") return;
       shell.showLeaderboard(Object.assign({}, leaderboard.snapshot(), {
-        onlineEnabled: onlineFeatures.leaderboard.enabled,
+        onlineEnabled: onlineLeaderboardEnabled,
         online: !!result.online,
         remoteRows: result.rows || [],
         remoteSelf: result.self || null,
-        remoteMetric: result.metric || metric || "points",
-        remoteScope: result.scope || { key: scope, title: scope === "CN:province" ? "全国省队榜" : "地区战队榜" },
+        remoteMetric: result.metric || selectedMetric,
+        remoteScope: result.scope || baseline.scope,
+        remoteScopeId: leaderboardScopeId,
+        remoteScopeOptions: scopeOptions,
       }));
     }).catch((error) => console.warn("[rural-football-app] 拉取排行榜失败", error && error.message || error));
   }
@@ -526,6 +578,19 @@ function startRuralFootballApp() {
       });
     }
     currentConfig = next;
+    writeHomeRegionStorage(wxApi, currentConfig.redRegion);
+    const selectedHome = currentConfig.redRegion && currentConfig.redRegion.path && currentConfig.redRegion.path[currentConfig.redRegion.path.length - 1];
+    if (selectedHome) {
+      try {
+        const localRegion = await createRegionalTeam({
+          code: selectedHome.code,
+          customName: currentConfig.redRegion.customName,
+        }, { wxApi });
+        leaderboard.setRegion(localRegion);
+      } catch (error) {
+        console.warn("[rural-football-app] 家乡队同步到本机榜失败", error && error.message || error);
+      }
+    }
     regionPickerContext = null;
     if (shell) shell.showHome(next);
     return next;
@@ -702,7 +767,10 @@ function startRuralFootballApp() {
   function confirmRegionalTeam(code) {
     const current = regionPickerPath[regionPickerPath.length - 1];
     if (!current || current.code !== code) return;
-    createRegionalTeam({ code }, { wxApi }).then((region) => {
+    const homeRegion = currentConfig.redRegion;
+    const homeLeaf = homeRegion && homeRegion.path && homeRegion.path[homeRegion.path.length - 1];
+    const customName = homeLeaf && homeLeaf.code === code ? homeRegion.customName : "";
+    createRegionalTeam({ code, customName }, { wxApi }).then((region) => {
       leaderboard.setRegion(region);
       // 本机先保存选择；联网服务未开或短暂失败不影响单机游玩，后续可重新同步。
       const remote = leaderboardClient && leaderboardClient.available()
@@ -798,6 +866,10 @@ function startRuralFootballApp() {
       showLeaderboard(payload && payload.metric || "points");
       return;
     }
+    if (action === "leaderboard-scope") {
+      showLeaderboard(payload && payload.metric || "points", payload && payload.scopeId || "nation");
+      return;
+    }
     if (action === "leaderboard-region-open") {
       openRegionPicker();
       return;
@@ -852,7 +924,12 @@ function startRuralFootballApp() {
         const profile = leaderboard.snapshot().profile;
         showLeaderboard("points");
         if (!leaderboardClient.available()) return null;
-        return leaderboardClient.updateProfile(profile).then(() => showLeaderboard("points"));
+        return leaderboardClient.updateProfile(profile)
+          .then(() => {
+            const region = leaderboard.snapshot().region;
+            return region ? leaderboardClient.updateRegion(region) : null;
+          })
+          .then(() => showLeaderboard("points"));
       }).catch((error) => {
         const message = error && error.message || "暂未获取到昵称和头像";
         if (typeof wx !== "undefined" && wx.showToast) wx.showToast({ title: message, icon: "none" });
@@ -1000,7 +1077,8 @@ function startRuralFootballApp() {
       if (context.wxApi && context.wxApi.onShareAppMessage) {
         context.wxApi.onShareAppMessage(() => {
           const base = {
-            title: context.inputHost.__RURAL_FOOTBALL_LAST_SHARE_TITLE__ || "乡村足球赛 · 选好你的家乡队",
+            title: context.inputHost.__RURAL_FOOTBALL_LAST_SHARE_TITLE__
+              || regionalShareTitle(currentConfig, onlineFeatures.regionalShare),
             imageUrl: context.inputHost.__RURAL_FOOTBALL_LAST_SHARE_CARD__
               || context.inputHost.__RURAL_FOOTBALL_LAST_SCREENSHOT__ || undefined,
           };
@@ -1015,7 +1093,7 @@ function startRuralFootballApp() {
         height: context.inputHost.innerHeight || 720,
         resolution: Math.min(Number(context.inputHost.devicePixelRatio) || 1, 3),
         pixelRatio: Math.max(1, Number(context.inputHost.devicePixelRatio) || 1),
-        config: defaults(),
+        config: currentConfig,
         campaign: campaignView(),
         onlineFeatures,
         onAction: handleShellAction,
@@ -1041,6 +1119,16 @@ function startRuralFootballApp() {
           submitRankedResult(recorded, resultConfig || currentConfig);
         },
       });
+      homeRegionRestorePromise = storedHomeRegion
+        ? createRegionTeamSelection({
+          path: storedHomeRegion.path.map((item) => item.code),
+          customName: storedHomeRegion.customName,
+        }, { wxApi }).then((selection) => updateHomeOpponent(applySelection(currentConfig, "red", selection)))
+          .catch((error) => {
+            console.warn("[rural-football-app] 恢复上次家乡队失败，回落空选择", error && error.message || error);
+            return currentConfig;
+          })
+        : Promise.resolve(currentConfig);
       if (context.wxApi && typeof context.wxApi.onShow === "function") {
         context.wxApi.onShow((entry) => {
           handleFriendLaunchOptions(entry || {});
@@ -1053,14 +1141,18 @@ function startRuralFootballApp() {
       }
       // 首页不等引擎：主包资源已足够渲染选队页，资源分包与引擎在后台并行加载。
       // 用户在首页选队期间后台通常已就绪；就绪前点开赛会进入排队（见 beginMatch）。
-      Promise.race([
-        shell.whenPortraitsReady(),
-        new Promise((resolve) => setTimeout(resolve, 3600)),
+      Promise.all([
+        Promise.race([
+          shell.whenPortraitsReady(),
+          new Promise((resolve) => setTimeout(resolve, 3600)),
+        ]),
+        homeRegionRestorePromise,
       ]).then(() => setTimeout(() => {
-        if (runtime || !shell || shell.screen !== "loading") return;
+        // 已排队开赛的用户正处于过渡加载页，不能把ta拽回首页。
+        if (runtime || !shell || shell.screen !== "loading" || pendingBeginConfig) return;
         const friendState = friendCoordinator && friendCoordinator.diagnostics();
         if (friendState && (friendState.role || friendState.roomId || friendState.pendingIntent)) return;
-        shell.showHome(defaults());
+        shell.showHome(currentConfig);
         console.info("[rural-football-app] HOME_READY_EARLY", "engine-booting-in-background");
       }, 280));
     },
@@ -1144,7 +1236,7 @@ function startRuralFootballApp() {
           const friendState = friendCoordinator && friendCoordinator.diagnostics();
           if (!friendState || (!friendState.role && !friendState.roomId && !friendState.pendingIntent)) {
             // 直接进选队主页；操作教学改到首次"立即开赛"前触发（见 handleShellAction）。
-            shell.showHome(defaults());
+            shell.showHome(currentConfig);
           }
           console.info("[rural-football-app] HOME_READY", `devAutoStart=${DEV_AUTO_START_AI}`);
           if (DEV_AUTO_START_AI) {
@@ -1154,9 +1246,12 @@ function startRuralFootballApp() {
             }, 1200);
           }
         };
-        Promise.race([
-          shell.whenPortraitsReady(),
-          new Promise((resolve) => setTimeout(resolve, 3600)),
+        Promise.all([
+          Promise.race([
+            shell.whenPortraitsReady(),
+            new Promise((resolve) => setTimeout(resolve, 3600)),
+          ]),
+          homeRegionRestorePromise,
         ]).then(() => setTimeout(showReadyHome, 280));
       }
     }

@@ -5,6 +5,7 @@ const require = createRequire(import.meta.url);
 const {
   children,
   compactName,
+  pathTo,
   resolveJerseyLocation,
   search,
   stats,
@@ -71,6 +72,11 @@ assert.equal(townPair.label, "镇隆");
 assert.equal(townPair.jersey.village, "镇隆镇");
 assert.equal(townPair.valid, true);
 assert.ok((await search("镇隆")).some((item) => item.code === "440983101000"));
+assert.deepEqual(
+  (await pathTo("440983101000")).map((item) => item.name),
+  ["广东省", "茂名市", "信宜市", "镇隆镇"],
+  "任意乡镇代码必须可恢复完整省市县乡路径",
+);
 const xinyiTowns = await children("440983");
 assert.ok(xinyiTowns.length >= 15, "信宜县级节点必须能直接加载完整乡镇列表");
 assert.ok(xinyiTowns.some((item) => item.code === "440983101000" && item.name === "镇隆镇"));

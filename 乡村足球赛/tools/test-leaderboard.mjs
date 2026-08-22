@@ -33,7 +33,9 @@ assert.equal(profile.profile.nickname, "雄狮队长");
 assert.equal(profile.profile.avatarUrl, "https://wx.qlogo.cn/avatar.png");
 const region = await createRegionalTeam({ code: "440983101000" });
 assert.equal(leaderboard.setRegion(region).region.name, "镇隆");
-assert.equal(leaderboard.snapshot().region.scope.key, "440983:town");
+assert.equal(leaderboard.snapshot().region.scope.key, "CN:rural");
+assert.deepEqual(leaderboard.snapshot().metrics.map((metric) => metric.id), ["points", "goals", "winRate"]);
+assert.equal(leaderboard.snapshot().region.fullTeamName, "广东省茂名市信宜市镇隆镇乡亲联队");
 
 const matches = [
   [[2, 0], { matchId: "match_0001" }],
@@ -69,4 +71,4 @@ const reloaded = createLeaderboard({ wxApi: wx });
 assert.equal(reloaded.snapshot().stats.matches, 6, "战绩必须跨重启持久化");
 assert.equal(reloaded.snapshot().region.name, "镇隆", "自愿选择的地区队必须跨重启保存");
 assert.equal(STORAGE_KEY, "rural-football:leaderboard:v1");
-console.log("[test-leaderboard] PASS：主动授权、全指标统计、好友蓝方结算、防重放与本地持久化正常");
+console.log("[test-leaderboard] PASS：主动授权、三项公开指标、内部统计、好友蓝方结算、防重放与本地持久化正常");

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>乡村足球赛 · 升级原型图</title>
+<style>
+  :root {
+    --pitch: #5d9038; --pitch-dark: #426d2a; --cream: #fffef8; --ink: #31481f;
+    --red: #a44734; --blue: #315a9b; --gold: #f1b82d; --gold2: #f9c44d;
+    --muted: #71805e; --line: #c8d5ad; --panel: #f2f7e5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, #1c2d0f 0%, #2e4412 60%, #1a2a0e 100%);
+    color: var(--ink); padding: 32px 20px 80px;
+  }
+  .head { text-align: center; color: var(--cream); margin-bottom: 8px; }
+  .head h1 { font-size: 30px; letter-spacing: 2px; }
+  .head h1 small { font-size: 14px; color: var(--gold); display: block; margin-top: 6px; letter-spacing: 4px; }
+  .head p { color: #b5c995; font-size: 13px; margin-top: 10px; }
+  .legend { display: flex; justify-content: center; gap: 14px; margin: 18px 0 34px; flex-wrap: wrap; }
+  .legend span { font-size: 12px; color: var(--cream); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 4px 12px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  .lg-new { background: var(--gold); } .lg-old { background: #9fb98a; } .lg-server { background: var(--blue); }
+
+  .screen-block { max-width: 1180px; margin: 0 auto 56px; display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .frame {
+    width: 660px; flex: none; background: #0d1408; border-radius: 30px; padding: 12px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 2px #33491c;
+  }
+  .canvas {
+    position: relative; width: 636px; height: 336px; border-radius: 20px; overflow: hidden;
+    background: linear-gradient(180deg, #7fb354 0%, #69a244 55%, #578a38 100%);
+  }
+  .canvas.menu { background: linear-gradient(180deg, #8fca63 0%, #74ad49 45%, #578a38 100%); }
+  .capsule { position: absolute; top: 8px; right: 10px; display: flex; gap: 6px; z-index: 9; }
+  .capsule i { width: 20px; height: 20px; border-radius: 50%; background: rgba(20,30,12,.75); display: inline-block; position: relative; }
+  .capsule i::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; border: 1.6px solid #fffef8; }
+  .capsule i.dots::after { inset: 8px 3px; border: 0; border-top: 2px dotted #fffef8; border-radius: 0; }
+
+  .side { flex: 1; min-width: 280px; max-width: 380px; color: var(--cream); }
+  .side .no { display: inline-block; background: var(--gold); color: #4a3405; font-weight: 900; border-radius: 8px; padding: 2px 10px; font-size: 14px; }
+  .side h2 { font-size: 21px; margin: 10px 0 12px; }
+  .side h2 small { font-size: 12px; color: var(--gold2); margin-left: 8px; }
+  .side p { font-size: 13px; line-height: 1.75; color: #d5e2c0; margin-bottom: 10px; }
+  .side .tag { display: inline-block; font-size: 11px; border-radius: 6px; padding: 2px 8px; margin: 0 6px 6px 0; }
+  .tag.c { background: #3d5a23; color: #cfe3b2; } .tag.s { background: #27456e; color: #bcd6f7; } .tag.l { background: #6e3d2c; color: #f3c9b8; }
+  .side .kpi { background: rgba(255,255,255,.07); border-left: 3px solid var(--gold); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #ffe9a8; margin-top: 10px; }
+
+  /* 画面内通用元素 */
+  .panel { position: absolute; background: var(--cream); border: 2px solid #e6dcc3; border-radius: 14px; box-shadow: 0 6px 0 rgba(20,40,10,.18); }
+  .ptitle { text-align: center; font-weight: 900; color: var(--red); font-size: 14px; }
+  .pill { display: inline-block; background: #e9e2c8; color: #6b6a4c; font-size: 10px; font-weight: 700; border-radius: 7px; padding: 4px 9px; border: 1px solid #d5cdb0; }
+  .pill.on { background: var(--pitch); color: #fff7e2; border-color: var(--pitch-dark); }
+  .btn { display: inline-block; text-align: center; font-weight: 900; border-radius: 10px; color: #fff7e2; background: var(--pitch); box-shadow: 0 3px 0 var(--pitch-dark); font-size: 12px; padding: 8px 0; }
+  .btn.gold { background: var(--gold2); color: #4a3405; box-shadow: 0 3px 0 #c98f1b; }
+  .btn.blue { background: var(--blue); box-shadow: 0 3px 0 #22406e; }
+  .btn.gray { background: #b9c4a3; color: #5c684a; box-shadow: 0 3px 0 #97a380; }
+  .badge { display: inline-block; background: var(--red); color: #fff; font-size: 9px; font-weight: 900; border-radius: 999px; padding: 1px 6px; }
+  .bar { height: 10px; border-radius: 999px; background: #e3ecd2; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold2), var(--gold)); }
+  .new-dot { position: absolute; width: 8px; height: 8px; background: #e54b3a; border-radius: 50%; border: 1.5px solid #fff; }
+
+  .roadmap { max-width: 1180px; margin: 0 auto; color: var(--cream); }
+  .roadmap h2 { text-align: center; font-size: 24px; margin-bottom: 20px; }
+  .stage { background: rgba(255,255,255,.06); border-radius: 16px; padding: 18px 22px; margin-bottom: 14px; border-left: 5px solid var(--gold); }
+  .stage h3 { font-size: 16px; color: var(--gold2); margin-bottom: 8px; }
+  .stage ul { margin-left: 18px; font-size: 13px; line-height: 1.9; color: #d5e2c0; }
+  .stage em { color: #ffe9a8; font-style: normal; font-weight: 700; }
+  .note { max-width: 1180px; margin: 26px auto 0; background: rgba(166,71,52,.18); border: 1px solid rgba(230,140,110,.4); color: #f3d9c8; border-radius: 14px; padding: 16px 20px; font-size: 13px; line-height: 1.9; }
+  @media (max-width: 720px) { .frame { transform: scale(.52); transform-origin: top left; height: 200px; margin-bottom: -140px; } }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>乡村足球赛 · 升级原型图<small>上线后演进提案 · 非最终实现 · 供评审</small></h1>
+  <p>核心策略：把「为家乡而战」从单机感受升级为真实的社交竞争网络，让每个玩家都成为家乡的传播节点</p>
+</div>
+
+<div class="legend">
+  <span><i class="lg-new"></i>新增模块</span>
+  <span><i class="lg-old"></i>现有模块复用</span>
+  <span><i class="lg-server"></i>需服务端（已具备代码，待部署）</span>
+</div>
+
+<!-- ============ 1. 升级版首页 ============ -->
+<div class="screen-block">
+  <div class="frame"><div class="canvas menu">
+    <div class="capsule"><i class="dots"></i><i></i></div>
+    <!-- 顶部：村徽 + 荣誉 -->
+    <div class="panel" style="left:14px;top:12px;width:150px;padding:8px 10px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f9c44d,#a9742d);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:900;">隆</div>
+        <div>
+          <div style="font-size:12px;font-weight:900;color:#a44734;">镇隆队</div>
+          <div style="font-size:9px;color:#71805e;">本村排名 全国第 1,204</div>
+        </div>
+      </div>
+      <div class="bar" style="margin-top:6px;"><i style="width:64%;"></i></div>
+      <div style="font-size:9px;color:#71805e;margin-top:3px;">本周荣誉值 640 / 1000</div>
+    </div>
+    <!-- 左：我的地区队（现有） -->
+    <div class="panel" style="left:14px;top:96px;width:290px;padding:10px;">
+      <div class="ptitle">我的地区队 <span style="color:#31481f;font-size:11px;">· 信宜队</span></div>
+      <div style="margin-top:6px;">
+        <span class="pill on">广东</span> <span class="pill on">茂名</span> <span class="pill on">信宜</span> <span class="pill">镇隆 ▾</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <div style="flex:1;background:#f2f7e5;border-radius:8px;padding:5px 3px;text-align:center;font-size:9px;color:#71805e;">队长<br><b style="color:#31481f;">屠夫·大壮</b></div>
+        <div style="flex:1;background:#f2f7e5;border-radius:8px;padding:5px 3px;text-align:center;font-size:9px;color:#71805e;">阵型<br><b style="color:#31481f;">2-3-1</b></div>
+        <div style="flex:1;background:#f2f7e5;border-radius:8px;padding:5px 3px;text-align:center;font-size:9px;color:#71805e;">难度<br><b style="color:#31481f;">简单</b></div>
+      </div>
+    </div>
+    <!-- 右：对手（现有） -->
+    <div class="panel" style="right:14px;top:96px;width:290px;padding:10px;">
+      <div class="ptitle" style="color:#315a9b;">对手地区队 <span style="color:#31481f;font-size:11px;">· 化州队</span></div>
+      <div style="margin-top:6px;">
+        <span class="pill">广东</span> <span class="pill">茂名</span> <span class="pill">化州</span> <span class="pill">同庆 ▾</span>
+        <span class="pill" style="float:right;">换一个</span>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:#71805e;background:#f2f7e5;border-radius:8px;padding:6px 8px;">⚔️ 本周对手村贡献排名 第 982 · 实力接近</div>
+    </div>
+    <!-- 底部主按钮行（现有 + 新入口） -->
+    <div style="position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center;gap:10px;">
+      <span class="btn gray" style="width:108px;">挑战玩法</span>
+      <span class="btn gold" style="width:170px;font-size:15px;padding:11px 0;">立即开赛</span>
+      <span class="btn gray" style="width:108px;">战绩与好友</span>
+    </div>
+    <!-- 新：地域对抗入口横幅 -->
+    <div style="position:absolute;left:50%;transform:translateX(-50%);bottom:64px;background:linear-gradient(90deg,#a44734,#c96a3b);color:#fff7e2;font-size:11px;font-weight:900;border-radius:999px;padding:7px 16px;box-shadow:0 3px 0 #7c3222;">
+      🔥 镇隆 VS 水口 正在PK · 去助力
+      <span class="new-dot" style="top:-2px;right:-2px;"></span>
+    </div>
+    <!-- 新：每日任务角条 -->
+    <div class="panel" style="left:14px;bottom:14px;width:150px;padding:7px 9px;">
+      <div style="font-size:10px;font-weight:900;color:#31481f;">今日任务 <span style="float:right;color:#a44734;">1/3</span></div>
+      <div style="font-size:9px;color:#71805e;margin-top:4px;">✔ 完成 1 场比赛<br>○ 打进 2 球<br>○ 分享给同乡群</div>
+    </div>
+  </div></div>
+  <div class="side">
+    <span class="no">原型 1</span>
+    <h2>升级版首页<small>改动最小、收益最大</small></h2>
+    <p><b>新增：</b>① 左上「村徽荣誉卡」——常驻显示本村全国排名与本周荣誉进度，制造长期目标感；② 中部「地域对抗赛」入口横幅（红点推送感）；③ 左下「每日任务」角条；④ 对手卡下增加「实力接近」提示（来自榜单数据，提升对局期待感）。</p>
+    <p><b>保留：</b>选队、开赛、战绩入口全部不动，老玩家零学习成本。</p>
+    <div>
+      <span class="tag c">客户端</span><span class="tag s">榜单/荣誉值需服务端</span>
+    </div>
+    <div class="kpi">目标：提升开局转化与次日回访（任务+荣誉双钩子）</div>
+  </div>
+</div>
+
+<!-- ============ 2. 地域对抗赛 ============ -->
+<div class="screen-block">
+  <div class="side">
+    <span class="no">原型 2</span>
+    <h2>地域对抗赛（周赛）<small>传播发动机</small></h2>
+    <p>每周系统自动匹配「同等级相邻乡镇」打荣誉周赛：本村所有玩家的胜场/进球都计入村贡献值，周日 24 点结算，赢方全村得限定称号与头像框。</p>
+    <p><b>为什么是相邻乡镇：</b>真实村超的核心张力就是「隔壁村」。同县匹配保证了老乡群里的真实话题性——"我们镇隆不能输给水口"。</p>
+    <p><b>分享钩子：</b>「我们村正在和水口死磕，快来帮忙」一键转发同乡群，点击直接进入游戏并默认主队=本村。</p>
+    <div><span class="tag c">客户端</span><span class="tag s">贡献值统计需服务端</span><span class="tag l">榜单文本走内容安全</span></div>
+    <div class="kpi">目标：分享率与回流率的核心引擎；村超情绪的线上化</div>
+  </div>
+  <div class="frame"><div class="canvas">
+    <div class="capsule"><i class="dots"></i><i></i></div>
+    <div class="panel" style="left:50%;top:14px;transform:translateX(-50%);width:560px;padding:10px 16px;">
+      <div class="ptitle" style="font-size:15px;">🔥 茂名·县域对抗周赛 <span style="font-size:10px;color:#71805e;">剩余 2 天 13 小时</span></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
+        <div style="flex:1;text-align:center;">
+          <div style="width:46px;height:46px;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f9c44d,#a9742d);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:20px;">隆</div>
+          <div style="font-size:12px;font-weight:900;margin-top:4px;">镇隆</div>
+          <div style="font-size:18px;font-weight:900;color:#a44734;">12,480</div>
+          <div style="font-size:9px;color:#71805e;">贡献值 · 参与 86 人</div>
+        </div>
+        <div style="font-size:22px;font-weight:900;color:#71805e;">VS</div>
+        <div style="flex:1;text-align:center;">
+          <div style="width:46px;height:46px;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 35% 30%,#8fb8e8,#315a9b);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:20px;">口</div>
+          <div style="font-size:12px;font-weight:900;margin-top:4px;">水口</div>
+          <div style="font-size:18px;font-weight:900;color:#315a9b;">11,930</div>
+          <div style="font-size:9px;color:#71805e;">贡献值 · 参与 79 人</div>
+        </div>
+      </div>
+      <div class="bar" style="margin-top:10px;"><i style="width:51%;"></i></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#71805e;margin-top:4px;">
+        <span>领先 550 分</span><span>赢方全村得「镇隆之光」头像框（7 天）</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <span class="btn gold" style="flex:1.4;">立即开赛 · 为村加分</span>
+        <span class="btn blue" style="flex:1;">转发同乡群拉人</span>
+      </div>
+    </div>
+    <div class="panel" style="left:50%;bottom:16px;transform:translateX(-50%);width:560px;padding:8px 16px;font-size:10px;color:#71805e;">
+      我的本场贡献：<b style="color:#a44734;">胜 2 场 · 进 5 球 · +180 分</b>（本村第 4）
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ 3. 全国乡镇排行榜 ============ -->
+<div class="screen-block">
+  <div class="frame"><div class="canvas menu">
+    <div class="capsule"><i class="dots"></i><i></i></div>
+    <div class="panel" style="left:50%;top:12px;transform:translateX(-50%);width:520px;height:312px;padding:10px 14px;">
+      <div class="ptitle">全国乡镇荣誉榜</div>
+      <div style="display:flex;gap:6px;margin:8px 0;">
+        <span class="pill on">本周</span><span class="pill">总榜</span><span class="pill">广东省</span><span class="pill">茂名市</span><span class="pill">我的村</span>
+      </div>
+      <div style="font-size:11px;line-height:2.05;">
+        <div style="display:flex;color:#71805e;font-size:9px;"><span style="width:36px;">名次</span><span style="flex:1;">乡镇</span><span style="width:70px;text-align:right;">荣誉值</span><span style="width:56px;text-align:right;">参与人数</span></div>
+        <div style="display:flex;background:#fdf3d7;border-radius:6px;"><span style="width:36px;">🥇</span><span style="flex:1;">贵州·榕江·车江村</span><span style="width:70px;text-align:right;">98,204</span><span style="width:56px;text-align:right;">312</span></div>
+        <div style="display:flex;"><span style="width:36px;">🥈</span><span style="flex:1;">广东·茂名·镇隆</span><span style="width:70px;text-align:right;">86,557</span><span style="width:56px;text-align:right;">286</span></div>
+        <div style="display:flex;background:#f2f7e5;border-radius:6px;"><span style="width:36px;">🥉</span><span style="flex:1;">山东·临沂·傅庄</span><span style="width:70px;text-align:right;">80,112</span><span style="width:56px;text-align:right;">254</span></div>
+        <div style="display:flex;color:#71805e;"><span style="width:36px;">4</span><span style="flex:1;">四川·凉山·昭觉</span><span style="width:70px;text-align:right;">77,890</span><span style="width:56px;text-align:right;">231</span></div>
+        <div style="display:flex;color:#71805e;"><span style="width:36px;">5</span><span style="flex:1;">河南·信阳·郝堂</span><span style="width:70px;text-align:right;">75,002</span><span style="width:56px;text-align:right;">219</span></div>
+      </div>
+      <div style="position:absolute;left:14px;right:14px;bottom:10px;background:#31481f;color:#fff7e2;border-radius:9px;padding:7px 10px;font-size:10px;display:flex;justify-content:space-between;">
+        <span>我的村：镇隆 · 本周第 2</span><span style="color:#f9c44d;">距榜首还差 11,647</span>
+      </div>
+    </div>
+  </div></div>
+  <div class="side">
+    <span class="no">原型 3</span>
+    <h2>全国乡镇荣誉榜<small>把 41,278 个乡镇数据变成内容壁垒</small></h2>
+    <p>现有排行榜是「个人榜」。升级为<b>地域集体榜</b>：以乡镇为单位聚合全村玩家成绩。玩家为自己村上榜而战，天然带「老乡拉老乡」的裂变属性。</p>
+    <p><b>层级下钻：</b>全国 → 省 → 市 → 县，每层都有榜首可争，避免尾部玩家绝望（县里第 1 也很有面子）。</p>
+    <p><b>基础数据兜底：</b>沿用现有「基础地区队渐进替代」方案，冷启动榜单不空。</p>
+    <div><span class="tag c">客户端</span><span class="tag s">聚合需服务端</span><span class="tag l">公开榜单昵称/地区走内容安全</span></div>
+    <div class="kpi">目标：留存与分享的核心；给「再玩一局」一个集体理由</div>
+  </div>
+</div>
+
+<!-- ============ 4. 点球大战 ============ -->
+<div class="screen-block">
+  <div class="side">
+    <span class="no">原型 4</span>
+    <h2>平局点球大战<small>情绪峰值 + 短视频素材</small></h2>
+    <p>常规赛平局 → 进入 5 轮点球。操作极简：左摇杆选方向，按住射门键蓄力。守门员扑救同理。</p>
+    <p><b>为什么必须有：</b>点球是足球最强的情绪峰值，紧张感和翻盘感是分享/录屏的天然素材（wx.getGameRecorder 可直接复用）。也解决了「平局不爽」的结算体验。</p>
+    <p><b>赛季/对抗赛规则：</b>点球胜方按 1 球净胜计入（不影响现有积分口径）。</p>
+    <div><span class="tag c">纯客户端 · 无需服务端</span></div>
+    <div class="kpi">目标：结算分享率、好友局时长</div>
+  </div>
+  <div class="frame"><div class="canvas">
+    <div class="capsule"><i class="dots"></i><i></i></div>
+    <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(20,35,12,.82);border-radius:10px;color:#fff7e2;font-size:11px;font-weight:900;padding:5px 14px;">
+      点球大战 · 第 3 轮 <span style="color:#f9c44d;margin-left:8px;">镇隆 2 : 1 水口</span>
+    </div>
+    <!-- 球门 -->
+    <div style="position:absolute;left:50%;top:56px;transform:translateX(-50%);width:300px;height:120px;border:4px solid #fffef8;border-bottom:0;border-radius:6px 6px 0 0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.16) 0 6px,transparent 6px 12px);">
+      <div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);">
+        <div style="border:1px dashed rgba(255,255,255,.35);"></div><div style="border:1px dashed rgba(255,255,255,.35);background:rgba(249,196,77,.35);"></div><div style="border:1px dashed rgba(255,255,255,.35);"></div>
+        <div style="border:1px dashed rgba(255,255,255,.35);"></div><div style="border:1px dashed rgba(255,255,255,.35);"></div><div style="border:1px dashed rgba(255,255,255,.35);"></div>
+      </div>
+      <div style="position:absolute;left:50%;bottom:-26px;transform:translateX(-50%);font-size:10px;color:#fff7e2;background:#a44734;border-radius:6px;padding:2px 8px;font-weight:900;">瞄准区</div>
+    </div>
+    <!-- 守门员 -->
+    <div style="position:absolute;left:50%;top:96px;transform:translateX(-50%);width:34px;height:52px;background:#315a9b;border-radius:8px 8px 4px 4px;">
+      <div style="width:16px;height:16px;background:#f2c99b;border-radius:50%;margin:-10px auto 0;"></div>
+    </div>
+    <!-- 球 -->
+    <div style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);width:18px;height:18px;background:#fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3);"></div>
+    <!-- 操作区 -->
+    <div style="position:absolute;left:26px;bottom:30px;width:74px;height:74px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">方向</div>
+    <div style="position:absolute;right:30px;bottom:34px;text-align:center;">
+      <div style="width:76px;height:76px;border-radius:50%;background:var(--gold2);box-shadow:0 4px 0 #c98f1b;display:flex;align-items:center;justify-content:center;font-weight:900;color:#4a3405;font-size:13px;">射门</div>
+      <div class="bar" style="width:90px;margin-top:8px;"><i style="width:72%;"></i></div>
+      <div style="font-size:9px;color:#fff;margin-top:3px;">蓄力 72%</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:14px;transform:translateX(-50%);color:#fffef8;font-size:10px;background:rgba(20,35,12,.6);border-radius:999px;padding:3px 12px;">轮流主罚 · 你可以扑救对方射门</div>
+  </div></div>
+</div>
+
+<!-- ============ 5. 每日任务 ============ -->
+<div class="screen-block">
+  <div class="frame"><div class="canvas menu">
+    <div class="capsule"><i class="dots"></i><i></i></div>
+    <div class="panel" style="left:50%;top:14px;transform:translateX(-50%);width:520px;padding:12px 16px;">
+      <div class="ptitle">今日任务 <span style="font-size:10px;color:#71805e;">每天 0 点刷新</span></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+        <div style="display:flex;align-items:center;gap:10px;background:#f2f7e5;border-radius:10px;padding:8px 10px;">
+          <div style="font-size:16px;">⚽</div>
+          <div style="flex:1;"><div style="font-size:11px;font-weight:900;">完成 1 场比赛</div><div class="bar" style="margin-top:3px;"><i style="width:100%;"></i></div></div>
+          <span class="btn gray" style="width:64px;font-size:10px;padding:6px 0;">已领取</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;background:#f2f7e5;border-radius:10px;padding:8px 10px;">
+          <div style="font-size:16px;">🥅</div>
+          <div style="flex:1;"><div style="font-size:11px;font-weight:900;">打进 2 球</div><div class="bar" style="margin-top:3px;"><i style="width:50%;"></i></div></div>
+          <span class="btn gold" style="width:64px;font-size:10px;padding:6px 0;">去完成</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;background:#f2f7e5;border-radius:10px;padding:8px 10px;">
+          <div style="font-size:16px;">📣</div>
+          <div style="flex:1;"><div style="font-size:11px;font-weight:900;">分享比赛给同乡</div><div class="bar" style="margin-top:3px;"><i style="width:0%;"></i></div></div>
+          <span class="btn blue" style="width:64px;font-size:10px;padding:6px 0;">去分享</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;background:#31481f;color:#fff7e2;border-radius:10px;padding:8px 12px;font-size:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span>完成全部 3 个 → 领「村广播喇叭」称号</span><span style="color:#f9c44d;">差 2 个</span>
+      </div>
+    </div>
+  </div></div>
+  <div class="side">
+    <span class="no">原型 5</span>
+    <h2>每日任务<small>留存的基本功</small></h2>
+    <p>三个固定任务：完成比赛（参与）→ 进球（技巧）→ 分享（传播），奖励递增。全部完成给限定称号，称号展示在排行榜和好友局。</p>
+    <p><b>注意：</b>分享任务只计「点击分享动作」，不强制不诱导（微信合规红线），奖励用荣誉值/称号等非现金虚拟物。</p>
+    <div><span class="tag c">纯客户端可先做</span><span class="tag s">称号展示需榜单服务</span></div>
+    <div class="kpi">目标：次日/7 日留存；给每日挑战之外的每日回访理由</div>
+  </div>
+</div>
+
+<!-- ============ 6. 球员图鉴 ============ -->
+<div class="screen-block">
+  <div class="side">
+    <span class="no">原型 6</span>
+    <h2>球员图鉴 · 乡村群像收集<small>把 12 个职业人设用起来</small></h2>
+    <p>现有 12 名乡村球员都有职业人设（屠夫队长、医生门将、返乡青年……）但目前只是皮肤。升级为「图鉴收集」：每名球员有熟练度（使用场次积累）和专属小故事卡，集齐有长期目标。</p>
+    <p><b>公平性红线：</b>养成只解锁外观/故事/庆祝动作，<b>不加比赛属性</b>，避免付费变强舆论与审核风险。</p>
+    <p><b>彩蛋空间：</b>特定球员组合触发方言解说彩蛋（"屠夫队长一脚定音"）。</p>
+    <div><span class="tag c">客户端</span><span class="tag s">熟练度上云可选</span></div>
+    <div class="kpi">目标：长线收集动力；角色 IP 化（表情包/短视频二创素材）</div>
+  </div>
+  <div class="frame"><div class="canvas menu">
+    <div class="capsule"><i class="dots"></i><i></i></div>
+    <div class="panel" style="left:50%;top:12px;transform:translateX(-50%);width:560px;height:312px;padding:10px 14px;">
+      <div class="ptitle">乡村球员图鉴 <span style="font-size:10px;color:#71805e;">已收集 7 / 12</span></div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px;">
+        <div style="background:#f2f7e5;border:2px solid #f1b82d;border-radius:10px;padding:6px 4px;text-align:center;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#c98a5b;margin:0 auto;"></div>
+          <div style="font-size:9px;font-weight:900;margin-top:3px;">屠夫队长</div><div style="font-size:8px;color:#a44734;">熟练度 ★★★</div>
+        </div>
+        <div style="background:#f2f7e5;border-radius:10px;padding:6px 4px;text-align:center;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#a8b59b;margin:0 auto;"></div>
+          <div style="font-size:9px;font-weight:900;margin-top:3px;">医生门将</div><div style="font-size:8px;color:#71805e;">★★☆</div>
+        </div>
+        <div style="background:#f2f7e5;border-radius:10px;padding:6px 4px;text-align:center;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#8f9ec4;margin:0 auto;"></div>
+          <div style="font-size:9px;font-weight:900;margin-top:3px;">返乡前锋</div><div style="font-size:8px;color:#71805e;">★★☆</div>
+        </div>
+        <div style="background:#f2f7e5;border-radius:10px;padding:6px 4px;text-align:center;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#b59a72;margin:0 auto;"></div>
+          <div style="font-size:9px;font-weight:900;margin-top:3px;">支教老师</div><div style="font-size:8px;color:#71805e;">★☆☆</div>
+        </div>
+        <div style="background:#eef0e6;border-radius:10px;padding:6px 4px;text-align:center;filter:saturate(0);">
+          <div style="width:36px;height:36px;border-radius:50%;background:#c9c9c9;margin:0 auto;"></div>
+          <div style="font-size:9px;color:#97a380;margin-top:3px;">？？？</div><div style="font-size:8px;color:#97a380;">未解锁</div>
+        </div>
+        <div style="background:#eef0e6;border-radius:10px;padding:6px 4px;text-align:center;filter:saturate(0);">
+          <div style="width:36px;height:36px;border-radius:50%;background:#c9c9c9;margin:0 auto;"></div>
+          <div style="font-size:9px;color:#97a380;margin-top:3px;">？？？</div><div style="font-size:8px;color:#97a380;">未解锁</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px;background:#f2f7e5;border-radius:10px;padding:8px 12px;align-items:center;">
+        <div style="width:44px;height:44px;border-radius:50%;background:#c98a5b;flex:none;"></div>
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:900;">屠夫队长 · 大壮 <span class="badge">队长</span></div>
+          <div style="font-size:9px;color:#71805e;margin-top:2px;line-height:1.6;">凌晨四点杀猪，傍晚七点练球。「案板前练出的稳，都用在点球点上。」再用他踢 3 场解锁专属庆祝动作。</div>
+        </div>
+        <span class="btn gold" style="width:70px;font-size:10px;padding:7px 0;">设为队长</span>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ 7. 观战助威 ============ -->
+<div class="screen-block">
+  <div class="frame"><div class="canvas">
+    <div class="capsule"><i class="dots"></i><i></i></div>
+    <div style="position:absolute;top:10px;left:14px;background:rgba(20,35,12,.82);border-radius:8px;color:#fff7e2;font-size:10px;font-weight:900;padding:4px 10px;">
+      观战中 · 大壮（镇隆）VS 阿水（水口）<span style="color:#8fd06a;margin-left:6px;">● 直播</span>
+    </div>
+    <div style="position:absolute;top:34px;left:14px;color:#fff7e2;font-size:9px;background:rgba(20,35,12,.55);border-radius:6px;padding:2px 8px;">同村 23 人正在看</div>
+    <!-- 球场示意 -->
+    <div style="position:absolute;left:50%;top:56px;transform:translateX(-50%);width:440px;height:200px;border:2px solid rgba(255,255,255,.6);border-radius:8px;">
+      <div style="position:absolute;left:50%;top:0;bottom:0;border-left:2px dashed rgba(255,255,255,.5);"></div>
+      <div style="position:absolute;left:50%;top:50%;width:56px;height:56px;border:2px solid rgba(255,255,255,.5);border-radius:50%;transform:translate(-50%,-50%);"></div>
+      <div style="position:absolute;left:60px;top:80px;width:12px;height:12px;background:#a44734;border-radius:50%;"></div>
+      <div style="position:absolute;left:130px;top:120px;width:12px;height:12px;background:#a44734;border-radius:50%;"></div>
+      <div style="position:absolute;right:80px;top:90px;width:12px;height:12px;background:#315a9b;border-radius:50%;"></div>
+      <div style="position:absolute;left:210px;top:60px;width:10px;height:10px;background:#fff;border-radius:50%;"></div>
+    </div>
+    <!-- 助威弹幕 -->
+    <div style="position:absolute;top:70px;right:20px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
+      <span style="background:rgba(20,35,12,.75);color:#ffe9a8;font-size:9px;border-radius:999px;padding:3px 9px;">🍺 镇隆加油！</span>
+      <span style="background:rgba(20,35,12,.75);color:#ffe9a8;font-size:9px;border-radius:999px;padding:3px 9px;">🔥 大壮来一个！</span>
+      <span style="background:rgba(20,35,12,.75);color:#ffe9a8;font-size:9px;border-radius:999px;padding:3px 9px;">🥁 守住啊！</span>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:8px;">
+      <span class="btn" style="width:80px;font-size:10px;">🍺 干一杯</span>
+      <span class="btn gold" style="width:80px;font-size:10px;">🥁 擂鼓</span>
+      <span class="btn blue" style="width:80px;font-size:10px;">📣 喊号子</span>
+      <span class="btn gray" style="width:80px;font-size:10px;">退出观战</span>
+    </div>
+  </div></div>
+  <div class="side">
+    <span class="no">原型 7</span>
+    <h2>观战 + 助威<small>把好友房变成"村口看球"</small></h2>
+    <p>好友对战开打后，同村/好友可一键进入观战（复用现有 WebSocket 快照同步，观战者只读）。助威用预设按钮（干杯/擂鼓/喊号子），不走自由文本——<b>绕开 UGC 文本审核</b>。</p>
+    <p>观战人数和助威热度直接计入地域对抗赛的「村贡献」小额加成，形成「不在场也能帮村」的参与感。</p>
+    <div><span class="tag c">客户端</span><span class="tag s">需好友房服务（已有）</span></div>
+    <div class="kpi">目标：拉长在线时长、强化村队集体感</div>
+  </div>
+</div>
+
+<!-- ============ 8. 挑战分享卡 ============ -->
+<div class="screen-block">
+  <div class="side">
+    <span class="no">原型 8</span>
+    <h2>挑战分享卡<small>分享回路闭环</small></h2>
+    <p>赛后分享卡从「晒成绩」升级为「下战书」：卡片自带挑战链接，好友点开直接进入对你的挑战房（复用现有好友邀请链路）。</p>
+    <p>文案策略：用地域身份强化对抗欲——"我们镇隆还没输过水口"，比"我赢了 3:1"更有转发冲动。</p>
+    <p><b>合规：</b>分享卡片图片为本地生成、文案模板固定；自定义队名走服务端内容安全（已有）。</p>
+    <div><span class="tag c">客户端</span><span class="tag s">挑战房需好友服务</span></div>
+    <div class="kpi">目标：分享率 → 新客导入的直接抓手</div>
+  </div>
+  <div class="frame"><div class="canvas" style="background:#ededed;">
+    <!-- 微信会话样式 -->
+    <div style="position:absolute;top:0;left:0;right:0;height:26px;background:#1c1c1e;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;">老乡群（36）</div>
+    <div style="position:absolute;left:14px;top:40px;display:flex;gap:8px;max-width:420px;">
+      <div style="width:28px;height:28px;border-radius:6px;background:#c98a5b;flex:none;"></div>
+      <div>
+        <div style="font-size:9px;color:#8a8a8a;margin-bottom:3px;">大壮</div>
+        <div style="background:#fff;border-radius:4px 12px 12px 12px;padding:8px;box-shadow:0 1px 2px rgba(0,0,0,.1);width:270px;">
+          <div style="background:linear-gradient(135deg,#5d9038,#426d2a);border-radius:8px;padding:10px;color:#fff7e2;">
+            <div style="font-size:10px;opacity:.8;">乡村足球赛 · 挑战书</div>
+            <div style="font-size:15px;font-weight:900;margin:5px 0;">镇隆 3 : 1 水口</div>
+            <div style="font-size:10px;opacity:.9;">「我们镇隆还没输过水口」</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
+              <div style="font-size:9px;opacity:.85;">大壮 2 球 1 助攻 · MVP</div>
+              <div style="background:#f9c44d;color:#4a3405;font-size:10px;font-weight:900;border-radius:6px;padding:4px 8px;">接受挑战 →</div>
+            </div>
+          </div>
+          <div style="font-size:9px;color:#8a8a8a;margin-top:5px;border-top:1px solid #eee;padding-top:4px;">小程序 · 乡村足球赛</div>
+        </div>
+      </div>
+    </div>
+    <div style="position:absolute;right:14px;bottom:44px;display:flex;gap:8px;flex-direction:row-reverse;max-width:420px;">
+      <div style="width:28px;height:28px;border-radius:6px;background:#8fb8e8;flex:none;"></div>
+      <div style="background:#95ec69;border-radius:12px 4px 12px 12px;padding:8px 12px;font-size:11px;align-self:center;">等着，我叫上二叔跟你踢</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ 路线图 ============ -->
+<div class="roadmap">
+  <h2>🗺️ 落地路线图</h2>
+  <div class="stage">
+    <h3>第 0 阶段 · 上线前（当前）</h3>
+    <ul>
+      <li>维持现状：<em>联网功能包内默认关闭</em>，先以纯单机过审上线；</li>
+      <li>上线前只做：<em>真机验收 + 重新上传 + 提审</em>，不加新功能。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <h3>第 1 阶段 · 上线后第一波（服务部署完成后远程开闸）</h3>
+    <ul>
+      <li><em>点球大战</em>（原型 4）：纯客户端，无合规增量，最快可上；</li>
+      <li><em>每日任务</em>（原型 5）：客户端先做，称号展示挂在榜单；</li>
+      <li><em>全国乡镇荣誉榜</em>（原型 3）：服务端聚合已有榜单基础设施；</li>
+      <li><em>挑战分享卡</em>（原型 8）：好友房部署后打通挑战回路。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <h3>第 2 阶段 · 社交深化</h3>
+    <ul>
+      <li><em>地域对抗周赛</em>（原型 2）+ 首页横幅入口（原型 1）；</li>
+      <li><em>观战助威</em>（原型 7）：预设口令，规避 UGC 文本审核；</li>
+      <li><em>球员图鉴</em>（原型 6）：只加外观不加属性，守住公平与审核。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <h3>第 3 阶段 · 远期储备（需专项评估）</h3>
+    <ul>
+      <li>自定义人脸 → Q 版头像：涉及<em>人脸敏感信息 + AIGC 备案</em>，单独立项评估；</li>
+      <li>激励视频商业化：在已有 play-gate 框架内小步开启，观察留存影响；</li>
+      <li>赛季通行证/球衣 DIY：验证付费意愿后再做。</li>
+    </ul>
+  </div>
+  <div class="note">
+    <b>合规红线（所有新玩法通用）：</b>① 不强制分享、不诱导分享——分享只给荣誉值/称号类虚拟奖励；② 用户上传内容（队名/昵称/头像）一律过服务端微信内容安全接口；③ 人脸照片属敏感个人信息，方案未定前不碰；④ 广告默认关闭，开启需完成广告位审核。
+  </div>
+</div>
+
+</body>
+</html>

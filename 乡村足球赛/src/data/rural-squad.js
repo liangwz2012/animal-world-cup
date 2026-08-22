@@ -9,7 +9,7 @@ const RURAL_SQUAD = [
   { id: "noodle-playmaker", name: "岑月娥", age: 31, vocation: "米粉店主", role: "M", number: 6, label: "组织核心", bodyProfile: "balanced" },
   { id: "shopkeeper-midfielder", name: "罗桂香", age: 47, vocation: "小卖部账房", role: "M", number: 7, label: "经验后腰", bodyProfile: "compact-strong" },
   { id: "graduate-forward", name: "杨帆", age: 21, vocation: "返乡大学生", role: "A", number: 8, label: "返乡前锋", bodyProfile: "tall-slim" },
-  { id: "woman-striker", name: "韦春花", age: 25, vocation: "女足尖子", role: "A", number: 9, label: "女足前锋", bodyProfile: "balanced" },
+  { id: "woman-striker", name: "韦春花", age: 25, vocation: "女足球员", role: "A", number: 9, label: "女足前锋", bodyProfile: "balanced" },
   { id: "market-winger", name: "陆小妹", age: 26, vocation: "卤味摊主", role: "A", number: 10, label: "活力边锋", bodyProfile: "compact-strong" },
   { id: "doctor-goalkeeper", name: "何济民", age: 36, vocation: "村医", role: "G", number: 11, label: "替补门将", bodyProfile: "tall-strong" },
   { id: "mechanic-apprentice", name: "梁小满", age: 18, vocation: "汽修学徒", role: "M", number: 12, label: "年轻替补", bodyProfile: "tall-slim" },
@@ -54,6 +54,7 @@ function ruralPlayersForSide(side) {
     return {
       id: player.id,
       name: player.name,
+      vocation: player.vocation,
       role: player.role,
       number: player.number,
       race: ruralRaceId(index + 1),

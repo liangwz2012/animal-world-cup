@@ -1,7 +1,11 @@
 import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
+
+const require = createRequire(import.meta.url);
+const { normalizeRegionalShareFeature, normalizeRuralLeaderboardFeature } = require("../src/data/remote-feature-contracts");
 
 const MAX_CONFIG_BYTES = 64 * 1024;
 
@@ -11,9 +15,131 @@ export const SAFE_DEFAULT_CONFIG = Object.freeze({
   features: {
     leaderboard: { enabled: false, apiUrl: "" },
     friend: { enabled: false, wssUrl: "" },
-    monetization: { enabled: false, playGateEnabled: false, adUnlockEnabled: false, rewardedAdUnitId: "" },
+    captainAvatarCustomization: { enabled: false, apiUrl: "" },
+    ruralLeaderboard: normalizeRuralLeaderboardFeature(null),
+    regionalShare: normalizeRegionalShareFeature(null),
+    monetization: {
+      enabled: false,
+      playGateEnabled: false,
+      adUnlockEnabled: false,
+      rewardedAdUnitId: "",
+      freeMatchesPerDay: 2,
+      singleUnlockMatches: 1,
+      dayPassThreshold: 5,
+      shareTitle: "",
+    },
+    dailyTasks: { enabled: false, tasks: [] },
+    penaltyShootout: { enabled: false, rounds: 5 },
+    regionHonorBoard: { enabled: false, scopes: [] },
+    regionRivalry: { enabled: false, settleDayOfWeek: 0, rewardTitle: "" },
+    playerCodex: { enabled: false },
+    spectateCheer: { enabled: false, presets: [] },
+    challengeCard: { enabled: false, title: "" },
+    home: { honorCard: false, rivalryBanner: false, taskStrip: false },
+    weather: { enabled: false, types: [], probability: 0 },
+    tournament: { enabled: false, title: "", format: "knockout", rounds: 3 },
+    seasonPass: { enabled: false, days: 30 },
+    achievements: { enabled: false, list: [] },
+    highlights: { enabled: false },
+    dialectPack: { enabled: false, pack: "" },
+    feedback: { enabled: false },
+    experiments: {},
+    customModules: {},
   },
+  announcement: { text: "", level: "info" },
+  maintenance: { onlineBlocked: false, message: "", minClientVersion: "" },
+  events: [],
 });
+
+const TASK_KINDS = Object.freeze(["play_matches", "score_goals", "win_matches", "watch_match"]);
+const BOARD_SCOPES = Object.freeze(["nation", "province", "city", "county"]);
+const ANNOUNCEMENT_LEVELS = Object.freeze(["info", "warn", "urgent"]);
+const WEATHER_TYPES = Object.freeze(["rain", "mud", "snow", "heat"]);
+const TOURNAMENT_FORMATS = Object.freeze(["knockout", "league"]);
+const EVENT_KINDS = Object.freeze(["festival", "cup", "rivalry", "custom"]);
+const FORBIDDEN_MAP_KEYS = Object.freeze(["__proto__", "constructor", "prototype"]);
+
+function safeText(value, limit) {
+  return typeof value === "string" ? value.trim().slice(0, limit) : "";
+}
+
+function clampInt(value, min, max, fallback) {
+  const parsed = Math.floor(Number(value));
+  return Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback;
+}
+
+function safeTasks(input) {
+  if (!Array.isArray(input)) return [];
+  return input.slice(0, 8).map((item) => {
+    if (!plainObject(item)) return null;
+    const id = safeText(item.id, 32);
+    const kind = safeText(item.kind, 24);
+    if (!id || !TASK_KINDS.includes(kind)) return null;
+    return { id, kind, target: clampInt(item.target, 1, 99, 1), reward: safeText(item.reward, 32) };
+  }).filter(Boolean);
+}
+
+function safeCheerPresets(input) {
+  if (!Array.isArray(input)) return [];
+  return input.slice(0, 8).map((item) => {
+    if (!plainObject(item)) return null;
+    const icon = safeText(item.icon, 4);
+    const text = safeText(item.text, 8);
+    if (!icon || !text) return null;
+    return { icon, text };
+  }).filter(Boolean);
+}
+
+function safeAchievements(input) {
+  if (!Array.isArray(input)) return [];
+  return input.slice(0, 32).map((item) => {
+    if (!plainObject(item)) return null;
+    const id = safeText(item.id, 32);
+    const title = safeText(item.title, 24);
+    if (!id || !title) return null;
+    return { id, title, desc: safeText(item.desc, 60), target: clampInt(item.target, 1, 9999, 1) };
+  }).filter(Boolean);
+}
+
+function safeEvents(input) {
+  if (!Array.isArray(input)) return [];
+  return input.slice(0, 8).map((item) => {
+    if (!plainObject(item)) return null;
+    const id = safeText(item.id, 24);
+    const title = safeText(item.title, 30);
+    const kind = safeText(item.kind, 16);
+    if (!id || !title || !EVENT_KINDS.includes(kind)) return null;
+    return {
+      id,
+      title,
+      kind,
+      startAt: clampInt(item.startAt, 0, 4100000000000, 0),
+      endAt: clampInt(item.endAt, 0, 4100000000000, 0),
+    };
+  }).filter(Boolean);
+}
+
+function safeExperiments(input) {
+  if (!plainObject(input)) return {};
+  const output = {};
+  for (const key of Object.keys(input).slice(0, 8)) {
+    if (!/^[a-z0-9_]{2,32}$/.test(key) || FORBIDDEN_MAP_KEYS.includes(key)) continue;
+    const variant = safeText(input[key], 24);
+    if (variant) output[key] = variant;
+  }
+  return output;
+}
+
+function safeCustomModules(input) {
+  if (!plainObject(input)) return {};
+  const output = {};
+  for (const name of Object.keys(input).slice(0, 16)) {
+    if (!/^[a-z0-9_]{2,32}$/.test(name) || FORBIDDEN_MAP_KEYS.includes(name)) continue;
+    const entry = plainObject(input[name]) ? input[name] : {};
+    output[name] = { enabled: !!entry.enabled, note: safeText(entry.note, 100) };
+  }
+  return output;
+}
 
 function plainObject(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -26,6 +152,12 @@ function secureUrl(value, protocol) {
     ? /^wss:\/\/[a-z0-9.-]+(?::\d{1,5})?(?:\/[a-zA-Z0-9._~!$&'()*+,;=:@%/-]*)?$/i
     : /^https:\/\/[a-z0-9.-]+(?::\d{1,5})?(?:\/[a-zA-Z0-9._~!$&'()*+,;=:@%/-]*)?$/i;
   return expression.test(raw) ? raw : "";
+}
+
+function publicHttpsUrl(value) {
+  const url = secureUrl(value, "https");
+  if (!url || /^https:\/\/(?:localhost|127(?:\.\d{1,3}){3})(?::|\/|$)/i.test(url)) return "";
+  return url;
 }
 
 function safeTeams(input) {
@@ -47,28 +179,108 @@ export function normalizeRemoteConfig(input) {
   const features = plainObject(source.features) ? source.features : {};
   const leaderboard = plainObject(features.leaderboard) ? features.leaderboard : {};
   const friend = plainObject(features.friend) ? features.friend : {};
+  const captainAvatarCustomization = plainObject(features.captainAvatarCustomization) ? features.captainAvatarCustomization : {};
+  const ruralLeaderboard = plainObject(features.ruralLeaderboard) ? features.ruralLeaderboard : {};
+  const regionalShare = plainObject(features.regionalShare) ? features.regionalShare : {};
   const monetization = plainObject(features.monetization) ? features.monetization : {};
+  const dailyTasks = plainObject(features.dailyTasks) ? features.dailyTasks : {};
+  const penaltyShootout = plainObject(features.penaltyShootout) ? features.penaltyShootout : {};
+  const regionHonorBoard = plainObject(features.regionHonorBoard) ? features.regionHonorBoard : {};
+  const regionRivalry = plainObject(features.regionRivalry) ? features.regionRivalry : {};
+  const playerCodex = plainObject(features.playerCodex) ? features.playerCodex : {};
+  const spectateCheer = plainObject(features.spectateCheer) ? features.spectateCheer : {};
+  const challengeCard = plainObject(features.challengeCard) ? features.challengeCard : {};
+  const home = plainObject(features.home) ? features.home : {};
+  const weather = plainObject(features.weather) ? features.weather : {};
+  const tournament = plainObject(features.tournament) ? features.tournament : {};
+  const seasonPass = plainObject(features.seasonPass) ? features.seasonPass : {};
+  const achievements = plainObject(features.achievements) ? features.achievements : {};
+  const highlights = plainObject(features.highlights) ? features.highlights : {};
+  const dialectPack = plainObject(features.dialectPack) ? features.dialectPack : {};
+  const feedback = plainObject(features.feedback) ? features.feedback : {};
   const apiUrl = secureUrl(leaderboard.apiUrl, "https");
   const wssUrl = secureUrl(friend.wssUrl, "wss");
+  const captainAvatarApiUrl = publicHttpsUrl(captainAvatarCustomization.apiUrl);
   const adUnitId = typeof monetization.rewardedAdUnitId === "string"
     && /^adunit-[A-Za-z0-9_-]{6,128}$/.test(monetization.rewardedAdUnitId.trim())
     ? monetization.rewardedAdUnitId.trim()
     : "";
   const adEnabled = !!monetization.enabled && !!monetization.playGateEnabled
     && !!monetization.adUnlockEnabled && !!adUnitId;
+  const announcement = plainObject(source.announcement) ? source.announcement : {};
+  const maintenance = plainObject(source.maintenance) ? source.maintenance : {};
   return {
     version: Math.max(1, Math.floor(Number(source.version) || 1)),
     teams: safeTeams(source.teams),
     features: {
       leaderboard: { enabled: !!leaderboard.enabled && !!apiUrl, apiUrl: !!leaderboard.enabled && apiUrl ? apiUrl : "" },
       friend: { enabled: !!friend.enabled && !!wssUrl, wssUrl: !!friend.enabled && wssUrl ? wssUrl : "" },
+      captainAvatarCustomization: {
+        enabled: !!captainAvatarCustomization.enabled && !!captainAvatarApiUrl,
+        apiUrl: !!captainAvatarCustomization.enabled && captainAvatarApiUrl ? captainAvatarApiUrl : "",
+      },
+      ruralLeaderboard: normalizeRuralLeaderboardFeature(ruralLeaderboard),
+      regionalShare: normalizeRegionalShareFeature(regionalShare),
       monetization: {
         enabled: adEnabled,
         playGateEnabled: adEnabled,
         adUnlockEnabled: adEnabled,
         rewardedAdUnitId: adEnabled ? adUnitId : "",
+        freeMatchesPerDay: clampInt(monetization.freeMatchesPerDay, 0, 20, 2),
+        singleUnlockMatches: clampInt(monetization.singleUnlockMatches, 1, 10, 1),
+        dayPassThreshold: clampInt(monetization.dayPassThreshold, 2, 20, 5),
+        shareTitle: safeText(monetization.shareTitle, 40),
       },
+      dailyTasks: { enabled: !!dailyTasks.enabled, tasks: safeTasks(dailyTasks.tasks) },
+      penaltyShootout: { enabled: !!penaltyShootout.enabled, rounds: clampInt(penaltyShootout.rounds, 3, 7, 5) },
+      regionHonorBoard: {
+        enabled: !!regionHonorBoard.enabled,
+        scopes: Array.isArray(regionHonorBoard.scopes)
+          ? regionHonorBoard.scopes.filter((scope) => BOARD_SCOPES.includes(scope)).slice(0, 4)
+          : [],
+      },
+      regionRivalry: {
+        enabled: !!regionRivalry.enabled,
+        settleDayOfWeek: clampInt(regionRivalry.settleDayOfWeek, 0, 6, 0),
+        rewardTitle: safeText(regionRivalry.rewardTitle, 24),
+      },
+      playerCodex: { enabled: !!playerCodex.enabled },
+      spectateCheer: { enabled: !!spectateCheer.enabled, presets: safeCheerPresets(spectateCheer.presets) },
+      challengeCard: { enabled: !!challengeCard.enabled, title: safeText(challengeCard.title, 30) },
+      home: {
+        honorCard: !!home.honorCard,
+        rivalryBanner: !!home.rivalryBanner,
+        taskStrip: !!home.taskStrip,
+      },
+      weather: {
+        enabled: !!weather.enabled,
+        types: Array.isArray(weather.types) ? weather.types.filter((type) => WEATHER_TYPES.includes(type)).slice(0, 4) : [],
+        probability: clampInt(weather.probability, 0, 100, 0),
+      },
+      tournament: {
+        enabled: !!tournament.enabled,
+        title: safeText(tournament.title, 30),
+        format: TOURNAMENT_FORMATS.includes(tournament.format) ? tournament.format : "knockout",
+        rounds: clampInt(tournament.rounds, 2, 6, 3),
+      },
+      seasonPass: { enabled: !!seasonPass.enabled, days: clampInt(seasonPass.days, 7, 90, 30) },
+      achievements: { enabled: !!achievements.enabled, list: safeAchievements(achievements.list) },
+      highlights: { enabled: !!highlights.enabled },
+      dialectPack: { enabled: !!dialectPack.enabled, pack: safeText(dialectPack.pack, 24) },
+      feedback: { enabled: !!feedback.enabled },
+      experiments: safeExperiments(features.experiments),
+      customModules: safeCustomModules(features.customModules),
     },
+    announcement: {
+      text: safeText(announcement.text, 100),
+      level: ANNOUNCEMENT_LEVELS.includes(announcement.level) ? announcement.level : "info",
+    },
+    maintenance: {
+      onlineBlocked: !!maintenance.onlineBlocked,
+      message: safeText(maintenance.message, 100),
+      minClientVersion: safeText(maintenance.minClientVersion, 16),
+    },
+    events: safeEvents(source.events),
   };
 }
 

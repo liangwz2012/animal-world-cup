@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "teams": [],
   "features": {
     "leaderboard": {
@@ -10,11 +10,79 @@
       "enabled": false,
       "wssUrl": "wss://coaiz.com/rural-ws"
     },
+    "captainAvatarCustomization": {
+      "enabled": false,
+      "apiUrl": ""
+    },
+    "ruralLeaderboard": {
+      "enabled": false,
+      "metrics": ["points", "goals", "winRate"],
+      "scopes": ["nation", "province", "city", "county", "town"],
+      "defaultScope": "nation"
+    },
+    "regionalShare": {
+      "enabled": true,
+      "sameCountyTemplate": "{{commonRegion}}乡村赛｜{{redLeaf}}队 VS {{blueLeaf}}队，快来踢球！",
+      "sameProvinceTemplate": "{{commonProvince}}乡村赛｜{{redCompact}} VS {{blueCompact}}，快来踢球！",
+      "crossProvinceTemplate": "全国乡村赛｜{{redCompact}} VS {{blueCompact}}，快来踢球！"
+    },
     "monetization": {
       "enabled": false,
       "playGateEnabled": false,
       "adUnlockEnabled": false,
-      "rewardedAdUnitId": ""
+      "rewardedAdUnitId": "",
+      "freeMatchesPerDay": 2,
+      "singleUnlockMatches": 1,
+      "dayPassThreshold": 5,
+      "shareTitle": ""
+    },
+    "dailyTasks": {
+      "enabled": false,
+      "tasks": [
+        { "id": "play-1", "kind": "play_matches", "target": 1, "reward": "honor-30" },
+        { "id": "goals-2", "kind": "score_goals", "target": 2, "reward": "honor-60" },
+        { "id": "win-1", "kind": "win_matches", "target": 1, "reward": "honor-100" }
+      ]
+    },
+    "penaltyShootout": { "enabled": false, "rounds": 5 },
+    "regionHonorBoard": { "enabled": false, "scopes": ["nation", "province", "city", "county"] },
+    "regionRivalry": { "enabled": false, "settleDayOfWeek": 0, "rewardTitle": "" },
+    "playerCodex": { "enabled": false },
+    "spectateCheer": {
+      "enabled": false,
+      "presets": [
+        { "icon": "🍺", "text": "干一杯" },
+        { "icon": "🥁", "text": "擂鼓" },
+        { "icon": "📣", "text": "喊号子" }
+      ]
+    },
+    "challengeCard": { "enabled": false, "title": "" },
+    "home": { "honorCard": false, "rivalryBanner": false, "taskStrip": false },
+    "weather": { "enabled": false, "types": ["rain", "mud"], "probability": 20 },
+    "tournament": { "enabled": false, "title": "丰收杯", "format": "knockout", "rounds": 3 },
+    "seasonPass": { "enabled": false, "days": 30 },
+    "achievements": {
+      "enabled": false,
+      "list": [
+        { "id": "hat-trick", "title": "帽子戏法", "desc": "单场打进 3 球", "target": 3 },
+        { "id": "clean-sheet", "title": "固若金汤", "desc": "零封对手获胜", "target": 1 }
+      ]
+    },
+    "highlights": { "enabled": false },
+    "dialectPack": { "enabled": false, "pack": "" },
+    "feedback": { "enabled": false },
+    "experiments": { "home_layout": "a" },
+    "customModules": {}
+  },
+  "announcement": { "text": "", "level": "info" },
+  "maintenance": { "onlineBlocked": false, "message": "", "minClientVersion": "" },
+  "events": [
+    {
+      "id": "harvest-cup",
+      "title": "丰收杯周末赛",
+      "kind": "cup",
+      "startAt": 0,
+      "endAt": 0
     }
-  }
+  ]
 }

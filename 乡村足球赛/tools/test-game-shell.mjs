@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { createGameShell } = require("../src/ui/game-shell.js");
 const { defaults } = require("../src/data/game-options.js");
-const { RURAL_SQUAD } = require("../src/data/rural-squad.js");
+const { RURAL_SQUAD, ruralPlayersForSide } = require("../src/data/rural-squad.js");
 
 class Point {
   constructor() { this.x = 0; this.y = 0; }
@@ -165,7 +165,16 @@ for (const player of RURAL_SQUAD) {
   assert.ok(player.id && player.number, "首页人物资源必须由完整乡村队名单驱动");
 }
 const captainCustomLabels = currentNodes().filter((node) => node.text === "自定义");
-assert.equal(captainCustomLabels.length, 1, "首页只能在主队第一名队长卡显示一个自定义标签");
+assert.equal(captainCustomLabels.length, 0, "头像自定义尚未接通时首页不得显示空入口");
+const expectedVocations = [
+  ...ruralPlayersForSide("red"),
+  ...ruralPlayersForSide("blue"),
+].map((player) => player.vocation);
+const initialHomeTexts = currentNodes().filter((node) => typeof node.text === "string").map((node) => node.text);
+for (const vocation of expectedVocations) {
+  assert.equal(initialHomeTexts.filter((value) => value === vocation).length, 1, `首页必须显示职业标签：${vocation}`);
+}
+assert.equal(initialHomeTexts.includes("待定"), false, "球员卡不得再用待定占位");
 
 // 915×412 的横版模拟器会把 1280×720 设计坐标按高度缩放并水平居中。
 const designScale = 412 / 720;
@@ -179,12 +188,9 @@ const clickAt = async (x, y) => {
 action = null;
 actionPayload = null;
 await clickAt(112, 254);
-assert.equal(action, "home-captain-custom", "主队第一名队长卡必须可点击进入自定义");
-assert.equal(actionPayload.side, "red");
-assert.equal(actionPayload.playerId, "butcher-captain");
-assert.equal(actionPayload.profile, "large");
+assert.notEqual(action, "home-captain-custom", "原自定义角标区域不得继续触发体型面板");
 
-// 首页地区队：四级占位始终可见，后三级在上一级选好前保持锁定。
+// 首页地区队：四级“我的地域”入口始终可见，后三级在上一级选好前保持锁定。
 shell.showHome(Object.assign({}, defaults(), {
   redRegion: { path: [], customName: "", displayName: "" },
   blueRegion: { path: [], customName: "", displayName: "" },
@@ -192,7 +198,10 @@ shell.showHome(Object.assign({}, defaults(), {
 action = null;
 actionPayload = null;
 const initialRegionTexts = currentNodes().filter((node) => typeof node.text === "string").map((node) => node.text);
-for (const placeholder of ["XX省", "XX市", "XX县", "XX镇"]) assert.ok(initialRegionTexts.includes(placeholder));
+for (const placeholder of ["我的省", "我的市", "我的县", "我的乡镇"]) assert.ok(initialRegionTexts.includes(placeholder));
+for (const removedCopy of ["XX省", "XX市", "XX县", "XX镇", "逐级下拉选择家乡地区，选完自动匹配对手", "使用上次选择的家乡队"]) {
+  assert.equal(initialRegionTexts.includes(removedCopy), false, `首页不得显示冗余提示：${removedCopy}`);
+}
 await clickAt(182, 150);
 assert.equal(action, "home-region-dropdown", "主队未选择地区时必须从省份下拉开始");
 assert.deepEqual(actionPayload, { side: "red", levelIndex: 0, parentCode: "" });
@@ -211,8 +220,9 @@ shell.showHome(regionalConfig);
 const regionalTexts = currentNodes().filter((node) => typeof node.text === "string").map((node) => node.text);
 assert.ok(regionalTexts.includes("广东队"), "主队地区名称必须在首页显示");
 assert.ok(regionalTexts.includes("江西队"), "自动匹配的客队地区名称必须在首页显示");
-assert.ok(regionalTexts.filter((value) => value === "广东").length >= 6, "主队六名人物胸前必须同步地区简称");
-assert.ok(regionalTexts.filter((value) => value === "江西").length >= 6, "客队六名人物胸前必须同步地区简称");
+for (const vocation of expectedVocations) {
+  assert.equal(regionalTexts.filter((value) => value === vocation).length, 1, `切换地区后职业标签仍须保持：${vocation}`);
+}
 
 action = null;
 actionPayload = null;
@@ -261,17 +271,59 @@ await clickAt(474, 281);
 assert.equal(action, "leaderboard", "战绩与好友弹窗必须提供排行榜入口");
 shell.showLeaderboard({
   profile: {},
+  region: {
+    code: "440983101000",
+    name: "镇隆",
+    level: "town",
+    fullTeamName: "广东省茂名市信宜市镇隆镇乡亲联队",
+  },
   stats: { matches: 5, wins: 3, draws: 1, losses: 1, goalsFor: 7, goalsAgainst: 3, cleanSheets: 3, points: 10, bestWinStreak: 2 },
   values: { points: 10, wins: 3, goals: 7, winRate: 60, cleanSheets: 3, streak: 2 },
-  metrics: [{ id: "points", label: "积分" }, { id: "wins", label: "胜场" }],
+  metrics: [{ id: "points", label: "积分" }, { id: "goals", label: "进球" }, { id: "winRate", label: "胜率", suffix: "%" }],
   qualified: true,
   onlineEnabled: true,
   online: true,
   remoteMetric: "points",
-  remoteRows: [{ rank: 1, nickname: "雄狮队长", value: 10, self: true }],
+  remoteScopeId: "nation",
+  remoteScope: { key: "CN:rural", title: "全国乡村榜" },
+  remoteScopeOptions: [
+    { id: "nation", label: "全国", key: "CN:rural", title: "全国乡村榜", enabled: true },
+    { id: "province", label: "我的省", key: "440000:rural", title: "广东乡村榜", enabled: true },
+    { id: "city", label: "我的市", key: "440900:rural", title: "茂名乡村榜", enabled: true },
+    { id: "county", label: "我的县", key: "440983:rural", title: "信宜乡村榜", enabled: true },
+    { id: "town", label: "我的乡镇", key: "440983101000:village", title: "镇隆村队榜", enabled: true },
+  ],
+  remoteRows: [
+    { rank: 1, fullTeamName: "贵州省贵阳市开阳县楠木渡镇乡亲联队", value: 88 },
+    { rank: 2, fullTeamName: "云南省昆明市富民县东村镇乡亲联队", value: 82 },
+    { rank: 3, fullTeamName: "福建省福州市闽侯县青口镇乡亲联队", value: 76 },
+    { rank: 4, fullTeamName: "湖南省长沙市长沙县高桥镇乡亲联队", value: 70 },
+    { rank: 5, fullTeamName: "四川省成都市金堂县竹篙镇乡亲联队", value: 66 },
+  ],
 });
 assert.equal(shell.screen, "leaderboard", "排行榜必须保持横版遮罩界面");
+const leaderboardTexts = currentNodes().filter((node) => typeof node.text === "string").map((node) => node.text);
+for (const label of ["乡村足球荣耀榜", "一村一队 · 为家乡而战", "全国", "我的省", "我的市", "我的县", "我的乡镇", "积分榜", "进球榜", "胜率榜"]) {
+  assert.ok(leaderboardTexts.includes(label), `荣耀榜必须显示：${label}`);
+}
+for (const removed of ["胜场", "零封", "连胜", "全国省队榜"]) assert.equal(leaderboardTexts.includes(removed), false, `荣耀榜不得再显示：${removed}`);
+assert.deepEqual(
+  currentNodes().filter((node) => node.__ruralHonorStyle).map((node) => node.__ruralHonorStyle),
+  ["gold-crown", "silver-shield", "bronze-laurel"],
+  "前三名必须使用金冠、银盾、铜桂冠",
+);
+assert.deepEqual(
+  currentNodes().filter((node) => node.__ruralHonorRankNumeral).map((node) => node.__ruralHonorRankNumeral),
+  [1, 2, 3],
+  "前三名装饰内必须保留数字 1/2/3",
+);
+action = null;
+actionPayload = null;
+await clickAt(650, 167);
+assert.equal(action, "leaderboard-scope", "我的省标签必须切换地区榜范围");
+assert.deepEqual(actionPayload, { scopeId: "province", metric: "points" });
 // 先点“加入排行榜”制造异步授权未完成时的点击锁，再点返回；返回必须无条件生效。
+action = null;
 await clickAt(302, 522);
 assert.equal(action, "leaderboard-profile", "加入排行榜必须仍可触发授权动作");
 await clickAt(640, 609);

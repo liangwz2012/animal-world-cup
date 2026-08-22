@@ -45,10 +45,13 @@ assert.equal(rejectedProfile.body.code, "CONTENT_CHECK_REJECTED");
 const profile = await call("PUT", "/profile", { nickname: "镇隆队长", avatarUrl: "https://wx.qlogo.cn/a.png" }, token);
 assert.equal(profile.status, 200);
 assert.deepEqual(checkedNicknames.at(-1), { content: "镇隆队长", openid: "openid:player-one" });
-const region = await call("PUT", "/region", { code: "440100" }, token);
+const rejectedVillage = await call("PUT", "/region", { code: "440983101000", customName: "违规昵称" }, token);
+assert.equal(rejectedVillage.status, 422, "公开自定义村队名必须经过内容安全检查");
+const region = await call("PUT", "/region", { code: "440983101000" }, token);
 assert.equal(region.status, 200);
-assert.equal(region.body.region.name, "广州");
-assert.equal(region.body.region.scope.key, "440000:city");
+assert.equal(region.body.region.name, "镇隆");
+assert.equal(region.body.region.scope.key, "CN:rural");
+assert.equal(region.body.region.fullTeamName, "广东省茂名市信宜市镇隆镇乡亲联队");
 
 async function issueAndSettle(playerToken, score) {
   const issued = await call("POST", "/ranked-matches", { config: rankedConfig }, playerToken);
@@ -84,28 +87,28 @@ assert.equal((await call("GET", "/leaderboards?metric=points", null)).status, 20
 const secondAuth = await call("POST", "/auth", { code: "player-two" });
 const secondToken = secondAuth.body.token;
 assert.equal((await call("PUT", "/profile", { nickname: "村队后卫", avatarUrl: "https://wx.qlogo.cn/b.png" }, secondToken)).status, 200);
-assert.equal((await call("PUT", "/region", { code: "440100" }, secondToken)).body.region.name, "广州");
+assert.equal((await call("PUT", "/region", { code: "440983101000" }, secondToken)).body.region.name, "镇隆");
 for (let index = 0; index < 5; index += 1) {
   const { result } = await issueAndSettle(secondToken, [1, 0]);
   assert.equal(result.status, 200);
 }
 const foreign = await call("POST", `/ranked-matches/${firstMatchId}/result`, { score: { mine: 1, opponent: 0 } }, secondToken);
 assert.equal(foreign.body.code, "RANKED_MATCH_NOT_FOUND", "排位凭证不得跨账号使用");
-const regional = await call("GET", "/leaderboards?metric=points&scope=440000%3Acity", null, token);
+const regional = await call("GET", "/leaderboards?metric=points&scope=440983%3Arural", null, token);
 assert.equal(regional.status, 200);
 assert.equal(regional.body.regional, true);
-assert.equal(regional.body.scope.title, "广东城市榜");
+assert.equal(regional.body.scope.title, "信宜乡村榜");
 assert.equal(regional.body.rows.length, 8, "开服地区榜必须保持基础展示容量");
-const guangzhouRow = regional.body.rows.find((row) => row.teamName === "广州");
-assert.equal(guangzhouRow.value, 25, "同一城市的合格玩家必须汇总为同一地区队");
-assert.equal(guangzhouRow.contributors, 2);
+const zhenlongRow = regional.body.rows.find((row) => row.teamName === "广东省茂名市信宜市镇隆镇乡亲联队");
+assert.equal(zhenlongRow.value, 25, "同一完整乡镇队的合格玩家必须汇总为同一地区队");
+assert.equal(zhenlongRow.contributors, 2);
 assert.equal(regional.body.rows.filter((row) => row.baseline).length, 7, "一支真实队伍必须替代一支基础队伍");
-assert.equal(regional.body.self.rank, guangzhouRow.rank, "玩家应看到所在地区队的排名");
+assert.equal(regional.body.self.rank, zhenlongRow.rank, "玩家应看到所在乡镇队的排名");
 assert.equal((await call("GET", "/leaderboards?metric=points&scope=not-valid", null)).body.code, "REGION_SCOPE_INVALID");
 const removed = await call("DELETE", "/account", null, token);
 assert.equal(removed.body.deleted, true, "玩家必须能够删除自己的榜单资料和统计");
-const afterFirstRemoval = await call("GET", "/leaderboards?metric=points&scope=440000%3Acity", null);
-assert.equal(afterFirstRemoval.body.rows.find((row) => row.teamName === "广州").value, 15, "删除账号后地区队只保留剩余贡献者的统计");
+const afterFirstRemoval = await call("GET", "/leaderboards?metric=points&scope=440983%3Arural", null);
+assert.equal(afterFirstRemoval.body.rows.find((row) => row.teamName === "广东省茂名市信宜市镇隆镇乡亲联队").value, 15, "删除账号后地区队只保留剩余贡献者的统计");
 assert.equal((await call("DELETE", "/account", null, secondToken)).body.deleted, true);
 assert.equal((await call("GET", "/leaderboards?metric=points", null)).body.rows.length, 0, "删除后不可继续公开显示");
 assert.equal((await call("GET", "/leaderboards?metric=points", null, token)).status, 401, "删除账户后旧会话必须立即失效");
@@ -144,4 +147,4 @@ assert.equal(noCheckerResponse.status, 503, "未配置内容安全服务时不�
 assert.equal(noCheckerBody.code, "CONTENT_CHECK_CONFIG_MISSING");
 await guardedService.close();
 await fs.rm(directory, { recursive: true, force: true });
-console.log("[test-leaderboard-service] PASS：服务端签发排位、内容安全、接口限流、跨账号防刷、全指标榜单与账号删除正常");
+console.log("[test-leaderboard-service] PASS：服务端签发排位、内容安全、接口限流、跨账号防刷、乡村三级指标榜与账号删除正常");

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { createFriendMatchCoordinator } = require("../src/app/friend-match-coordinator.js");
-const { defaults } = require("../src/data/game-options.js");
+const { defaults, normalizeConfig } = require("../src/data/game-options.js");
 
 class MockRoomClient {
   constructor() {
@@ -48,7 +48,24 @@ const roomId = "ROOMID1234567890123456";
 const warmupMatchId = "WARMUP123456789012345";
 const friendMatchId = "FRIEND123456789012345";
 const inviteToken = "Invite_token_1234567890_ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const config = defaults();
+let config = defaults();
+config.redRegion = {
+  path: [
+    { code: "440000", parentCode: "", level: "province", name: "广东省", shortName: "广东" },
+    { code: "440900", parentCode: "440000", level: "city", name: "茂名市", shortName: "茂名" },
+    { code: "440983", parentCode: "440900", level: "county", name: "信宜市", shortName: "信宜" },
+    { code: "440983101000", parentCode: "440983", level: "town", name: "镇隆镇", shortName: "镇隆" },
+  ],
+};
+config.blueRegion = {
+  path: [
+    { code: "440000", parentCode: "", level: "province", name: "广东省", shortName: "广东" },
+    { code: "440900", parentCode: "440000", level: "city", name: "茂名市", shortName: "茂名" },
+    { code: "440983", parentCode: "440900", level: "county", name: "信宜市", shortName: "信宜" },
+    { code: "440983102000", parentCode: "440983", level: "town", name: "水口镇", shortName: "水口" },
+  ],
+};
+config = normalizeConfig(config);
 const wireConfig = {
   redTeam: config.redTeam,
   blueTeam: config.blueTeam,
@@ -103,6 +120,7 @@ hostClient.emit("room_created", {
 });
 assert.equal(hostViews.at(-1).status, "waiting_host");
 assert.match(sharedCalls.find(([name]) => name === "share")[1].query, /^invite=/, "建房成功必须立即拉起微信转发");
+assert.equal(sharedCalls.find(([name]) => name === "share")[1].title, "茂名市信宜市乡村赛｜镇隆镇队 VS 水口镇队，快来踢球！", "好友邀请必须使用地域对阵标题");
 
 host.handleAction("warmup-ai", config);
 assert.equal(hostClient.calls.at(-1)[0], "startWarmup");

@@ -162,11 +162,6 @@ function regionTeamName(region, fallback) {
   return value ? `${value}队` : fallback;
 }
 
-function jerseyShortName(region) {
-  const value = cleanRegionText(region && region.displayName, 18);
-  return Array.from(value || "待定").slice(0, 4).join("");
-}
-
 function regionSeed(region, salt) {
   const leaf = regionLeaf(region);
   const source = `${leaf && leaf.code || ""}|${region && region.displayName || ""}|${salt || ""}`;
@@ -238,7 +233,7 @@ function createGameShell(options) {
   let runtimeLoadingOverlay = null;
   let transitionLocked = false;
   let friendState = null;
-  let leaderboardState = { metric: "points", model: null };
+  let leaderboardState = { metric: "points", scopeId: "nation", model: null };
   let regionPickerState = { path: [], entries: [], page: 0 };
   let dropdownRequest = null;
   let dropdownState = null;
@@ -573,7 +568,7 @@ function createGameShell(options) {
     const leaf = regionLeaf(region);
     const titleColor = isRed ? 0xa44734 : 0x315a9b;
     const title = isRed ? "我的地区队" : "对手地区队";
-    const fallback = isRed ? "请逐级选择地区" : "等待匹配对手";
+    const fallback = isRed ? "选择我的家乡队" : "等待匹配对手";
     design.addChild(center(text(title, 25, titleColor, "900"), panelX + panelW / 2, panelY + 24));
     const name = center(text(regionTeamName(region, fallback), 23, 0x31481f, "900"), panelX + panelW / 2, panelY + 55);
     if (Number(name.width) > panelW - 70 && name.scale && name.scale.set) {
@@ -634,7 +629,7 @@ function createGameShell(options) {
       const selW = cascadeWidths[index];
       const chipX = cursorX;
       const unlocked = index === 0 || !!path[index - 1];
-      const placeholders = ["XX省", "XX市", "XX县", "XX镇"];
+      const placeholders = ["我的省", "我的市", "我的县", "我的乡镇"];
       regionChip(chipX, panelY + 78, selW, filled ? filled.shortName : placeholders[index], unlocked ? () => {
         dropdownRequest = {
           side,
@@ -665,19 +660,12 @@ function createGameShell(options) {
         onAction("home-opponent-reroll", normalizeConfig(config), { side });
       }, { enabled: !!leaf, fontSize: 14, height: 36 });
     }
-    if (isRed) {
-      if (!showInlineCustom) {
-        design.addChild(center(text("逐级下拉选择家乡地区，选完自动匹配对手", 14, 0x81906f, "700"), panelX + panelW / 2, panelY + 159));
-      }
-    }
-
     const lineup = homeLineup(region, side);
     const cardW = 76;
     const gap = 10;
     const lineupW = lineup.length * cardW + (lineup.length - 1) * gap;
     const lineupX = panelX + (panelW - lineupW) / 2;
     const lineupY = panelY + 190;
-    const jerseyLabel = jerseyShortName(region);
     lineup.forEach((player, index) => {
       const x = lineupX + index * (cardW + gap);
       rounded(design, x + 1, lineupY + 3, cardW, 136, 17, 0x253314, 0.09, 0, 0, 0);
@@ -686,28 +674,19 @@ function createGameShell(options) {
       // 人物头像原图统一面朝左：左侧红方水平翻转为面朝右，右侧蓝方保持面朝左，双方面对面
       if (isRed) portrait.scale.x = -portrait.scale.x;
       portrait.alpha = 1;
-      if (isRed && index === 0) {
-        rounded(design, x + cardW - 48, lineupY + 5, 46, 19, 9, 0xf2b632, 1, 0xb66b18, 0.9, 1.5);
-        design.addChild(center(text("自定义", 10, 0x4b3413, "900"), x + cardW - 25, lineupY + 14.5));
-        addHit(x + cardW - 52, lineupY + 1, 54, 27, () => {
-          onAction("home-captain-custom", normalizeConfig(config), {
-            side: "red",
-            playerId: player.id,
-            profile: config.redCaptainProfile,
-          });
-        }, true);
-      }
       rounded(design, x + 8, lineupY + 76, cardW - 16, 22, 9, tone, 0.94, 0xffffff, 0.38, 1);
-      const jersey = center(text(jerseyLabel, Array.from(jerseyLabel).length > 3 ? 11 : 13, 0xfff8db, "900"), x + cardW / 2, lineupY + 87);
-      if (Number(jersey.width) > cardW - 22 && jersey.scale && jersey.scale.set) {
-        const ratio = (cardW - 22) / Number(jersey.width);
-        jersey.scale.set(ratio, ratio);
+      const vocationLabel = Array.from(cleanRegionText(player.vocation, 6) || "村队球员").slice(0, 6).join("");
+      const vocationFontSize = Array.from(vocationLabel).length > 4 ? 11 : 13;
+      const vocation = center(text(vocationLabel, vocationFontSize, 0xfff8db, "900"), x + cardW / 2, lineupY + 87);
+      if (Number(vocation.width) > cardW - 22 && vocation.scale && vocation.scale.set) {
+        const ratio = Math.max(9 / vocationFontSize, (cardW - 22) / Number(vocation.width));
+        vocation.scale.set(ratio, ratio);
       }
-      design.addChild(jersey);
+      design.addChild(vocation);
       const number = center(text(String(player.number), 15, 0x31481f, "900"), x + cardW / 2, lineupY + 116);
       design.addChild(number);
     });
-    design.addChild(center(text("6名首发球员 · 地区变化时队服名称同步更新", 13, 0x81906f, "700"), panelX + panelW / 2, panelY + 350));
+    design.addChild(center(text("6名首发球员 · 各行各业乡亲组成家乡球队", 13, 0x81906f, "700"), panelX + panelW / 2, panelY + 350));
   }
 
   function settingButton(x, y, w, label, action, active) {
@@ -1011,7 +990,10 @@ function createGameShell(options) {
     const stats = model.stats && typeof model.stats === "object" ? model.stats : {};
     const profile = model.profile && typeof model.profile === "object" ? model.profile : {};
     const values = model.values && typeof model.values === "object" ? model.values : {};
-    const metrics = Array.isArray(model.metrics) ? model.metrics : [];
+    const publicMetricIds = ["points", "goals", "winRate"];
+    const metrics = (Array.isArray(model.metrics) ? model.metrics : [])
+      .filter((metric) => metric && publicMetricIds.includes(metric.id))
+      .slice(0, 3);
     const region = model.region && typeof model.region === "object" ? model.region : {};
     const regionScope = region.scope && typeof region.scope === "object" ? region.scope : {};
     const remoteScope = model.remoteScope && typeof model.remoteScope === "object" ? model.remoteScope : {};
@@ -1024,6 +1006,7 @@ function createGameShell(options) {
         code: typeof region.code === "string" ? region.code.slice(0, 18) : "",
         name: typeof region.name === "string" ? region.name.slice(0, 18) : "",
         level: typeof region.level === "string" ? region.level : "",
+        fullTeamName: typeof region.fullTeamName === "string" ? region.fullTeamName.slice(0, 120) : "",
         scope: {
           key: typeof regionScope.key === "string" ? regionScope.key.slice(0, 32) : "",
           title: typeof regionScope.title === "string" ? regionScope.title.slice(0, 24) : "",
@@ -1041,7 +1024,11 @@ function createGameShell(options) {
         bestWinStreak: Math.max(0, Number(stats.bestWinStreak) || 0),
       },
       values,
-      metrics: metrics.filter((metric) => metric && typeof metric.id === "string").slice(0, 6),
+      metrics: metrics.length ? metrics : [
+        { id: "points", label: "积分", suffix: "" },
+        { id: "goals", label: "进球", suffix: "" },
+        { id: "winRate", label: "胜率", suffix: "%" },
+      ],
       qualified: !!model.qualified,
       matchesUntilQualified: Math.max(0, Number(model.matchesUntilQualified) || 0),
       onlineEnabled: !!model.onlineEnabled,
@@ -1051,16 +1038,73 @@ function createGameShell(options) {
         key: typeof remoteScope.key === "string" ? remoteScope.key.slice(0, 32) : "",
         title: typeof remoteScope.title === "string" ? remoteScope.title.slice(0, 24) : "",
       },
+      remoteScopeId: ["nation", "province", "city", "county", "town"].includes(model.remoteScopeId)
+        ? model.remoteScopeId
+        : "nation",
+      remoteScopeOptions: (Array.isArray(model.remoteScopeOptions) ? model.remoteScopeOptions : [])
+        .filter((item) => item && ["nation", "province", "city", "county", "town"].includes(item.id))
+        .slice(0, 5)
+        .map((item) => ({
+          id: item.id,
+          label: typeof item.label === "string" ? item.label.slice(0, 8) : "",
+          key: typeof item.key === "string" ? item.key.slice(0, 32) : "",
+          title: typeof item.title === "string" ? item.title.slice(0, 24) : "",
+          enabled: item.enabled === true,
+        })),
       remoteSelf: model.remoteSelf && typeof model.remoteSelf === "object" ? model.remoteSelf : null,
       remoteRows: Array.isArray(model.remoteRows)
-        ? model.remoteRows.filter((row) => row && typeof row.nickname === "string").slice(0, 5)
+        ? model.remoteRows.filter((row) => row && (typeof row.fullTeamName === "string" || typeof row.teamName === "string" || typeof row.nickname === "string")).slice(0, 5)
         : [],
     };
+  }
+
+  function honorRankBadge(rank, x, y) {
+    const numeric = Math.max(1, Math.floor(Number(rank) || 1));
+    if (numeric > 3) {
+      const ordinary = center(text(String(numeric), 17, 0x71805e, "900"), x, y);
+      ordinary.__ruralHonorRank = numeric;
+      design.addChild(ordinary);
+      return;
+    }
+    const colors = {
+      1: { fill: 0xf2c446, stroke: 0x9a650d, text: 0x4a3309 },
+      2: { fill: 0xdce3e4, stroke: 0x7d8a8e, text: 0x405054 },
+      3: { fill: 0xd8945f, stroke: 0x7f4325, text: 0x4e2514 },
+    }[numeric];
+    const badge = new PIXI.Graphics();
+    badge.lineStyle(2, colors.stroke, 1);
+    badge.beginFill(colors.fill, 1);
+    if (numeric === 2) badge.drawRoundedRect(x - 18, y - 18, 36, 36, 10);
+    else badge.drawCircle(x, y, 18);
+    badge.endFill();
+    if (numeric === 1) {
+      badge.lineStyle(2.2, 0x7d5108, 1);
+      badge.moveTo(x - 11, y - 17);
+      badge.lineTo(x - 7, y - 25);
+      badge.lineTo(x, y - 18);
+      badge.lineTo(x + 7, y - 25);
+      badge.lineTo(x + 11, y - 17);
+    } else if (numeric === 2) {
+      badge.lineStyle(1.6, 0x879397, 0.85);
+      badge.moveTo(x - 12, y + 8);
+      badge.lineTo(x, y + 16);
+      badge.lineTo(x + 12, y + 8);
+    } else {
+      badge.lineStyle(1.8, 0x7f4325, 0.9);
+      badge.drawCircle(x, y, 13);
+    }
+    badge.__ruralHonorRank = numeric;
+    badge.__ruralHonorStyle = numeric === 1 ? "gold-crown" : numeric === 2 ? "silver-shield" : "bronze-laurel";
+    design.addChild(badge);
+    const numeral = center(text(String(numeric), 17, colors.text, "900"), x, y + 1);
+    numeral.__ruralHonorRankNumeral = numeric;
+    design.addChild(numeral);
   }
 
   function showLeaderboard(nextModel) {
     leaderboardState.model = normalizedLeaderboardModel(nextModel || leaderboardState.model);
     const model = leaderboardState.model;
+    leaderboardState.scopeId = model.remoteScopeId || leaderboardState.scopeId || "nation";
     if (!model.metrics.some((metric) => metric.id === leaderboardState.metric)) {
       leaderboardState.metric = model.metrics[0] && model.metrics[0].id || "points";
     }
@@ -1079,14 +1123,14 @@ function createGameShell(options) {
     const cardW = 1008;
     const cardH = 608;
     rounded(design, cardX + 8, cardY + 11, cardW, cardH, 30, 0x111b0b, 0.32, 0, 0, 0);
-    rounded(design, cardX, cardY, cardW, cardH, 28, 0xfffef8, 1, 0xe2d7b9, 1, 4);
-    const title = center(text("乡村足球赛 · 排行榜", 30, 0x31481f, "900"), 640, cardY + 42);
-    design.addChild(title);
+    rounded(design, cardX, cardY, cardW, cardH, 28, 0xfffdf5, 1, 0xc49a35, 1, 4);
+    design.addChild(center(text("乡村足球荣耀榜", 31, 0x2d542d, "900"), 640, cardY + 36));
+    design.addChild(center(text("一村一队 · 为家乡而战", 14, 0x9a761e, "800"), 640, cardY + 67));
 
     const profileX = cardX + 42;
-    const profileY = cardY + 88;
+    const profileY = cardY + 94;
     const profileW = 248;
-    rounded(design, profileX, profileY, profileW, 428, 20, 0xf2f7e5, 1, 0xc8d5ad, 1, 2.5);
+    rounded(design, profileX, profileY, profileW, 444, 20, 0xf2f7e5, 1, 0xc8d5ad, 1, 2.5);
     const avatar = new PIXI.Graphics();
     avatar.beginFill(0x6aa843, 0.18);
     avatar.drawCircle(profileX + profileW / 2, profileY + 67, 43);
@@ -1101,17 +1145,22 @@ function createGameShell(options) {
     design.addChild(nicknameText);
     const total = center(text(`已完成 ${model.stats.matches} 场`, 15, 0x71805e, "700"), profileX + profileW / 2, profileY + 157);
     design.addChild(total);
-    const regionText = center(text(model.region ? `地区队：${model.region.name}` : "尚未选择地区队", 15, model.region ? 0x5d9038 : 0x9aa383, "800"), profileX + profileW / 2, profileY + 182);
+    const regionLabel = model.region
+      ? (model.region.fullTeamName || `${model.region.name}乡亲联队`)
+      : "尚未选择家乡队";
+    const regionText = center(text(regionLabel, 14, model.region ? 0x5d9038 : 0x9aa383, "800"), profileX + profileW / 2, profileY + 184);
+    if (Number(regionText.width) > profileW - 32 && regionText.scale && regionText.scale.set) {
+      const ratio = Math.max(0.58, (profileW - 32) / Number(regionText.width));
+      regionText.scale.set(ratio, ratio);
+    }
     design.addChild(regionText);
     const overview = [
       ["积分", model.stats.points],
-      ["胜 / 平 / 负", `${model.stats.wins} / ${model.stats.draws} / ${model.stats.losses}`],
-      ["进球 / 失球", `${model.stats.goalsFor} / ${model.stats.goalsAgainst}`],
-      ["最佳连胜", model.stats.bestWinStreak],
-      ["零封", model.stats.cleanSheets],
+      ["进球", model.stats.goalsFor],
+      ["胜率", `${model.values.winRate == null ? 0 : model.values.winRate}%`],
     ];
     overview.forEach(([label, value], index) => {
-      const y = profileY + 222 + index * 38;
+      const y = profileY + 224 + index * 47;
       const left = text(label, 15, 0x71805e, "700");
       left.position.set(profileX + 24, y);
       const right = text(String(value), 16, 0x31481f, "900");
@@ -1120,7 +1169,7 @@ function createGameShell(options) {
       design.addChild(left, right);
     });
     if (model.onlineEnabled && !model.profile.nickname) {
-      actionButton(profileX + 23, profileY + 354, profileW - 46, "加入排行榜", () => onAction("leaderboard-profile", normalizeConfig(config)), { primary: true, height: 48, releaseLockAfterAction: true });
+      actionButton(profileX + 23, profileY + 354, profileW - 46, "加入乡村榜", () => onAction("leaderboard-profile", normalizeConfig(config)), { primary: true, height: 48, releaseLockAfterAction: true });
     } else if (model.profile.nickname) {
       actionButton(profileX + 23, profileY + 326, profileW - 46, model.region ? "更换地区队" : "选择地区队", () => onAction("leaderboard-region-open", normalizeConfig(config)), { primary: !model.region, height: 42, releaseLockAfterAction: true });
       actionButton(profileX + 23, profileY + 378, profileW - 46, "删除榜单资料", () => onAction("leaderboard-delete-account", normalizeConfig(config)), { height: 34, releaseLockAfterAction: true });
@@ -1128,57 +1177,66 @@ function createGameShell(options) {
 
     const contentX = cardX + 324;
     const contentW = cardW - 366;
+    const defaultScopes = [
+      { id: "nation", label: "全国", enabled: true },
+      { id: "province", label: "我的省", enabled: false },
+      { id: "city", label: "我的市", enabled: false },
+      { id: "county", label: "我的县", enabled: false },
+      { id: "town", label: "我的乡镇", enabled: false },
+    ];
+    const scopeMap = new Map(model.remoteScopeOptions.map((item) => [item.id, item]));
+    const scopes = defaultScopes.map((fallback) => Object.assign({}, fallback, scopeMap.get(fallback.id) || {}));
+    const scopeGap = 7;
+    const scopeW = Math.floor((contentW - scopeGap * 4) / 5);
+    scopes.forEach((scope, index) => {
+      const x = contentX + index * (scopeW + scopeGap);
+      const active = leaderboardState.scopeId === scope.id;
+      rounded(design, x, profileY, scopeW, 34, 16, active ? 0x315d2f : 0xfffdf4, scope.enabled ? 1 : 0.52, active ? 0xc99c35 : 0xb8aa79, 1, 1.5);
+      design.addChild(center(text(scope.label, 13, active ? 0xfff3c2 : 0x405632, "800"), x + scopeW / 2, profileY + 17));
+      if (scope.enabled) addHit(x, profileY, scopeW, 34, () => {
+        leaderboardState.scopeId = scope.id;
+        onAction("leaderboard-scope", normalizeConfig(config), { scopeId: scope.id, metric: leaderboardState.metric });
+      }, true);
+    });
     const tabs = model.metrics.length ? model.metrics : [{ id: "points", label: "积分", suffix: "" }];
     const tabW = Math.floor((contentW - 10 * (tabs.length - 1)) / tabs.length);
     tabs.forEach((metric, index) => {
       const x = contentX + index * (tabW + 10);
       const active = leaderboardState.metric === metric.id;
-      rounded(design, x, profileY, tabW, 43, 19, active ? 0x5d9038 : 0xf8faef, 1, active ? 0x426d2a : 0xcbd7b2, 1, 2);
-      const label = center(text(metric.label, 16, active ? 0xfff7e2 : 0x405632, "800"), x + tabW / 2, profileY + 21);
+      const y = profileY + 43;
+      rounded(design, x, y, tabW, 38, 18, active ? 0x5d9038 : 0xf8faef, 1, active ? 0x426d2a : 0xcbd7b2, 1, 2);
+      const label = center(text(`${metric.label}榜`, 15, active ? 0xfff7e2 : 0x405632, "800"), x + tabW / 2, y + 19);
       design.addChild(label);
-      addHit(x, profileY, tabW, 43, () => {
+      addHit(x, y, tabW, 38, () => {
         leaderboardState.metric = metric.id;
         showLeaderboard(model);
         onAction("leaderboard-metric", normalizeConfig(config), { metric: metric.id });
       }, true);
     });
     const activeMetric = tabs.find((metric) => metric.id === leaderboardState.metric) || tabs[0];
-    const currentValue = model.values[activeMetric.id] == null ? 0 : model.values[activeMetric.id];
-    const scopeTitle = model.remoteScope.title || (model.region && model.region.scope.title) || "全国省队榜";
-    const heading = center(text(`${scopeTitle} · ${activeMetric.label}`, 25, 0x31481f, "900"), contentX + contentW / 2, profileY + 99);
-    const value = center(text(`${currentValue}${activeMetric.suffix || ""}`, 54, 0x5d9038, "900"), contentX + contentW / 2, profileY + 157);
-    design.addChild(heading, value);
-    const sub = center(text(
-      !model.onlineEnabled
-        ? "地区赛季榜已载入；联网后真实战绩将持续更新"
-        : model.qualified
-          ? model.region ? "已加入地区队；每场正式单机比赛都会汇总到地区战队" : "选择地区队后，战绩会汇总到你的家乡队"
-          : `再完成 ${model.matchesUntilQualified} 场即可进入地区榜`,
-      17,
-      0x71805e,
-      "700",
-    ), contentX + contentW / 2, profileY + 205);
-    design.addChild(sub);
-    rounded(design, contentX, profileY + 238, contentW, 190, 18, 0xf2f7e5, 1, 0xc8d5ad, 1, 2);
-    const rankTitle = center(text(model.remoteRows.length ? scopeTitle : (model.onlineEnabled ? scopeTitle : "本机统计"), 21, 0x31481f, "900"), contentX + contentW / 2, profileY + 274);
-    design.addChild(rankTitle);
+    const scopeTitle = model.remoteScope.title || "全国乡村榜";
+    design.addChild(center(text(`${scopeTitle} · ${activeMetric.label}榜`, 22, 0x31481f, "900"), contentX + contentW / 2, profileY + 106));
+    rounded(design, contentX, profileY + 128, contentW, 300, 18, 0xf2f7e5, 1, 0xc8d5ad, 1, 2);
     const onlineRows = model.remoteMetric === activeMetric.id ? model.remoteRows : [];
     if (onlineRows.length) {
       onlineRows.slice(0, 5).forEach((row, index) => {
-        const y = profileY + 304 + index * 27;
-        const rank = text(String(row.rank || index + 1), 16, index === 0 ? 0xc4821b : 0x71805e, "900");
-        rank.position.set(contentX + 26, y);
-        const name = text(row.nickname, 16, row.self ? 0x5d9038 : 0x31481f, "800");
-        name.position.set(contentX + 68, y);
+        const y = profileY + 148 + index * 52;
+        const rankValue = Number(row.rank) || index + 1;
+        const rowFill = rankValue === 1 ? 0xfff3bd : rankValue === 2 ? 0xf0f2ec : rankValue === 3 ? 0xf6e0c7 : 0xfffdf7;
+        rounded(design, contentX + 12, y - 9, contentW - 24, 43, 11, rowFill, 1, rankValue <= 3 ? 0xc9a24a : 0xd8d0b5, 0.9, 1.2);
+        honorRankBadge(rankValue, contentX + 43, y + 12);
+        const fullName = String(row.fullTeamName || row.teamName || row.nickname || "乡亲联队");
+        const name = text(fullName, 14, row.self ? 0x5d9038 : 0x31481f, "800");
+        name.position.set(contentX + 78, y + 2);
+        if (Number(name.width) > contentW - 190 && name.scale && name.scale.set) {
+          const ratio = Math.max(0.62, (contentW - 190) / Number(name.width));
+          name.scale.set(ratio, ratio);
+        }
         const valueText = text(`${row.value}${activeMetric.suffix || ""}`, 17, 0x31481f, "900");
         if (valueText.anchor && valueText.anchor.set) valueText.anchor.set(1, 0);
-        valueText.position.set(contentX + contentW - 28, y);
-        design.addChild(rank, name, valueText);
+        valueText.position.set(contentX + contentW - 30, y + 2);
+        design.addChild(name, valueText);
       });
-      if (model.remoteSelf && !onlineRows.some((row) => row.self)) {
-        const selfText = center(text(`我的地区队排名：第 ${model.remoteSelf.rank} 名`, 14, 0x71805e, "700"), contentX + contentW / 2, profileY + 408);
-        design.addChild(selfText);
-      }
     } else {
       const status = center(text(
         !model.onlineEnabled
@@ -1189,11 +1247,11 @@ function createGameShell(options) {
         16,
         0x71805e,
         "700",
-      ), contentX + contentW / 2, profileY + 326);
-      const honest = center(text("完成正式比赛后，地区队排名会自动更新", 14, 0x9aa383, "700"), contentX + contentW / 2, profileY + 357);
+      ), contentX + contentW / 2, profileY + 250);
+      const honest = center(text("完成正式比赛后，家乡队排名会自动更新", 14, 0x9aa383, "700"), contentX + contentW / 2, profileY + 286);
       design.addChild(status, honest);
     }
-    actionButton(contentX + 130, profileY + 465, contentW - 260, "返回选队", () => showHome(config), {
+    actionButton(contentX + 130, profileY + 454, contentW - 260, "返回选队", () => showHome(config), {
       height: 48,
       bypassTransitionLock: true,
       releaseLockAfterAction: true,
