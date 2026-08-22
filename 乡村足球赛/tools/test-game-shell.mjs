@@ -200,6 +200,10 @@ action = null;
 actionPayload = null;
 const initialRegionTexts = currentNodes().filter((node) => typeof node.text === "string").map((node) => node.text);
 for (const placeholder of ["我的省", "我的市", "我的县", "我的乡镇"]) assert.ok(initialRegionTexts.includes(placeholder));
+for (const placeholder of ["对方省", "对方市", "对方县", "对方乡镇"]) assert.ok(initialRegionTexts.includes(placeholder));
+for (const placeholder of ["我的省", "我的市", "我的县", "我的乡镇", "对方省", "对方市", "对方县", "对方乡镇"]) {
+  assert.equal(initialRegionTexts.filter((value) => value === placeholder).length, 1, `主客队地区占位词必须各归其位：${placeholder}`);
+}
 for (const removedCopy of ["XX省", "XX市", "XX县", "XX镇", "逐级下拉选择家乡地区，选完自动匹配对手", "使用上次选择的家乡队"]) {
   assert.equal(initialRegionTexts.includes(removedCopy), false, `首页不得显示冗余提示：${removedCopy}`);
 }
@@ -517,6 +521,10 @@ actionPayload = null;
 shell.showPreMatch(defaults(), { kind: "ai", title: "开赛前设置" });
 assert.equal(shell.screen, "prematch", "立即开赛必须先进入赛前设置弹窗");
 assert.equal(shell.preMatchState.showTutorial, true, "首次赛前弹窗必须包含操作教学");
+assert.ok(
+  currentNodes().some((node) => node.text === "脚印＝队友传球方向 · 按传/挑找接应"),
+  "赛前操作教学必须解释常驻脚印的含义和使用方式",
+);
 await clickAt(473, 260); // 主队第二个阵型：3-2-1
 assert.equal(shell.screen, "prematch", "调整阵型后必须留在赛前弹窗");
 assert.equal(shell.config.redFormation, "3-2-1", "赛前弹窗修改的阵型必须写回对局配置");

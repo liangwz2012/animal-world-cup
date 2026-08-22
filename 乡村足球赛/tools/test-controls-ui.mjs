@@ -98,19 +98,18 @@ overlay.update();
 assert.ok(overlay.root.children[1].position.x > layout.stick.x, "摇杆帽必须跟随输入");
 assert.equal(overlay.root.children[5].alpha, 1, "射门按下必须有视觉反馈");
 const actionHint = overlay.root.children[7];
-assert.equal(actionHint.visible, true, "按下动作键后必须显示中文教学提示");
-assert.equal(actionHint.children[1].text, "射门", "射门键必须显示对应中文动作");
+assert.equal(actionHint.visible, false, "动作键已有常驻单字后不得再弹出中文教学气泡");
 
 input.shoot = false;
 input.__visual.lastAction = "lob";
 input.__visual.lastActionAt = Date.now() + 1;
 overlay.update();
-assert.equal(actionHint.children[1].text, "挑传", "挑传键必须显示对应中文动作");
+assert.equal(actionHint.visible, false, "挑传后不得遮挡球场显示重复文字气泡");
 
 input.__visual.comboText = "二过一";
 input.__visual.comboUntil = Date.now() + 1000;
 overlay.update();
-assert.equal(actionHint.children[1].text, "二过一", "组合技能必须复用教学提示层");
+assert.equal(actionHint.visible, false, "组合技也不得重新启用动作文字气泡");
 
 overlay.destroy();
 assert.equal(globalObject.__ORIGINAL_RUNTIME_CONTROLS_VISIBLE__, false);

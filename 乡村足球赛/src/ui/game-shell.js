@@ -647,7 +647,9 @@ function createGameShell(options) {
       const selW = cascadeWidths[index];
       const chipX = cursorX;
       const unlocked = index === 0 || !!path[index - 1];
-      const placeholders = ["我的省", "我的市", "我的县", "我的乡镇"];
+      const placeholders = isRed
+        ? ["我的省", "我的市", "我的县", "我的乡镇"]
+        : ["对方省", "对方市", "对方县", "对方乡镇"];
       regionChip(chipX, panelY + 78, selW, filled ? filled.shortName : placeholders[index], unlocked ? () => {
         dropdownRequest = {
           side,
@@ -992,6 +994,22 @@ function createGameShell(options) {
     controlKey(keyX, keyY + 78, 36, "铲球", 0xf1f8e8, 15);
     controlKey(keyX, keyY, 44, "冲刺", 0xf9c44d, 17);
     design.addChild(center(text("右手", 20, 0x7c8a63, "800"), keyX, contentY + 371));
+
+    // 传球方向图例：比赛内的小脚印会围绕当前操控球员指向可接应队友。
+    const passHintX = controlsPanelX + 46;
+    const passHintY = contentY + 394;
+    const passHintW = contentW - 92;
+    rounded(design, passHintX, passHintY, passHintW, 32, 15, 0xe6f1d8, 1, 0xb8ca9c, 0.9, 1.5);
+    const paw = new PIXI.Graphics();
+    paw.beginFill(0x5d9038, 0.72);
+    if (typeof paw.drawEllipse === "function") paw.drawEllipse(passHintX + 24, passHintY + 17, 5, 4);
+    else paw.drawCircle(passHintX + 24, passHintY + 17, 4.5);
+    paw.drawCircle(passHintX + 19, passHintY + 11, 2.2);
+    paw.drawCircle(passHintX + 24, passHintY + 9, 2.3);
+    paw.drawCircle(passHintX + 29, passHintY + 11, 2.2);
+    paw.endFill();
+    design.addChild(paw);
+    design.addChild(center(text("脚印＝队友传球方向 · 按传/挑找接应", 14, 0x4c6b3a, "800"), passHintX + passHintW / 2 + 10, passHintY + 16));
 
     actionButton(340, cardY + 584, 270, "返回选队", () => {
       showHome(config);

@@ -208,6 +208,15 @@ function patchMatch(source) {
     throw new Error("头顶指示器静态替换预期命中 2 次");
   }
   source = source.split(headerNeedle).join(headerReplacement);
+  // 脚边小脚印表示队友的传球方向，不是摇杆前进方向。原版只有“当前操控球员
+  // 正在持球”时才显示，自动切人、停球和争抢时会频繁消失，用户无法提前观察
+  // 接应点。改为只要存在当前操控球员就持续显示，方向计算和传球候选完全不变。
+  source = replaceOnce(
+    source,
+    "h.local&&h.localIndex>=0&&h.hasBall&&h.id>=0",
+    "h.local&&h.localIndex>=0&&h.id>=0",
+    "传球队友方向脚印跟随当前操控球员常驻",
+  );
   assertNoDynamicCode(source, "match.static.js");
   return source;
 }

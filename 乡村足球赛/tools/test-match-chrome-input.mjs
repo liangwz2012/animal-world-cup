@@ -4,8 +4,12 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const matchChromeSource = fs.readFileSync(new URL("../src/ui/match-chrome.js", import.meta.url), "utf8");
+const generatedMatchSource = fs.readFileSync(new URL("../generated/match.static.js", import.meta.url), "utf8");
 assert.doesNotMatch(matchChromeSource, /team_cheer_\d+/, "进球不得再映射旧动物球队助威声");
 assert.match(matchChromeSource, /sound\.play\("goal_cheer"/, "主客队进球必须统一播放人类观众欢呼");
+assert.match(generatedMatchSource, /this\._showPassPaws\(t\)/, "比赛必须保留传球队友方向脚印");
+assert.doesNotMatch(generatedMatchSource, /h\.local&&h\.localIndex>=0&&h\.hasBall&&h\.id>=0/, "传球方向不得继续依赖持球瞬间才显示");
+assert.match(generatedMatchSource, /h\.local&&h\.localIndex>=0&&h\.id>=0/, "传球方向必须常驻跟随当前操控球员");
 const {
   createMatchChrome,
   mapMatchPointerCandidates,

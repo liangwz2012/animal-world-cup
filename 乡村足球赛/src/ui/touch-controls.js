@@ -19,6 +19,9 @@ const ACTION_GLYPHS = {
   sprint: "冲",
 };
 
+// 五个动作键已常驻单字提示，不再在比赛画面中叠加文字气泡，避免遮挡球场。
+const SHOW_ACTION_HINTS = false;
+
 function drawCircle(graphics, radius, color, fillAlpha, lineColor, lineAlpha, lineWidth) {
   graphics.clear();
   graphics.lineStyle(lineWidth, lineColor, lineAlpha);
@@ -376,7 +379,7 @@ function createTouchControlsOverlay(options) {
       }
     }
     const remaining = hintUntil - now;
-    hintRoot.visible = remaining > 0 && !!hintText.text;
+    hintRoot.visible = SHOW_ACTION_HINTS && remaining > 0 && !!hintText.text;
     hintRoot.alpha = remaining > 0 ? Math.min(1, remaining / 180) : 0;
 
     // 原版有时会在状态切换时追加舞台节点；控件必须始终位于最上层。
