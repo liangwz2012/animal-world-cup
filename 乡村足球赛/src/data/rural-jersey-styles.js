@@ -101,10 +101,16 @@ function teamIdForRegion(selection, excludedTeamId) {
   return RURAL_JERSEY_TEAM_IDS[index];
 }
 
+function teamIdForMatchSide(side, selection) {
+  // 双方基础色是产品识别：主队固定红、客队固定蓝。地区只改变队名与归属。
+  return side === "red" ? "argentina" : "portugal";
+}
+
 module.exports = {
   RURAL_JERSEY_STYLES,
   RURAL_JERSEY_TEAM_IDS,
   regionJerseySeed,
   stableHash,
+  teamIdForMatchSide,
   teamIdForRegion,
 };

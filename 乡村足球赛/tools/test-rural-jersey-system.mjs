@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url);
 const {
   RURAL_JERSEY_STYLES,
   RURAL_JERSEY_TEAM_IDS,
+  teamIdForMatchSide,
   teamIdForRegion,
 } = require("../src/data/rural-jersey-styles.js");
 const toolsDir = path.dirname(fileURLToPath(import.meta.url));
@@ -127,6 +128,8 @@ async function main() {
   const stable = teamIdForRegion(region);
   assert.equal(teamIdForRegion(region), stable, "同一地区的球衣模板必须稳定");
   assert.notEqual(teamIdForRegion(region, stable), stable, "主客队模板冲突时必须换成另一套");
+  assert.equal(teamIdForMatchSide("red", region), "argentina", "主队地区变化后必须仍使用红金主场球衣");
+  assert.equal(teamIdForMatchSide("blue", region), "portugal", "客队地区变化后必须仍使用蓝色球衣");
   const playerSkeleton = JSON.parse(await fs.readFile(
     path.join(projectDir, "source-assets", "public", "match-runtime-min", "data", "player.json"),
     "utf8",

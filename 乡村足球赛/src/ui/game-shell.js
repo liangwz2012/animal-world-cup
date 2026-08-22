@@ -102,6 +102,24 @@ function normalizeOnlineFeatures(input) {
   };
 }
 
+function leaderboardTeamNameForScope(row, scope) {
+  const source = row && typeof row === "object" ? row : {};
+  const fullName = String(source.fullTeamName || source.teamName || source.nickname || "乡亲联队");
+  const scopeKey = String(scope && scope.key || "");
+  if (!scopeKey || scopeKey === "CN:rural") return fullName;
+  const scopeCode = scopeKey.split(":")[0];
+  const path = Array.isArray(source.path) ? source.path : [];
+  const scopeIndex = path.findIndex((item) => item && String(item.code || "") === scopeCode);
+  if (scopeIndex < 0) return fullName;
+  const commonPrefix = path.slice(0, scopeIndex + 1)
+    .map((item) => String(item && (item.officialName || item.name || item.shortName) || ""))
+    .join("");
+  if (commonPrefix && fullName.startsWith(commonPrefix) && fullName.length > commonPrefix.length) {
+    return fullName.slice(commonPrefix.length);
+  }
+  return fullName;
+}
+
 function point(touch) {
   return {
     x: Number(touch && (touch.clientX == null ? (touch.pageX == null ? touch.x : touch.pageX) : touch.clientX)) || 0,
@@ -1194,6 +1212,10 @@ function createGameShell(options) {
       rounded(design, x, profileY, scopeW, 34, 16, active ? 0x315d2f : 0xfffdf4, scope.enabled ? 1 : 0.52, active ? 0xc99c35 : 0xb8aa79, 1, 1.5);
       design.addChild(center(text(scope.label, 13, active ? 0xfff3c2 : 0x405632, "800"), x + scopeW / 2, profileY + 17));
       if (scope.enabled) addHit(x, profileY, scopeW, 34, () => {
+        if (active && scope.id !== "nation") {
+          onAction("leaderboard-scope-browse", normalizeConfig(config), { scopeId: scope.id, metric: leaderboardState.metric });
+          return;
+        }
         leaderboardState.scopeId = scope.id;
         onAction("leaderboard-scope", normalizeConfig(config), { scopeId: scope.id, metric: leaderboardState.metric });
       }, true);
@@ -1225,7 +1247,7 @@ function createGameShell(options) {
         const rowFill = rankValue === 1 ? 0xfff3bd : rankValue === 2 ? 0xf0f2ec : rankValue === 3 ? 0xf6e0c7 : 0xfffdf7;
         rounded(design, contentX + 12, y - 9, contentW - 24, 43, 11, rowFill, 1, rankValue <= 3 ? 0xc9a24a : 0xd8d0b5, 0.9, 1.2);
         honorRankBadge(rankValue, contentX + 43, y + 12);
-        const fullName = String(row.fullTeamName || row.teamName || row.nickname || "乡亲联队");
+        const fullName = leaderboardTeamNameForScope(row, model.remoteScope);
         const name = text(fullName, 14, row.self ? 0x5d9038 : 0x31481f, "800");
         name.position.set(contentX + 78, y + 2);
         if (Number(name.width) > contentW - 190 && name.scale && name.scale.set) {
@@ -1270,6 +1292,10 @@ function createGameShell(options) {
         level: typeof item.level === "string" ? item.level : "",
       }));
     return {
+      mode: source.mode === "leaderboard-browse" ? "leaderboard-browse" : "leaderboard",
+      title: typeof source.title === "string" ? source.title.slice(0, 30) : "",
+      targetLevel: ["province", "city", "county", "town"].includes(source.targetLevel) ? source.targetLevel : "",
+      allowConfirm: source.allowConfirm !== false,
       path: normalizeRows(source.path, 4),
       entries: normalizeRows(source.entries, 120),
       page: Math.max(0, Math.floor(Number(source.page) || 0)),
@@ -1297,10 +1323,14 @@ function createGameShell(options) {
     const cardH = 636;
     rounded(design, cardX, cardY, cardW, cardH, 28, 0xfffef8, 1, 0xe2d7b9, 1, 4);
     const current = state.path[state.path.length - 1] || null;
-    design.addChild(center(text(current ? `选择 ${current.shortName} 的下一级地区` : "选择你的地区队", 30, 0x31481f, "900"), 640, cardY + 42));
-    const hint = current
-      ? `可直接确认“${current.shortName}”参赛，或继续选择更细一级`
-      : "自愿选择公开的家乡战队；不读取 GPS，不展示详细住址";
+    const browsing = state.mode === "leaderboard-browse";
+    const title = state.title || (current ? `选择 ${current.shortName} 的下一级地区` : "选择你的地区队");
+    design.addChild(center(text(title, 30, 0x31481f, "900"), 640, cardY + 42));
+    const hint = browsing
+      ? (current && state.allowConfirm ? `查看“${current.name}”范围内的乡村球队排名` : "逐级选择地区，只改变当前查看范围")
+      : current
+        ? `可直接确认“${current.shortName}”参赛，或继续选择更细一级`
+        : "自愿选择公开的家乡战队；不读取 GPS，不展示详细住址";
     design.addChild(center(text(hint, 16, 0x71805e, "700"), 640, cardY + 76));
     const trail = state.path.length ? state.path.map((item) => item.shortName).join("  ›  ") : "全国";
     rounded(design, cardX + 42, cardY + 102, cardW - 84, 44, 17, 0xf2f7e5, 1, 0xc8d5ad, 1, 2);
@@ -1330,7 +1360,14 @@ function createGameShell(options) {
       actionButton(cardX + cardW - 380, cardY + 515, 150, "下一页", () => onAction("leaderboard-region-page", normalizeConfig(config), { page: state.page + 1 }), { enabled: state.page + 1 < totalPages, height: 46, bypassTransitionLock: true });
     }
     actionButton(cardX + 90, cardY + 570, 250, state.path.length ? "上一级" : "返回排行榜", () => onAction(state.path.length ? "leaderboard-region-back" : "leaderboard-region-cancel", normalizeConfig(config)), { height: 48, bypassTransitionLock: true, releaseLockAfterAction: true });
-    if (current) actionButton(cardX + cardW - 405, cardY + 570, 315, `代表 ${current.shortName} 参赛`, () => onAction("leaderboard-region-confirm", normalizeConfig(config), { code: current.code }), { primary: true, height: 48, releaseLockAfterAction: true });
+    if (current && state.allowConfirm) actionButton(
+      cardX + cardW - 405,
+      cardY + 570,
+      315,
+      browsing ? `查看 ${current.name} 排名` : `代表 ${current.shortName} 参赛`,
+      () => onAction("leaderboard-region-confirm", normalizeConfig(config), { code: current.code }),
+      { primary: true, height: 48, releaseLockAfterAction: true },
+    );
   }
 
   const DROPDOWN_ROW_H = 44;
@@ -2000,6 +2037,7 @@ function createGameShell(options) {
 
 module.exports = {
   createGameShell,
+  leaderboardTeamNameForScope,
   DESIGN_WIDTH,
   DESIGN_HEIGHT,
   FRIEND_ROOM_STATUSES,

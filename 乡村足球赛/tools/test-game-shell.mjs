@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { createGameShell } = require("../src/ui/game-shell.js");
+const { createGameShell, leaderboardTeamNameForScope } = require("../src/ui/game-shell.js");
 const { defaults } = require("../src/data/game-options.js");
 const { RURAL_SQUAD, ruralPlayersForSide } = require("../src/data/rural-squad.js");
 
@@ -322,6 +322,41 @@ actionPayload = null;
 await clickAt(650, 167);
 assert.equal(action, "leaderboard-scope", "我的省标签必须切换地区榜范围");
 assert.deepEqual(actionPayload, { scopeId: "province", metric: "points" });
+shell.showLeaderboard({
+  profile: { nickname: "", avatarUrl: "" },
+  region: { code: "440983101000", name: "镇隆", level: "town", fullTeamName: "广东省茂名市信宜市镇隆镇乡亲联队" },
+  stats: { matches: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
+  values: { points: 0, goals: 0, winRate: 0 },
+  metrics: [{ id: "points", label: "积分" }, { id: "goals", label: "进球" }, { id: "winRate", label: "胜率", suffix: "%" }],
+  onlineEnabled: true,
+  online: true,
+  remoteMetric: "points",
+  remoteScopeId: "province",
+  remoteScope: { key: "440000:rural", title: "广东省乡村榜" },
+  remoteScopeOptions: [
+    { id: "nation", label: "全国", key: "CN:rural", title: "全国乡村榜", enabled: true },
+    { id: "province", label: "我的省", key: "440000:rural", title: "广东省乡村榜", enabled: true },
+  ],
+});
+await new Promise((resolve) => setTimeout(resolve, 140));
+action = null;
+actionPayload = null;
+await clickAt(650, 167);
+assert.equal(action, "leaderboard-scope-browse", "当前省榜标签再次点击必须打开其他地区浏览器");
+assert.deepEqual(actionPayload, { scopeId: "province", metric: "points" });
+assert.equal(
+  leaderboardTeamNameForScope({
+    fullTeamName: "广东省茂名市信宜市镇隆镇天后街队",
+    path: [
+      { code: "440000", name: "广东省" },
+      { code: "440900", name: "茂名市" },
+      { code: "440983", name: "信宜市" },
+      { code: "440983101000", name: "镇隆镇" },
+    ],
+  }, { key: "440900:rural" }),
+  "信宜市镇隆镇天后街队",
+  "市榜行必须裁掉共同的省、市前缀",
+);
 // 先点“加入排行榜”制造异步授权未完成时的点击锁，再点返回；返回必须无条件生效。
 action = null;
 await clickAt(302, 522);
@@ -345,6 +380,20 @@ shell.showRegionPicker({
 });
 await clickAt(960, 636);
 assert.equal(action, "leaderboard-region-confirm", "当前地区必须能直接确认参赛，不强迫选择到更细层级");
+action = null;
+shell.showRegionPicker({
+  mode: "leaderboard-browse",
+  title: "选择要查看的省",
+  targetLevel: "province",
+  allowConfirm: true,
+  path: [{ code: "440000", name: "广东省", shortName: "广东", level: "province" }],
+  entries: [],
+});
+const browseTexts = currentNodes().filter((node) => typeof node.text === "string").map((node) => node.text);
+assert.ok(browseTexts.includes("查看 广东省 排名"), "浏览模式确认按钮必须明确只查看排名");
+await new Promise((resolve) => setTimeout(resolve, 140));
+await clickAt(960, 636);
+assert.equal(action, "leaderboard-region-confirm", "浏览模式必须复用安全的地区确认动作");
 shell.showHome(defaults());
 
 // Android 某些基础库会返回设备物理像素，而 Canvas 为节省性能只按 2 倍渲染。

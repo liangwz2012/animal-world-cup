@@ -24,7 +24,7 @@ const {
   selectRegion,
   setCustomTeamName,
 } = require("../data/region-team-selection");
-const { teamIdForRegion } = require("../data/rural-jersey-styles");
+const { teamIdForMatchSide } = require("../data/rural-jersey-styles");
 const {
   composeRegionalAudience,
   selectRegionalStadium,
@@ -76,6 +76,8 @@ function startRuralFootballApp() {
   let regionPickerPath = [];
   let regionPickerContext = null;
   let leaderboardScopeId = "nation";
+  // 只记录本次运行中临时浏览的其他地区，不改玩家参赛归属，也不落本机。
+  const leaderboardBrowseScopes = new Map();
   const sound = new SoundBank(wxApi);
   // 排行榜的本地账本始终可用；头像/昵称只在用户主动点击加入排行榜后才请求。
   const leaderboard = createLeaderboard({ wxApi });
@@ -288,6 +290,8 @@ function startRuralFootballApp() {
   }
 
   function selectedRegionScope(scopeId) {
+    const browsed = leaderboardBrowseScopes.get(scopeId || leaderboardScopeId);
+    if (browsed && browsed.key) return browsed.key;
     const region = leaderboard.snapshot().region;
     return scopeKeyFor(region, scopeId || leaderboardScopeId);
   }
@@ -311,17 +315,26 @@ function startRuralFootballApp() {
       : selectedRegionScope(leaderboardScopeId);
     const local = leaderboard.snapshot();
     local.metrics = metricOrder.map((id) => local.metrics.find((item) => item.id === id)).filter(Boolean);
-    const scopeOptions = ruralScopeOptions(local.region).map((item) => Object.assign({}, item, {
-      enabled: item.enabled && scopeOrder.includes(item.id),
-    }));
+    const scopeOptions = ruralScopeOptions(local.region).map((item) => {
+      const browsed = leaderboardBrowseScopes.get(item.id);
+      return Object.assign({}, item, browsed || {}, {
+        label: item.label,
+        enabled: !!((item.enabled || browsed) && scopeOrder.includes(item.id)),
+      });
+    });
     const baseline = regionalSeedLeaderboard(scope, selectedMetric, 8);
+    const activeScopeOption = scopeOptions.find((item) => item.id === leaderboardScopeId && item.key === scope);
+    const displayedScope = {
+      key: scope,
+      title: activeScopeOption && activeScopeOption.title || baseline.scope.title,
+    };
     const onlineLeaderboardEnabled = !!(onlineFeatures.leaderboard.enabled && ruralFeature.enabled);
     shell.showLeaderboard(Object.assign({}, local, {
       onlineEnabled: onlineLeaderboardEnabled,
       online: false,
       remoteRows: baseline.rows,
       remoteMetric: baseline.metric,
-      remoteScope: baseline.scope,
+      remoteScope: displayedScope,
       remoteScopeId: leaderboardScopeId,
       remoteScopeOptions: scopeOptions,
     }));
@@ -334,7 +347,7 @@ function startRuralFootballApp() {
         remoteRows: result.rows || [],
         remoteSelf: result.self || null,
         remoteMetric: result.metric || selectedMetric,
-        remoteScope: result.scope || baseline.scope,
+        remoteScope: activeScopeOption ? displayedScope : (result.scope || displayedScope),
         remoteScopeId: leaderboardScopeId,
         remoteScopeOptions: scopeOptions,
       }));
@@ -516,11 +529,13 @@ function startRuralFootballApp() {
     const number = normalized[jerseyKey] && normalized[jerseyKey].number || (side === "blue" ? 9 : 7);
     const nextRegion = selectionWithMeta(selection, meta);
     const nextJersey = Object.assign({}, normalized[jerseyKey], jerseyIdentity(selection, number));
-    const excludedTeamId = side === "blue" ? normalized.redTeam : "";
+    // 主队视觉是产品识别的一部分：地区只改变队名，不再用地区哈希把红色主场服
+    // 换成藏青等其他模板。客队仍按地区稳定选择一套与红队不同的鲜明球衣。
+    const teamId = teamIdForMatchSide(side, Object.assign({}, nextRegion, nextJersey));
     return normalizeConfig(Object.assign({}, normalized, {
       [regionKey]: nextRegion,
       [jerseyKey]: nextJersey,
-      [teamKey]: teamIdForRegion(Object.assign({}, nextRegion, nextJersey), excludedTeamId),
+      [teamKey]: teamId,
     }));
   }
 
@@ -727,9 +742,19 @@ function startRuralFootballApp() {
   function showRegionPicker(page = 0) {
     if (!shell || typeof shell.showRegionPicker !== "function") return;
     const current = regionPickerPath[regionPickerPath.length - 1];
-    regionChildren(current && current.code, { wxApi }).then((entries) => {
+    const context = regionPickerContext;
+    const browsing = context && context.kind === "leaderboard-browse";
+    const reachedTarget = !!(browsing && current && current.level === context.targetScopeId);
+    const entriesPromise = reachedTarget
+      ? Promise.resolve([])
+      : regionChildren(current && current.code, { wxApi });
+    entriesPromise.then((entries) => {
       if (!shell || typeof shell.showRegionPicker !== "function") return;
       shell.showRegionPicker({
+        mode: browsing ? "leaderboard-browse" : "leaderboard",
+        title: browsing ? `选择要查看的${{ province: "省", city: "市", county: "县", town: "乡镇" }[context.targetScopeId]}` : "",
+        targetLevel: browsing ? context.targetScopeId : "",
+        allowConfirm: browsing ? reachedTarget : true,
         path: regionPickerPath.map(pickerItem),
         entries: entries.map(pickerItem),
         page,
@@ -748,6 +773,18 @@ function startRuralFootballApp() {
       return;
     }
     regionPickerContext = { kind: "leaderboard" };
+    regionPickerPath = [];
+    showRegionPicker(0);
+  }
+
+  function openLeaderboardScopeBrowser(scopeId, metric) {
+    if (!["province", "city", "county", "town"].includes(scopeId)) return;
+    leaderboardScopeId = scopeId;
+    regionPickerContext = {
+      kind: "leaderboard-browse",
+      targetScopeId: scopeId,
+      metric: ["points", "goals", "winRate"].includes(metric) ? metric : "points",
+    };
     regionPickerPath = [];
     showRegionPicker(0);
   }
@@ -786,6 +823,33 @@ function startRuralFootballApp() {
     }).catch((error) => {
       const message = error && error.message || "地区队设置失败";
       if (typeof wx !== "undefined" && wx.showToast) wx.showToast({ title: message, icon: "none" });
+    });
+  }
+
+  function confirmLeaderboardBrowse(code) {
+    const context = regionPickerContext;
+    const current = regionPickerPath[regionPickerPath.length - 1];
+    if (!context || context.kind !== "leaderboard-browse" || !current || current.code !== code) return;
+    if (current.level !== context.targetScopeId) {
+      if (wxApi && wxApi.showToast) wxApi.showToast({ title: "请继续选择到对应地区层级", icon: "none" });
+      return;
+    }
+    createRegionalTeam({ code }, { wxApi }).then((region) => {
+      const option = ruralScopeOptions(region).find((item) => item.id === context.targetScopeId && item.enabled);
+      if (!option) throw new Error("所选地区不能用于当前榜单层级");
+      leaderboardBrowseScopes.set(context.targetScopeId, {
+        key: option.key,
+        title: option.title,
+        code: current.code,
+      });
+      const metric = context.metric;
+      regionPickerContext = null;
+      leaderboardScopeId = option.id;
+      showLeaderboard(metric, option.key);
+    }).catch((error) => {
+      const message = error && error.message || "地区榜加载失败";
+      if (wxApi && wxApi.showToast) wxApi.showToast({ title: message, icon: "none" });
+      else console.warn("[rural-football-app]", message);
     });
   }
 
@@ -870,12 +934,16 @@ function startRuralFootballApp() {
       showLeaderboard(payload && payload.metric || "points", payload && payload.scopeId || "nation");
       return;
     }
+    if (action === "leaderboard-scope-browse") {
+      openLeaderboardScopeBrowser(payload && payload.scopeId, payload && payload.metric);
+      return;
+    }
     if (action === "leaderboard-region-open") {
       openRegionPicker();
       return;
     }
     if (action === "leaderboard-region-step") {
-      if (regionPickerContext && regionPickerContext.kind !== "leaderboard") {
+      if (regionPickerContext && ["home-region", "home-opponent"].includes(regionPickerContext.kind)) {
         chooseHomeRegion(payload && payload.code).catch(reportRegionError);
         return;
       }
@@ -883,7 +951,7 @@ function startRuralFootballApp() {
       return;
     }
     if (action === "leaderboard-region-back") {
-      if (regionPickerContext && regionPickerContext.kind !== "leaderboard") {
+      if (regionPickerContext && ["home-region", "home-opponent"].includes(regionPickerContext.kind)) {
         regionPickerContext = null;
         shell.showHome(currentConfig);
         return;
@@ -893,7 +961,7 @@ function startRuralFootballApp() {
       return;
     }
     if (action === "leaderboard-region-page") {
-      if (regionPickerContext && regionPickerContext.kind !== "leaderboard") {
+      if (regionPickerContext && ["home-region", "home-opponent"].includes(regionPickerContext.kind)) {
         showHomeRegionPicker(payload && payload.page || 0);
         return;
       }
@@ -901,12 +969,16 @@ function startRuralFootballApp() {
       return;
     }
     if (action === "leaderboard-region-confirm") {
-      if (regionPickerContext && regionPickerContext.kind !== "leaderboard") {
+      if (regionPickerContext && ["home-region", "home-opponent"].includes(regionPickerContext.kind)) {
         regionPickerContext = null;
         shell.showHome(currentConfig);
         return;
       }
-      confirmRegionalTeam(payload && payload.code);
+      if (regionPickerContext && regionPickerContext.kind === "leaderboard-browse") {
+        confirmLeaderboardBrowse(payload && payload.code);
+      } else {
+        confirmRegionalTeam(payload && payload.code);
+      }
       return;
     }
     if (action === "leaderboard-region-cancel") {
@@ -915,8 +987,9 @@ function startRuralFootballApp() {
         shell.showHome(currentConfig);
         return;
       }
+      const metric = regionPickerContext && regionPickerContext.metric || "points";
       regionPickerContext = null;
-      showLeaderboard("points");
+      showLeaderboard(metric);
       return;
     }
     if (action === "leaderboard-profile") {

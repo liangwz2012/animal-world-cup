@@ -42,6 +42,11 @@ assert.deepEqual(
     ["town", "440983101000:village", true],
   ],
 );
+assert.deepEqual(
+  ruralScopeOptions(village).map((item) => item.title),
+  ["全国乡村榜", "广东省乡村榜", "茂名市乡村榜", "信宜市乡村榜", "镇隆镇村队榜"],
+  "地区榜标题必须使用官方全称",
+);
 assert.equal(regionMatchesScope(village, "CN:rural"), true);
 assert.equal(regionMatchesScope(village, "440000:rural"), true);
 assert.equal(regionMatchesScope(village, "440100:rural"), false);

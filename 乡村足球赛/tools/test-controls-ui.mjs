@@ -86,6 +86,11 @@ const overlay = createTouchControlsOverlay({ globalObject, PIXI, game, input });
 assert.equal(globalObject.__ORIGINAL_RUNTIME_CONTROLS_VISIBLE__, true);
 assert.equal(stage.children[0], overlay.root);
 assert.equal(overlay.root.children.length, 8, "摇杆、五个动作键和教学提示层都必须存在");
+assert.deepEqual(
+  overlay.root.children.slice(2, 7).map((button) => button.children[2].text),
+  ["挑", "传", "抢", "射", "冲"],
+  "右侧五个动作键必须带低调的单字提示",
+);
 
 input.vx = 1;
 input.shoot = true;

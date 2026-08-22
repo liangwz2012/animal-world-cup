@@ -11,6 +11,14 @@ const ACTION_LABELS = {
   sprint: "冲刺",
 };
 
+const ACTION_GLYPHS = {
+  pass: "传",
+  lob: "挑",
+  tackle: "抢",
+  shoot: "射",
+  sprint: "冲",
+};
+
 function drawCircle(graphics, radius, color, fillAlpha, lineColor, lineAlpha, lineWidth) {
   graphics.clear();
   graphics.lineStyle(lineWidth, lineColor, lineAlpha);
@@ -77,10 +85,27 @@ function drawSprintIcon(graphics, size, color) {
 }
 
 function createButton(PIXI, parent, layout, action, color, iconDrawer) {
-  const button = new PIXI.Graphics();
+  const button = new PIXI.Container();
   const circle = layout.actions[action];
-  drawCircle(button, circle.radius, color, 0.42, 0xffffff, 0.45, 2.5 * layout.scale);
-  iconDrawer(button, layout.scale, action === "sprint" ? 0x3a2e0a : 0xfff7e2);
+  const background = new PIXI.Graphics();
+  drawCircle(background, circle.radius, color, 0.34, 0xffffff, 0.34, 2.2 * layout.scale);
+  const icon = new PIXI.Graphics();
+  iconDrawer(icon, layout.scale * 0.9, action === "sprint" ? 0x3a2e0a : 0xfff7e2);
+  setPoint(icon.position, 0, -5 * layout.scale);
+  const glyph = new PIXI.Text(ACTION_GLYPHS[action] || "", {
+    fontFamily: "Arial, PingFang SC, Microsoft YaHei, sans-serif",
+    fontSize: Math.max(10, Math.round(12 * layout.scale)),
+    fontWeight: "800",
+    fill: action === "sprint" ? 0x4a3b0b : 0xfff7e2,
+    align: "center",
+  });
+  if (glyph.anchor && glyph.anchor.set) glyph.anchor.set(0.5, 0.5);
+  glyph.alpha = 0.66;
+  glyph.__ruralActionGlyph = action;
+  setPoint(glyph.position, 0, circle.radius * 0.48);
+  button.addChild(background);
+  button.addChild(icon);
+  button.addChild(glyph);
   setPoint(button.position, circle.x, circle.y);
   button.alpha = 0.82;
   button.interactive = false;

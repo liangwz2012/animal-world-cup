@@ -39,7 +39,9 @@ function ruralScopeOptions(region) {
     id,
     label: `我的${{ province: "省", city: "市", county: "县", town: "乡镇" }[id] || "地区"}`,
     key: place ? `${place.code}:${suffix}` : "",
-    title: place ? `${place.shortName}${title}` : "",
+    // 榜单标题使用官方全称（广东省、茂名市、信宜市），榜单行再裁掉
+    // 共同上级前缀，既明确当前范围，也避免每行重复同一串地名。
+    title: place ? `${place.name || place.officialName || place.shortName}${title}` : "",
     enabled: !!place,
   });
   return [
