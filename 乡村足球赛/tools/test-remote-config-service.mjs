@@ -36,7 +36,7 @@ try {
   assert.deepEqual(payload.features.captainAvatarCustomization, { enabled: true, apiUrl: "https://avatar.example.com/v1" });
   assert.deepEqual(payload.features.ruralLeaderboard, { enabled: true, metrics: ["points", "goals"], scopes: ["nation", "county"], defaultScope: "county" });
   assert.equal(payload.features.regionalShare.sameCountyTemplate, "{{commonRegion}}村赛｜{{redLeaf}} VS {{blueLeaf}}");
-  assert.match(payload.features.regionalShare.sameProvinceTemplate, /commonProvince/, "未知模板占位符必须回退默认");
+  assert.match(payload.features.regionalShare.sameProvinceTemplate, /redLocal/, "未知模板占位符必须回退本地短队名默认模板");
   assert.equal(payload.features.monetization.rewardedAdUnitId, "adunit-abcdef012345");
   // 升级模块透传且经白名单/钳制归一化；未知模块不得出现在下发配置里。
   assert.equal(payload.features.dailyTasks.enabled, true);

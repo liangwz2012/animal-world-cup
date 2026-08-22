@@ -24,25 +24,25 @@ const sameCounty = regionalShareTitle({
   redRegion: { path: [guangdong, maoming, xinyi, zhenlong] },
   blueRegion: { path: [guangdong, maoming, xinyi, shuikou] },
 });
-assert.equal(sameCounty, "茂名市信宜市乡村赛｜镇隆镇队 VS 水口镇队，快来踢球！");
+assert.equal(sameCounty, "信宜镇隆 VS 信宜水口，快来踢球！");
 
 const sameProvince = regionalShareTitle({
   redRegion: { path: [guangdong, maoming, xinyi, zhenlong] },
   blueRegion: { path: [guangdong, yangjiang, yangchun, heshui] },
 });
-assert.equal(sameProvince, "广东省乡村赛｜茂名镇隆队 VS 阳江合水队，快来踢球！");
+assert.equal(sameProvince, "茂名镇隆 VS 阳江合水，快来踢球！");
 
 const crossProvince = regionalShareTitle({
   redRegion: { path: [guangdong, maoming, xinyi, zhenlong] },
   blueRegion: { path: [jiangxi, jian, xiajiang, shaxi] },
 });
-assert.equal(crossProvince, "全国乡村赛｜广东镇隆队 VS 江西沙溪队，快来踢球！");
+assert.equal(crossProvince, "广东镇隆 VS 江西沙溪，快来踢球！");
 
 const customVillage = regionalShareTitle({
   redRegion: { path: [guangdong, maoming, xinyi, zhenlong], customName: "天后街队" },
   blueRegion: { path: [guangdong, maoming, xinyi, shuikou], customName: "横茶村队" },
 });
-assert.equal(customVillage, "茂名市信宜市乡村赛｜镇隆镇天后街队 VS 水口镇横茶村队，快来踢球！");
+assert.equal(customVillage, "信宜镇隆天后街 VS 信宜水口横茶村，快来踢球！");
 
 const customTemplate = normalizeRegionalShareFeature({
   sameCountyTemplate: "{{commonRegion}}村超｜{{redLeaf}} VS {{blueLeaf}}，开踢！",

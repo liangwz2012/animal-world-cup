@@ -1,7 +1,7 @@
 const { regionIdentity } = require("./region-identity");
 const { normalizeRegionalShareFeature } = require("./remote-feature-contracts");
 
-const FALLBACK_TITLE = "乡村足球赛｜快来踢球！";
+const FALLBACK_TITLE = "选好家乡队，快来踢球！";
 
 function withoutTeamSuffix(value) {
   return String(value || "").replace(/队$/u, "");
@@ -50,6 +50,18 @@ function compactTeam(side, category) {
   return `${prefix}${leaf}队`;
 }
 
+function localTeam(side, category) {
+  const custom = withoutTeamSuffix(side.customName);
+  const town = side.town && side.town.shortName || "";
+  const leaf = custom ? `${town}${custom}` : side.compactLeaf || side.leafToken || "乡亲";
+  const prefix = category === "sameCounty"
+    ? side.county && side.county.shortName || side.city && side.city.shortName || ""
+    : category === "sameProvince"
+      ? side.city && side.city.shortName || side.county && side.county.shortName || ""
+      : side.province && side.province.shortName || side.city && side.city.shortName || "";
+  return `${prefix}${leaf}`;
+}
+
 function renderTemplate(template, values) {
   return String(template || "").replace(/{{([A-Za-z]+)}}/g, (match, key) => Object.prototype.hasOwnProperty.call(values, key) ? values[key] : "");
 }
@@ -75,6 +87,8 @@ function regionalShareTitle(config, feature) {
     blueLeaf: blue.leafToken,
     redCompact: compactTeam(red, category),
     blueCompact: compactTeam(blue, category),
+    redLocal: localTeam(red, category),
+    blueLocal: localTeam(blue, category),
     redFull: red.fullTeamName,
     blueFull: blue.fullTeamName,
   };

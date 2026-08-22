@@ -120,7 +120,7 @@ hostClient.emit("room_created", {
 });
 assert.equal(hostViews.at(-1).status, "waiting_host");
 assert.match(sharedCalls.find(([name]) => name === "share")[1].query, /^invite=/, "建房成功必须立即拉起微信转发");
-assert.equal(sharedCalls.find(([name]) => name === "share")[1].title, "茂名市信宜市乡村赛｜镇隆镇队 VS 水口镇队，快来踢球！", "好友邀请必须使用地域对阵标题");
+assert.equal(sharedCalls.find(([name]) => name === "share")[1].title, "信宜镇隆 VS 信宜水口，快来踢球！", "好友邀请必须使用本地短地域对阵标题");
 
 host.handleAction("warmup-ai", config);
 assert.equal(hostClient.calls.at(-1)[0], "startWarmup");

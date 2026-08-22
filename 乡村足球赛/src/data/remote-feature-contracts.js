@@ -2,13 +2,13 @@ const RURAL_LEADERBOARD_METRICS = Object.freeze(["points", "goals", "winRate"]);
 const RURAL_LEADERBOARD_SCOPES = Object.freeze(["nation", "province", "city", "county", "town"]);
 const REGIONAL_SHARE_TOKENS = Object.freeze([
   "commonRegion", "commonProvince", "redLeaf", "blueLeaf",
-  "redCompact", "blueCompact", "redFull", "blueFull",
+  "redCompact", "blueCompact", "redLocal", "blueLocal", "redFull", "blueFull",
 ]);
 
 const DEFAULT_REGIONAL_SHARE_TEMPLATES = Object.freeze({
-  sameCountyTemplate: "{{commonRegion}}乡村赛｜{{redLeaf}}队 VS {{blueLeaf}}队，快来踢球！",
-  sameProvinceTemplate: "{{commonProvince}}乡村赛｜{{redCompact}} VS {{blueCompact}}，快来踢球！",
-  crossProvinceTemplate: "全国乡村赛｜{{redCompact}} VS {{blueCompact}}，快来踢球！",
+  sameCountyTemplate: "{{redLocal}} VS {{blueLocal}}，快来踢球！",
+  sameProvinceTemplate: "{{redLocal}} VS {{blueLocal}}，快来踢球！",
+  crossProvinceTemplate: "{{redLocal}} VS {{blueLocal}}，快来踢球！",
 });
 
 function object(value) {

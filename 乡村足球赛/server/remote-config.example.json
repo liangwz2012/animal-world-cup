@@ -22,9 +22,9 @@
     },
     "regionalShare": {
       "enabled": true,
-      "sameCountyTemplate": "{{commonRegion}}乡村赛｜{{redLeaf}}队 VS {{blueLeaf}}队，快来踢球！",
-      "sameProvinceTemplate": "{{commonProvince}}乡村赛｜{{redCompact}} VS {{blueCompact}}，快来踢球！",
-      "crossProvinceTemplate": "全国乡村赛｜{{redCompact}} VS {{blueCompact}}，快来踢球！"
+      "sameCountyTemplate": "{{redLocal}} VS {{blueLocal}}，快来踢球！",
+      "sameProvinceTemplate": "{{redLocal}} VS {{blueLocal}}，快来踢球！",
+      "crossProvinceTemplate": "{{redLocal}} VS {{blueLocal}}，快来踢球！"
     },
     "monetization": {
       "enabled": false,

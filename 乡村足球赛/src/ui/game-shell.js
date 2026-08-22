@@ -588,8 +588,8 @@ function createGameShell(options) {
     const titleColor = isRed ? 0xa44734 : 0x315a9b;
     const title = isRed ? "我的地区队" : "对手地区队";
     const fallback = isRed ? "选择我的家乡队" : "等待匹配对手";
-    design.addChild(center(text(title, 25, titleColor, "900"), panelX + panelW / 2, panelY + 24));
-    const name = center(text(regionTeamName(region, fallback), 23, 0x31481f, "900"), panelX + panelW / 2, panelY + 55);
+    design.addChild(center(text(title, 25, titleColor, "900"), panelX + panelW / 2, panelY + 34));
+    const name = center(text(regionTeamName(region, fallback), 23, 0x31481f, "900"), panelX + panelW / 2, panelY + 65);
     if (Number(name.width) > panelW - 70 && name.scale && name.scale.set) {
       const ratio = (panelW - 70) / Number(name.width);
       name.scale.set(ratio, ratio);
@@ -642,6 +642,7 @@ function createGameShell(options) {
       + (showInlineCustom ? selGap + customWidth : 0)
       + (showInlineReroll ? selGap + rerollWidth : 0);
     const selX = panelX + (panelW - rowWidth) / 2;
+    const selectorY = panelY + 102;
     let cursorX = selX;
     for (let index = 0; index < cascadeCount; index += 1) {
       const filled = path[index];
@@ -651,13 +652,13 @@ function createGameShell(options) {
       const placeholders = isRed
         ? ["我的省", "我的市", "我的县", "我的乡镇"]
         : ["对方省", "对方市", "对方县", "对方乡镇"];
-      regionChip(chipX, panelY + 78, selW, filled ? filled.shortName : placeholders[index], unlocked ? () => {
+      regionChip(chipX, selectorY, selW, filled ? filled.shortName : placeholders[index], unlocked ? () => {
         dropdownRequest = {
           side,
           levelIndex: index,
           title: `选择${REGION_LEVELS[index].label}`,
           anchorX: chipX + selW / 2,
-          anchorY: panelY + 78 + 50,
+          anchorY: selectorY + 50,
         };
         // 点下的瞬间先同步弹出"加载中"浮层，消灭"等数据回来才出现"的竞态缝隙；
         // 数据到达后由 main 的 showRegionDropdown 填充条目
@@ -671,13 +672,13 @@ function createGameShell(options) {
       cursorX += selW + selGap;
     }
     if (showInlineCustom) {
-      regionChip(cursorX, panelY + 78, customWidth, region.customName || "自定义村名/队名", () => {
+      regionChip(cursorX, selectorY, customWidth, region.customName || "自定义村名/队名", () => {
         onAction("home-region-custom", normalizeConfig(config), { side });
       }, !!region.customName);
       cursorX += customWidth + selGap;
     }
     if (showInlineReroll) {
-      compactButton(cursorX, panelY + 82, rerollWidth, "换一个", () => {
+      compactButton(cursorX, selectorY + 4, rerollWidth, "换一个", () => {
         onAction("home-opponent-reroll", normalizeConfig(config), { side });
       }, { enabled: !!leaf, fontSize: 14, height: 36 });
     }

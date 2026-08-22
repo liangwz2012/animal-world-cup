@@ -207,7 +207,7 @@ for (const placeholder of ["我的省", "我的市", "我的县", "我的乡镇"
 for (const removedCopy of ["XX省", "XX市", "XX县", "XX镇", "逐级下拉选择家乡地区，选完自动匹配对手", "使用上次选择的家乡队"]) {
   assert.equal(initialRegionTexts.includes(removedCopy), false, `首页不得显示冗余提示：${removedCopy}`);
 }
-await clickAt(182, 150);
+await clickAt(182, 174);
 assert.equal(action, "home-region-dropdown", "主队未选择地区时必须从省份下拉开始");
 assert.deepEqual(actionPayload, { side: "red", levelIndex: 0, parentCode: "" });
 
@@ -231,7 +231,7 @@ for (const vocation of expectedVocations) {
 
 action = null;
 actionPayload = null;
-await clickAt(268, 150);
+await clickAt(268, 174);
 assert.equal(action, "home-region-dropdown", "选完省份后必须出现城市下拉入口");
 assert.deepEqual(actionPayload, { side: "red", levelIndex: 1, parentCode: "440000" });
 
@@ -249,19 +249,19 @@ const fullPathConfig = Object.assign({}, regionalConfig, {
 shell.showHome(fullPathConfig);
 const inlineCustomNode = currentNodes().find((node) => node.text === "自定义村名/队名");
 assert.ok(inlineCustomNode, "主队选满四级后必须显示自定义村名/队名入口");
-assert.equal(Math.round(inlineCustomNode.position.y), 150, "自定义入口必须与省市县镇处于同一行");
+assert.equal(Math.round(inlineCustomNode.position.y), 174, "地区标题与选择行必须整体下移且自定义入口保持同一行");
 action = null;
-await clickAt(510, 150);
+await clickAt(510, 174);
 assert.equal(action, "home-region-custom", "主队选定乡镇后必须提供自定义村名/队名入口");
 shell.showHome(regionalConfig);
 
 action = null;
-await clickAt(1141, 150);
+await clickAt(1141, 174);
 assert.equal(action, "home-opponent-reroll", "客队必须支持换一个同级对手");
 // 客队地区与主队一样走级联下拉直改，不再有"手动选择"按钮
 action = null;
 actionPayload = null;
-await clickAt(788, 150);
+await clickAt(788, 174);
 assert.equal(action, "home-region-dropdown", "客队地区必须支持下拉直改");
 assert.deepEqual(actionPayload, { side: "blue", levelIndex: 0, parentCode: "" });
 const blueTexts = currentNodes().filter((node) => typeof node.text === "string").map((node) => node.text);
