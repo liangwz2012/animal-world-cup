@@ -833,11 +833,28 @@ async function bootOriginalRuntime(options) {
       return null;
     }
   };
+  const collectRendererBindings = () => {
+    const game = visibleMatchGame(root, inputHost);
+    const bindings = [];
+    const walk = (node, depth) => {
+      if (!node || depth > 8) return;
+      if (node.spine && node.player) {
+        const playerId = Number(node.player.id);
+        if (Number.isFinite(playerId) && playerId >= 0 && playerId < 14) bindings.push({ renderer: node, player: node.player });
+        return;
+      }
+      const children = node.children || [];
+      for (const child of children) walk(child, depth + 1);
+    };
+    walk(game && game.stadium, 0);
+    return bindings;
+  };
   const matchWatchdog = createMatchWatchdog({
     getGame: () => visibleMatchGame(root, inputHost),
     getPlayerGlobals: () => engineModule("players/global"),
     getPlayerStates: () => engineModule("players/states"),
     getUsers: () => engineModule("users"),
+    getRenderers: collectRendererBindings,
   });
   const dynamicJersey = createDynamicJerseyComposer({
     wxApi,
