@@ -38,6 +38,11 @@ assert.ok(manifest.generationMethod.ordinaryPeoplePolicy.requiredVariation.lengt
 assert.ok(manifest.generationMethod.ordinaryPeoplePolicy.forbiddenBeautyBias.length >= 5);
 assert.ok(manifest.generationMethod.avoid.some((item) => /偶像化/.test(item)));
 assert.ok(manifest.generationMethod.avoid.some((item) => /洋红背景残边/.test(item)));
+assert.equal(
+  manifest.players.find((player) => player.id === "graduate-forward").headHorizontalFacing,
+  "front",
+  "8号返乡大学生的球场 head.png 必须是严格正面，不能复用选队2/3头像",
+);
 const averageAge = manifest.players.reduce((sum, player) => sum + player.age, 0) / manifest.players.length;
 assert.equal(Number(averageAge.toFixed(2)), manifest.averageAge);
 assert.ok(averageAge >= 28 && averageAge <= 35, "常规乡村队平均年龄必须在 28–35 岁");
