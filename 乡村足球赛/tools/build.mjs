@@ -184,21 +184,45 @@ function patchMatch(source) {
   );
   source = replaceOnce(
     source,
+    'this._fanTextures=[];var c=new a.Container;',
+    'this._fanTextures=[],this._fanHeadTextures=[];var c=new a.Container;',
+    "动态村民观众独立头部纹理池",
+  );
+  source = replaceOnce(
+    source,
     'var p=new a.RenderTexture(e,s,o);p.legacyRenderer=e,this.player.position.set(h,l),p.render(c,null,!0),this._fanTextures.push(p)',
-    'var p=new a.RenderTexture(e,s,o);p.legacyRenderer=e,this.player.position.set(h,l),p.render(c,null,!0),this.player.update(.28);var p2=new a.RenderTexture(e,s,o);p2.legacyRenderer=e,p2.render(c,null,!0),this._fanTextures.push([p,p2])',
-    "动态村民观众双帧坐席动作",
+    'var rfBack=u>=Math.ceil(r/2);this.player.setFacing(rfBack?-1:1),this.player.setAnimation("sitting"),this.player.update(0),this.player.position.set(h,l),this.player.rotation=0,this.player.scale.set(n*.4,n*.4);var rfSprites=this.player.sprites||{},rfVisibility=window.__RURAL_FAN_SPRITE_VISIBILITY__||globalThis.__RURAL_FAN_SPRITE_VISIBILITY__;if(!rfVisibility)throw new Error("fan sprite visibility bridge unavailable");var rfVisible=rfVisibility.snapshot(rfSprites);rfVisibility.hideHead(rfSprites);var p=new a.RenderTexture(e,s,o);p.legacyRenderer=e,p.render(c,null,!0),this.player.update(.28);var p2=new a.RenderTexture(e,s,o);p2.legacyRenderer=e,p2.render(c,null,!0);rfVisibility.showOnlyHead(rfSprites);var hn=Math.max(2,Math.ceil(n/2)),hs=Math.ceil(60*hn),ho=Math.ceil(90*hn),hh=hs/2,hl=ho-6;this.player.position.set(hh,hl),this.player.scale.set(hn*.4,hn*.4);var ph=new a.RenderTexture(e,hs,ho);ph.legacyRenderer=e,ph.render(c,null,!0),rfVisibility.restore(rfSprites,rfVisible);this._fanTextures.push({body:[p,p2],head:ph,headScale:hn,headAnchorX:hh/hs,headAnchorY:hl/ho,back:rfBack})',
+    "动态村民观众双帧身体与可追球头部纹理",
+  );
+  source = replaceOnce(
+    source,
+    'var M=P[0]+m.uniform(-2,2),O=P[1]+m.uniform(-2,2),R=Math.floor(m.uniform(0,E));',
+    'var M=P[0]+m.uniform(-2,2),O=P[1]+m.uniform(-2,2),frontCount=Math.ceil(E/2),useBack=O>1024,poolStart=useBack?frontCount:0,poolSize=useBack?E-frontCount:frontCount,R=poolStart+Math.floor(m.uniform(0,Math.max(1,poolSize)));',
+    "看台上下半区选择正面或背面观众",
+  );
+  source = replaceOnce(
+    source,
+    'for(var I=0;I<8&&E>6&&S.indexOf(A[R])>=0;I++)R=Math.floor(m.uniform(0,E));',
+    'for(var I=0;I<8&&poolSize>3&&S.indexOf(A[R])>=0;I++)R=poolStart+Math.floor(m.uniform(0,Math.max(1,poolSize)));',
+    "同朝向观众池内避免连续重复",
+  );
+  source = replaceOnce(
+    source,
+    'var w=1/n,T=new a.Container;T.scale.set(1.25,1.25);var S=[],E=this._fanTextures.length,A=this._fanRaces||[];',
+    'var w=1/n,T=new a.Container;T.scale.set(1.25,1.25);var bodyLayer=new a.Container,headLayer=new a.Container,fanNodes=[];T.addChild(bodyLayer),T.addChild(headLayer);var S=[],E=this._fanTextures.length,A=this._fanRaces||[];',
+    "观众身体与头部分层批处理",
   );
   source = replaceOnce(
     source,
     'var k=this._fanTextures[R];if(!k)continue;S.push(A[R]);if(S.length>5)S.shift();var F=new a.Sprite(k);F.anchor.set(h/s,l/o),F.scale.set(w,w),F.position.set(M,O);var D=M>2048?-1:1;F.scale.x=w*D,F.rotation=-D*(15+m.uniform(-2,2))*Math.PI/180,T.addChild(F)',
-    'var k=this._fanTextures[R];if(!k)continue;S.push(A[R]);if(S.length>5)S.shift();var F=new a.Sprite(k[0]);F.__rfTextures=k,F.anchor.set(h/s,l/o),F.scale.set(w,w),F.position.set(M,O);var D=M>2048?-1:1;F.scale.x=w*D,F.rotation=-D*(15+m.uniform(-2,2))*Math.PI/180,F.__rfBaseY=O,F.__rfBaseRotation=F.rotation,F.__rfPhase=m.uniform(0,Math.PI*2),T.addChild(F)',
-    "动态村民观众个体动作参数",
+    'var k=this._fanTextures[R];if(!k)continue;S.push(A[R]);if(S.length>5)S.shift();var body=new a.Sprite(k.body[0]);body.anchor.set(h/s,l/o),body.scale.set(w,w),body.position.set(M,O);var headSprite=new a.Sprite(k.head),headScale=1/k.headScale;headSprite.anchor.set(k.headAnchorX,k.headAnchorY),headSprite.scale.set(headScale,headScale),headSprite.position.set(M,O);var mirror=m.uniform(0,1)<.5?-1:1;body.scale.x*=mirror,headSprite.scale.x*=mirror;var lookAngle=Math.atan2(1024-O,2048-M),baseRotation=lookAngle+Math.PI/2+m.uniform(-.035,.035);body.rotation=baseRotation,headSprite.rotation=baseRotation,body.__rfSkinIndex=R,headSprite.__rfSkinIndex=R,bodyLayer.addChild(body),headLayer.addChild(headSprite),fanNodes.push({__rfBody:body,__rfHead:headSprite,__rfTextures:k.body,__rfSeatX:M,__rfSeatY:O,__rfLookAngle:lookAngle,__rfBaseY:O,__rfBaseRotation:baseRotation,__rfPhase:m.uniform(0,Math.PI*2)})',
+    "动态村民观众面向球场中心并拆分批处理头部",
   );
   source = replaceOnce(
     source,
     'this._fansContainer=T;var B=this._container;console.info("[fans] live fans placed:",T.children.length,"seats:",i.length),B&&B.addChildAt(T,1)',
-    'this._fansContainer=T,this._fanTick&&a.ticker.shared.remove(this._fanTick),this._fanElapsed=0;var self=this;this._fanTick=function(delta){self._fanElapsed+=delta/60;for(var parent=T;parent;parent=parent.parent)if(parent.visible===!1)return;for(var children=T.children,q=0;q<children.length;q+=4){var fan=children[q],wave=Math.sin(self._fanElapsed*2+fan.__rfPhase);fan.y=fan.__rfBaseY+1.2*wave,fan.rotation=fan.__rfBaseRotation+.008*wave;var frames=fan.__rfTextures;frames&&frames.length>1&&(fan.texture=frames[(Math.floor(self._fanElapsed*2+fan.__rfPhase)&1)])}};a.ticker.shared.add(this._fanTick);var B=this._container;console.info("[fans] dynamic rural villagers placed:",T.children.length,"skins:",r,"textureScale:",n),B&&B.addChildAt(T,1)',
-    "动态村民观众错峰摇摆",
+    'this._fansContainer=T,this._fanNodes=fanNodes,headLayer.children.sort(function(left,right){return(left.__rfSkinIndex||0)-(right.__rfSkinIndex||0)}),this._fanTick&&a.ticker.shared.remove(this._fanTick),this._fanElapsed=0,this._fanFrame=0;var self=this;this._fanTick=function(delta){self._fanElapsed+=delta/60;for(var parent=T;parent;parent=parent.parent)if(parent.visible===!1)return;var ballView=self.stadium&&self.stadium.ballRenderer,ballPosition=ballView&&ballView.position,bx=ballPosition?ballPosition.x/1.25:2048,by=ballPosition?ballPosition.y/1.25:1024,globalLookX=Math.max(-2.2,Math.min(2.2,(bx-2048)/2048*2.2)),globalLookY=Math.max(-1.6,Math.min(1.6,(by-1024)/1024*1.6)),nodes=self._fanNodes||[],start=self._fanFrame++%4;for(var q=start;q<nodes.length;q+=4){var fan=nodes[q],body=fan.__rfBody,headView=fan.__rfHead,wave=Math.sin(self._fanElapsed*2+fan.__rfPhase),bodyY=fan.__rfBaseY+1.2*wave,bodyRotation=fan.__rfBaseRotation+.008*wave;body.y=bodyY,body.rotation=bodyRotation;var frames=fan.__rfTextures;frames&&frames.length>1&&(body.texture=frames[(Math.floor(self._fanElapsed*2+fan.__rfPhase)&1)]);if(headView){var target=Math.atan2(by-fan.__rfSeatY,bx-fan.__rfSeatX),turn=target-fan.__rfLookAngle;for(;turn>Math.PI;)turn-=Math.PI*2;for(;turn<-Math.PI;)turn+=Math.PI*2;headView.rotation=bodyRotation+Math.max(-.24,Math.min(.24,turn))*.72,headView.x=fan.__rfSeatX+globalLookX,headView.y=bodyY+globalLookY}}};a.ticker.shared.add(this._fanTick);var B=this._container;console.info("[fans] dynamic rural villagers placed:",fanNodes.length,"skins:",r,"textureScale:",n,"lookAtBall:",!0),B&&B.addChildAt(T,1)',
+    "动态村民观众错峰摇摆、头部追球与批处理",
   );
   // 真机巨头修复主闸（配合 patchPixi，注释见其上方）：teams 打包前，resources 的
   // loadImages 必须等到每张图的尺寸真正就绪才回调 —— 否则 image_packer 建出 0 尺寸
@@ -760,7 +784,7 @@ async function main() {
       { texture: "stadium_right.jpg", position: [2560, 0], layer: "base", scale: [1.25, 1.25] },
     );
     // 恢复原生电脑网页版的座位观众系统：2342 个座位、遮罩、镜头层级全部沿用。
-    // 静态 fans/rural_crowd 围场图不再挂载；观众从 14 个人类村民种族生成，
+    // 静态 fans/rural_crowd 围场图不再挂载；观众从24个独立普通村民种族生成，
     // 随机球衣颜色、24 套低内存双帧皮肤复用到所有座位。
     stadiumData.sprites = stadiumData.sprites.filter(
       (sprite) => sprite.texture !== "../common/fans.png"
@@ -768,7 +792,7 @@ async function main() {
     );
     stadiumData.fans = stadiumData.fans || {};
     stadiumData.fans.races = Object.fromEntries(
-      Array.from({ length: 14 }, (_, index) => [`rural_${String(index + 1).padStart(2, "0")}`, 1 / 14]),
+      Array.from({ length: 24 }, (_, index) => [`crowd_${String(index + 1).padStart(2, "0")}`, 1 / 24]),
     );
     stadiumData.fans.teamRacesRatio = 0;
     stadiumData.fans.maxSkins = 24;

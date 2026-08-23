@@ -7,6 +7,7 @@ const { createDynamicJerseyComposer } = require("../ui/dynamic-jersey");
 const { createMatchWatchdog } = require("../data/match-watchdog");
 const { attachRuntimeJerseyLabels } = require("../ui/runtime-jersey-labels");
 const { createBodyProfileController } = require("../data/player-body-profiles");
+const { createFanSpriteVisibilityBridge } = require("../data/fan-sprite-visibility");
 const RURAL_RACE_CATALOG = require("../../generated/rural-race-catalog.static");
 
 const IDENTITY = "original-runtime-latest";
@@ -751,6 +752,13 @@ async function bootOriginalRuntime(options) {
 
   const matchSync = createMatchSyncBridge({ role: "off" });
   bindMatchSyncState(root, inputHost, matchSync);
+
+  // 动态观众需要把身体与头部分开烘焙。原引擎 sprites 表允许空槽位，不能让
+  // 压缩引擎代码直接访问 `.visible`；统一通过已测试的空值安全桥接模块操作。
+  const fanSpriteVisibility = createFanSpriteVisibilityBridge();
+  for (const target of [root, root.window, inputHost, inputHost.window]) {
+    if (target) target.__RURAL_FAN_SPRITE_VISIBILITY__ = fanSpriteVisibility;
+  }
 
   if (!options.onPlatformReady && wxApi && wxApi.showLoading) wxApi.showLoading({ title: "原版引擎加载中", mask: true });
   if (typeof options.onProgress === "function") options.onProgress(0);

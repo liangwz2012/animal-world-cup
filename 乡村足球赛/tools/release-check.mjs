@@ -13,6 +13,8 @@ const ALLOWED_RURAL_RACES = new Set([
   "skeleton",
   "rural_v2_01",
   ...Array.from({ length: 14 }, (_, index) => `rural_${String(index + 1).padStart(2, "0")}`),
+  // 仅供看台使用的24名普通村民；专项测试会确保球队名单不引用这些 race。
+  ...Array.from({ length: 24 }, (_, index) => `crowd_${String(index + 1).padStart(2, "0")}`),
 ]);
 const LEGACY_VISIBLE_BRAND = new RegExp([
   ["ANIMAL", "CUP"].join("\\s+"),

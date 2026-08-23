@@ -89,6 +89,11 @@ async function main() {
   if (!generatedMatch.includes("dynamic rural villagers placed:")) throw new Error("原生动态村民观众未接入");
   if (!generatedMatch.includes("Math.min(t.fans.maxSkins||24,i.length)")) throw new Error("动态观众低内存皮肤上限未生效");
   if (!generatedMatch.includes("t.fans.renderScale||4")) throw new Error("动态观众 4x 纹理上限未生效");
+  if (!generatedMatch.includes("__rfHead") || !generatedMatch.includes("lookAtBall:")) throw new Error("动态观众头部追球层未接入");
+  if (!generatedMatch.includes("lookAngle=Math.atan2(1024-O,2048-M)")
+    || !generatedMatch.includes("baseRotation=lookAngle+Math.PI/2")) {
+    throw new Error("动态观众未按座位朝向球场中央");
+  }
   if (generatedMatch.includes('Texture.fromFrame("indicators/sight.png")')) throw new Error("sight 指示器仍直接调用 Texture.fromFrame");
   if (generatedMatch.includes('Sprite.fromFrame("indicators/header.png")')) throw new Error("header 指示器仍直接调用 Sprite.fromFrame");
   if (!generatedShim.includes("entry.deps || []")) throw new Error("AMD 依赖注入修复未生效");

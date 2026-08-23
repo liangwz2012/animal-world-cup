@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "count": 24,
+  "characters": [
+    {
+      "id": "crowd_01",
+      "donor": "rural_v2_01",
+      "master": "crowd-heads-01.webp",
+      "row": 0,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10752,
+      "backBytes": 10202
+    },
+    {
+      "id": "crowd_02",
+      "donor": "rural_02",
+      "master": "crowd-heads-01.webp",
+      "row": 0,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 10931,
+      "backBytes": 9869
+    },
+    {
+      "id": "crowd_03",
+      "donor": "rural_03",
+      "master": "crowd-heads-01.webp",
+      "row": 1,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 9616,
+      "backBytes": 8540
+    },
+    {
+      "id": "crowd_04",
+      "donor": "rural_04",
+      "master": "crowd-heads-01.webp",
+      "row": 1,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 10118,
+      "backBytes": 8639
+    },
+    {
+      "id": "crowd_05",
+      "donor": "rural_05",
+      "master": "crowd-heads-01.webp",
+      "row": 2,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10758,
+      "backBytes": 10113
+    },
+    {
+      "id": "crowd_06",
+      "donor": "rural_06",
+      "master": "crowd-heads-01.webp",
+      "row": 2,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 10168,
+      "backBytes": 8932
+    },
+    {
+      "id": "crowd_07",
+      "donor": "rural_07",
+      "master": "crowd-heads-01.webp",
+      "row": 3,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10936,
+      "backBytes": 10263
+    },
+    {
+      "id": "crowd_08",
+      "donor": "rural_08",
+      "master": "crowd-heads-01.webp",
+      "row": 3,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 10357,
+      "backBytes": 9574
+    },
+    {
+      "id": "crowd_09",
+      "donor": "rural_09",
+      "master": "crowd-heads-02.webp",
+      "row": 0,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10356,
+      "backBytes": 8693
+    },
+    {
+      "id": "crowd_10",
+      "donor": "rural_10",
+      "master": "crowd-heads-02.webp",
+      "row": 0,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 9796,
+      "backBytes": 8228
+    },
+    {
+      "id": "crowd_11",
+      "donor": "rural_11",
+      "master": "crowd-heads-02.webp",
+      "row": 1,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10174,
+      "backBytes": 8398
+    },
+    {
+      "id": "crowd_12",
+      "donor": "rural_12",
+      "master": "crowd-heads-02.webp",
+      "row": 1,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 9235,
+      "backBytes": 7500
+    },
+    {
+      "id": "crowd_13",
+      "donor": "rural_13",
+      "master": "crowd-heads-02.webp",
+      "row": 2,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 9765,
+      "backBytes": 8208
+    },
+    {
+      "id": "crowd_14",
+      "donor": "rural_14",
+      "master": "crowd-heads-02.webp",
+      "row": 2,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 10156,
+      "backBytes": 8220
+    },
+    {
+      "id": "crowd_15",
+      "donor": "rural_v2_01",
+      "master": "crowd-heads-02.webp",
+      "row": 3,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10443,
+      "backBytes": 7932
+    },
+    {
+      "id": "crowd_16",
+      "donor": "rural_02",
+      "master": "crowd-heads-02.webp",
+      "row": 3,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 9520,
+      "backBytes": 8050
+    },
+    {
+      "id": "crowd_17",
+      "donor": "rural_03",
+      "master": "crowd-heads-03.webp",
+      "row": 0,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10813,
+      "backBytes": 9508
+    },
+    {
+      "id": "crowd_18",
+      "donor": "rural_04",
+      "master": "crowd-heads-03.webp",
+      "row": 0,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 11406,
+      "backBytes": 10923
+    },
+    {
+      "id": "crowd_19",
+      "donor": "rural_05",
+      "master": "crowd-heads-03.webp",
+      "row": 1,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 11005,
+      "backBytes": 8403
+    },
+    {
+      "id": "crowd_20",
+      "donor": "rural_06",
+      "master": "crowd-heads-03.webp",
+      "row": 1,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 10749,
+      "backBytes": 10061
+    },
+    {
+      "id": "crowd_21",
+      "donor": "rural_07",
+      "master": "crowd-heads-03.webp",
+      "row": 2,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10065,
+      "backBytes": 8142
+    },
+    {
+      "id": "crowd_22",
+      "donor": "rural_08",
+      "master": "crowd-heads-03.webp",
+      "row": 2,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 11278,
+      "backBytes": 9396
+    },
+    {
+      "id": "crowd_23",
+      "donor": "rural_09",
+      "master": "crowd-heads-03.webp",
+      "row": 3,
+      "frontColumn": 0,
+      "backColumn": 1,
+      "frontBytes": 10548,
+      "backBytes": 8455
+    },
+    {
+      "id": "crowd_24",
+      "donor": "rural_10",
+      "master": "crowd-heads-03.webp",
+      "row": 3,
+      "frontColumn": 2,
+      "backColumn": 3,
+      "frontBytes": 10703,
+      "backBytes": 8482
+    }
+  ]
+}
