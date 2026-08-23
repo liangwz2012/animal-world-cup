@@ -155,6 +155,39 @@ function patchMatch(source) {
     'var B=this._container;console.info("[fans] live fans placed:",T.children.length,"seats:",i.length),B&&B.addChildAt(T,1)',
     "真机观众数量诊断日志",
   );
+  // 恢复原生网页版的“座位坐标 + 人物骨骼”观众系统，但把原来
+  // 120 套 8x 高清 RenderTexture 收敛为 24 套 4x 村民皮肤。座位仍全部保留，
+  // 只复用纹理，避免真机再次出现 160MB 级 GPU 占用与首屏长卡。
+  source = replaceOnce(
+    source,
+    'var i=t.fans.seats,r=Math.min(120,i.length);',
+    'var i=t.fans.seats,r=Math.min(t.fans.maxSkins||24,i.length);',
+    "动态村民观众皮肤上限",
+  );
+  source = replaceOnce(
+    source,
+    'var n=8,s=Math.ceil(60*n),o=Math.ceil(90*n),h=s/2,l=o-6;',
+    'var n=t.fans.renderScale||4,s=Math.ceil(60*n),o=Math.ceil(90*n),h=s/2,l=o-6;',
+    "动态村民观众纹理分辨率",
+  );
+  source = replaceOnce(
+    source,
+    'var p=new a.RenderTexture(e,s,o);p.legacyRenderer=e,this.player.position.set(h,l),p.render(c,null,!0),this._fanTextures.push(p)',
+    'var p=new a.RenderTexture(e,s,o);p.legacyRenderer=e,this.player.position.set(h,l),p.render(c,null,!0),this.player.update(.28);var p2=new a.RenderTexture(e,s,o);p2.legacyRenderer=e,p2.render(c,null,!0),this._fanTextures.push([p,p2])',
+    "动态村民观众双帧坐席动作",
+  );
+  source = replaceOnce(
+    source,
+    'var k=this._fanTextures[R];if(!k)continue;S.push(A[R]);if(S.length>5)S.shift();var F=new a.Sprite(k);F.anchor.set(h/s,l/o),F.scale.set(w,w),F.position.set(M,O);var D=M>2048?-1:1;F.scale.x=w*D,F.rotation=-D*(15+m.uniform(-2,2))*Math.PI/180,T.addChild(F)',
+    'var k=this._fanTextures[R];if(!k)continue;S.push(A[R]);if(S.length>5)S.shift();var F=new a.Sprite(k[0]);F.__rfTextures=k,F.anchor.set(h/s,l/o),F.scale.set(w,w),F.position.set(M,O);var D=M>2048?-1:1;F.scale.x=w*D,F.rotation=-D*(15+m.uniform(-2,2))*Math.PI/180,F.__rfBaseY=O,F.__rfBaseRotation=F.rotation,F.__rfPhase=m.uniform(0,Math.PI*2),T.addChild(F)',
+    "动态村民观众个体动作参数",
+  );
+  source = replaceOnce(
+    source,
+    'this._fansContainer=T;var B=this._container;console.info("[fans] live fans placed:",T.children.length,"seats:",i.length),B&&B.addChildAt(T,1)',
+    'this._fansContainer=T,this._fanTick&&a.ticker.shared.remove(this._fanTick),this._fanElapsed=0;var self=this;this._fanTick=function(delta){self._fanElapsed+=delta/60;for(var parent=T;parent;parent=parent.parent)if(parent.visible===!1)return;for(var children=T.children,q=0;q<children.length;q+=4){var fan=children[q],wave=Math.sin(self._fanElapsed*2+fan.__rfPhase);fan.y=fan.__rfBaseY+1.2*wave,fan.rotation=fan.__rfBaseRotation+.008*wave;var frames=fan.__rfTextures;frames&&frames.length>1&&(fan.texture=frames[(Math.floor(self._fanElapsed*2+fan.__rfPhase)&1)])}};a.ticker.shared.add(this._fanTick);var B=this._container;console.info("[fans] dynamic rural villagers placed:",T.children.length,"skins:",r,"textureScale:",n),B&&B.addChildAt(T,1)',
+    "动态村民观众错峰摇摆",
+  );
   // 真机巨头修复主闸（配合 patchPixi，注释见其上方）：teams 打包前，resources 的
   // loadImages 必须等到每张图的尺寸真正就绪才回调 —— 否则 image_packer 建出 0 尺寸
   // 帧，spine 头部附件缩放爆炸。10 秒封顶后按旧行为放行并告警（不比修复前更糟）。
@@ -702,20 +735,20 @@ async function main() {
       { texture: "stadium_left.jpg", position: [0, 0], layer: "base", scale: [1.25, 1.25] },
       { texture: "stadium_right.jpg", position: [2560, 0], layer: "base", scale: [1.25, 1.25] },
     );
-    // 直接用原版 4096×2048 围场观众贴图的同坐标人类版本替换观众。
-    // 贴图按原图的 1.25 倍世界坐标进入 stadium 层，因而完全沿用引擎的
-    // 镜头平移、缩放和遮挡次序；不能再用低分辨率的独立覆盖层放大拼接。
-    // 原动态观众继续由启动画像关闭，避免叠在这张完整人类围场图之上。
+    // 恢复原生电脑网页版的座位观众系统：2342 个座位、遮罩、镜头层级全部沿用。
+    // 静态 fans/rural_crowd 围场图不再挂载；观众从 14 个人类村民种族生成，
+    // 随机球衣颜色、24 套低内存双帧皮肤复用到所有座位。
     stadiumData.sprites = stadiumData.sprites.filter(
       (sprite) => sprite.texture !== "../common/fans.png"
         && sprite.texture !== "../common/rural_crowd.png",
     );
-    stadiumData.sprites.push({
-      texture: "../common/rural_crowd.png",
-      position: [0, 0],
-      scale: [1.25, 1.25],
-      layer: "top",
-    });
+    stadiumData.fans = stadiumData.fans || {};
+    stadiumData.fans.races = Object.fromEntries(
+      Array.from({ length: 14 }, (_, index) => [`rural_${String(index + 1).padStart(2, "0")}`, 1 / 14]),
+    );
+    stadiumData.fans.teamRacesRatio = 0;
+    stadiumData.fans.maxSkins = 24;
+    stadiumData.fans.renderScale = 4;
     textAssets[stadiumJsonKey] = JSON.stringify(stadiumData);
     await fs.writeFile(path.join(stagedStadiumDir, "stadium.json"), textAssets[stadiumJsonKey]);
     await fs.rm(path.join(stagedStadiumDir, "stadium.jpg"), { force: true }); // 分包省 1.5MB

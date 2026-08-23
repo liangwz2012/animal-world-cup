@@ -1,51 +1,74 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import sharp from "sharp";
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const humanCrowdPath = path.join(
+const runtimeStadiumPath = path.join(
+  projectDir,
+  "runtime-assets/match-runtime-min/data/stadiums/international/stadium.json",
+);
+const sourceCrowdPath = path.join(
   projectDir,
   "source-assets/public/match-runtime-min/data/stadiums/common/rural_crowd.png",
 );
-const referencePath = path.join(
+const runtimeCrowdPath = path.join(
   projectDir,
-  "美术整体替换包/省份球场与观众/观众母版/乡村人类观众原图替换参考.webp",
+  "runtime-assets/match-runtime-min/data/stadiums/common/rural_crowd.png",
 );
-const fitManifestPath = path.join(
+const sourceFansStripPath = path.join(
   projectDir,
-  "美术整体替换包/省份球场与观众/运行时预览/乡村四周观众-球员比例版.json",
+  "source-assets/public/match-runtime-min/data/stadiums/common/fans.png",
+);
+const runtimeFansStripPath = path.join(
+  projectDir,
+  "runtime-assets/match-runtime-min/data/stadiums/common/fans.png",
+);
+const sourceAudioPath = path.join(projectDir, "source-assets/public/rural-football/audio/crowd_ambience.mp3");
+const runtimeAudioPath = path.join(projectDir, "runtime-assets/rural-football/audio/crowd_ambience.mp3");
+const provenancePath = path.join(projectDir, "source-assets/public/rural-football/audio/CROWD_AMBIENCE_PROVENANCE.md");
+
+const stadium = JSON.parse(await fs.readFile(runtimeStadiumPath, "utf8"));
+assert.ok(stadium.fans, "球场必须保留原生观众系统");
+assert.equal(stadium.fans.seats.length, 2342, "原生网页版 2342 个座位不得丢失");
+assert.equal(stadium.fans.mask, "fansmask.png", "观众座位遮罩必须沿用原生资源");
+assert.equal(stadium.fans.maxSkins, 24, "移动端动态观众应限制为 24 套复用皮肤");
+assert.equal(stadium.fans.renderScale, 4, "动态观众纹理应使用 4x 低内存渲染尺度");
+const fanRaceIds = Object.keys(stadium.fans.races || {});
+assert.equal(fanRaceIds.length, 14, "动态观众必须来自 14 名人类村民");
+assert.ok(fanRaceIds.every((id) => /^rural_\d{2}$/.test(id)), "动态观众不得混入旧动物种族");
+assert.equal(
+  stadium.sprites.some((sprite) => /(?:^|\/)(?:fans|rural_crowd)\.png$/.test(String(sprite.texture || ""))),
+  false,
+  "球场不得再挂载静态观众围场图",
 );
 
-const [humanCrowd, humanCrowdStat, reference] = await Promise.all([
-  sharp(humanCrowdPath).metadata(),
-  fs.stat(humanCrowdPath),
-  sharp(referencePath).metadata(),
-]);
-assert.equal(humanCrowd.width, 4096, "人类观众贴图布局宽度必须保持 4096");
-assert.equal(humanCrowd.height, 2048, "人类观众贴图布局高度必须保持 2048");
-assert.ok(humanCrowd.hasAlpha, "人类观众必须保留透明中心与外侧");
-assert.ok(humanCrowdStat.size < 3 * 1024 * 1024, `人类观众运行贴图过大: ${humanCrowdStat.size}`);
-assert.ok(reference.width <= 768 && reference.height <= 768, "美术参考图必须保持小尺寸");
-
-const { data, info } = await sharp(humanCrowdPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-const alphaAt = (x, y) => data[(y * info.width + x) * 4 + 3];
-assert.equal(alphaAt(Math.floor(info.width / 2), Math.floor(info.height / 2)), 0, "球场中央必须透明，不能盖住草坪");
-assert.equal(alphaAt(10, Math.floor(info.height / 2)), 0, "场外必须透明，不能污染镜头边缘");
+const generatedMatch = await fs.readFile(path.join(projectDir, "generated/match.static.js"), "utf8");
+assert.ok(generatedMatch.includes("Math.min(t.fans.maxSkins||24,i.length)"), "村民观众皮肤上限未生效");
+assert.ok(generatedMatch.includes("t.fans.renderScale||4"), "村民观众低内存纹理未生效");
+assert.ok(generatedMatch.includes("__rfTextures") && generatedMatch.includes("__rfPhase"), "村民观众双帧与错峰动作未生效");
+assert.ok(generatedMatch.includes("dynamic rural villagers placed:"), "动态观众挂载诊断日志缺失");
 
 const bootSource = await fs.readFile(path.join(projectDir, "src/boot/start.js"), "utf8");
-assert.ok(
-  bootSource.includes("const mobileSafeFans = true;"),
-  "动态观众必须关闭，避免与完整人类观众图叠加",
-);
+assert.ok(bootSource.includes("const mobileSafeFans = false;"), "动态村民观众仍被启动画像强制关闭");
+assert.ok(bootSource.includes("dynamic-rural-fans"), "设备画像未标记动态村民观众");
 
-const buildSource = await fs.readFile(path.join(projectDir, "tools/build.mjs"), "utf8");
-assert.ok(buildSource.includes('texture: "../common/rural_crowd.png"'), "构建期必须接入原布局的人类观众图");
-assert.ok(buildSource.includes("scale: [1.25, 1.25]"), "人类观众必须使用原布局世界缩放，不能强行四倍放大");
-const fitManifest = JSON.parse(await fs.readFile(fitManifestPath, "utf8"));
-assert.deepEqual(fitManifest.worldScale, [1.25, 1.25], "观众必须留在球场世界层并跟随镜头");
-assert.ok(fitManifest.horizontalSpectatorScale[0] <= 0.58 && fitManifest.horizontalSpectatorScale[1] <= 0.6, "上下看台观众必须缩到球员附近尺寸");
-assert.ok(fitManifest.verticalSpectatorScale[0] <= 0.6 && fitManifest.verticalSpectatorScale[1] <= 0.58, "左右看台观众必须缩到球员附近尺寸");
+for (const obsoletePath of [sourceCrowdPath, runtimeCrowdPath, sourceFansStripPath, runtimeFansStripPath]) {
+  await assert.rejects(fs.access(obsoletePath), "弃用静态观众图不得留在正式资源包");
+}
 
-console.info("[test-rural-audience-assets] PASS：观众球员比例、透明边界、世界镜头缩放和动态动物观众隔离正常");
+const [sourceAudio, runtimeAudio, audioStat, provenance] = await Promise.all([
+  fs.readFile(sourceAudioPath),
+  fs.readFile(runtimeAudioPath),
+  fs.stat(runtimeAudioPath),
+  fs.readFile(provenancePath, "utf8"),
+]);
+const digest = (buffer) => crypto.createHash("sha256").update(buffer).digest("hex");
+assert.equal(digest(sourceAudio), digest(runtimeAudio), "人类模糊人声必须从源资源无损同步到运行包");
+assert.ok(audioStat.size > 100 * 1024 && audioStat.size < 400 * 1024, "人群环境声体积必须控制在 100–400 KiB");
+assert.match(provenance, /Creative Commons 0|CC0/);
+assert.match(provenance, /freesound\.org\/people\/Selector\/sounds\/365240/);
+assert.match(provenance, /不可辨识|听不清|模糊人声/);
+
+console.info("[test-rural-audience-assets] PASS：2342座动态村民、低内存双帧、静态围场隔离与人类模糊人声正常");

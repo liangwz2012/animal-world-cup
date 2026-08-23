@@ -15,7 +15,6 @@
     "art:rural-jerseys": "node tools/build-rural-jersey-kits.mjs",
     "art:rural-rosters": "node tools/sync-rural-team-rosters.mjs",
     "art:jersey-label-preview": "node tools/render-dynamic-region-jersey-preview.mjs",
-    "art:rural-crowd-fit": "node tools/build-rural-crowd-fit.mjs",
     "art:referee": "node tools/build-human-referee-assets.mjs",
     "verify": "node tools/verify.mjs",
     "test:game-options": "node tools/test-game-options.mjs",

@@ -703,16 +703,17 @@ async function bootOriginalRuntime(options) {
   installGlobalFailureHooks(root);
   const inputHost = typeof globalThis !== "undefined" ? globalThis : root;
   const physicalDevice = detectPhysicalMobileDevice(wxApi);
-  // 原版动态观众全部为动物精灵，并会同步生成两千多个贴图。乡村版改用一张与原围场
-  // 坐标一致的人类观众贴图：全平台关闭动态动物观众，既避免叠加穿帮，也消除首次开赛长阻塞。
-  const mobileSafeFans = true;
+  // 恢复原生网页版的动态座位观众；构建阶段已将高内存的 120 套 8x
+  // 动物纹理收敛为 24 套 4x 村民双帧纹理，所有座位坐标仍保留。
+  // 加载超时时 standalone 仍会自动把本标记设为 true 并降级进入比赛。
+  const mobileSafeFans = false;
   const deviceTargets = [root, root.window, inputHost, inputHost.window];
   for (const target of deviceTargets) {
     if (target) target.__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__ = mobileSafeFans;
   }
   console.info(
     "[original-runtime-latest] DEVICE_PROFILE",
-    physicalDevice ? "physical-mobile(static-human-crowd)" : "desktop-or-devtools(static-human-crowd)",
+    physicalDevice ? "physical-mobile(dynamic-rural-fans)" : "desktop-or-devtools(dynamic-rural-fans)",
   );
 
   // Pixi 本身位于主包，可以在 9.77 MiB 资源分包下载前先绘制品牌加载页。

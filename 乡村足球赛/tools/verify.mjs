@@ -86,7 +86,9 @@ async function main() {
   const generatedStandalone = await fs.readFile(path.join(projectDir, "generated/standalone.static.js"), "utf8");
   if (!generatedMatch.includes("Object.defineProperty(n,\"name\"")) throw new Error("状态构造器静态替换未生效");
   if (!generatedMatch.includes("__ORIGINAL_RUNTIME_GET_CRITICAL_TEXTURE__")) throw new Error("原版指示器仍依赖易失 Pixi 全局纹理缓存");
-  if (!generatedMatch.includes("__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__&&(this._stadium.fans=null)")) throw new Error("真机动态观众禁用闸门缺失");
+  if (!generatedMatch.includes("dynamic rural villagers placed:")) throw new Error("原生动态村民观众未接入");
+  if (!generatedMatch.includes("Math.min(t.fans.maxSkins||24,i.length)")) throw new Error("动态观众低内存皮肤上限未生效");
+  if (!generatedMatch.includes("t.fans.renderScale||4")) throw new Error("动态观众 4x 纹理上限未生效");
   if (generatedMatch.includes('Texture.fromFrame("indicators/sight.png")')) throw new Error("sight 指示器仍直接调用 Texture.fromFrame");
   if (generatedMatch.includes('Sprite.fromFrame("indicators/header.png")')) throw new Error("header 指示器仍直接调用 Sprite.fromFrame");
   if (!generatedShim.includes("entry.deps || []")) throw new Error("AMD 依赖注入修复未生效");
@@ -117,9 +119,9 @@ async function main() {
   if (!bootSource.includes("B1_CRITICAL_TEXTURES_READY")) throw new Error("关键图集未在比赛启动前硬预载");
   if (!bootSource.includes("B2_TEXTURE_CACHE_RESTORED")) throw new Error("关键纹理缓存缺少静默自恢复路径");
   if (!bootSource.includes("__ORIGINAL_RUNTIME_GET_CRITICAL_TEXTURE__")) throw new Error("关键纹理私有引用读取器缺失");
-  // 乡村版全平台使用轻量夏季人类观众条，禁止原版动物动态观众重新混入。
-  if (!bootSource.includes("static-human-crowd")) throw new Error("静态人类观众设备画像缺失");
-  if (!bootSource.includes("const mobileSafeFans = true")) throw new Error("动物动态观众全平台禁用闸门缺失");
+  // 恢复原生座位/遮罩/镜头系统，但只生成动态村民皮肤；超时仍可降级进比赛。
+  if (!bootSource.includes("dynamic-rural-fans")) throw new Error("动态村民观众设备画像缺失");
+  if (!bootSource.includes("const mobileSafeFans = false")) throw new Error("动态村民观众仍被全平台关闭");
   if (!bootSource.includes("B2_SLOW_LOAD")) throw new Error("首次资源缓存缺少非致命延时兜底");
   if ((bootSource.match(/bindMatchSyncState\(root, inputHost, matchSync\)/g) || []).length < 3) throw new Error("第二玩家输入缺少加载前、加载后及开赛前 runtime window 重绑定");
   if (!bootSource.includes("B1_TOUCH2_DEGRADED")) throw new Error("单机缺少 touchInput2 非致命降级保护");
