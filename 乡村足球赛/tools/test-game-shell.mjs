@@ -406,13 +406,21 @@ shell.showHome(defaults());
 const startPoint = pointAt(640, 580);
 touchStart({ touches: [{ clientX: startPoint.clientX * 3, clientY: startPoint.clientY * 3 }] });
 await new Promise((resolve) => setTimeout(resolve, 130));
-assert.equal(action, "ai", "设备像素比与 Canvas 分辨率不同时仍必须命中立即对战按钮");
+assert.equal(action, "home-region-required", "未选地区时高 DPI 真机点击开赛必须先触发家乡省份选择");
+assert.deepEqual(actionPayload, { resumeAction: "ai" });
 
 action = null;
 shell.showHome(defaults());
 mouseDown(pointAt(640, 580));
 await new Promise((resolve) => setTimeout(resolve, 130));
-assert.equal(action, "ai", "PC 小游戏逻辑像素鼠标必须命中立即对战按钮");
+assert.equal(action, "home-region-required", "未选地区时 PC 鼠标点击开赛也必须先触发家乡省份选择");
+
+action = null;
+shell.showHome(regionalConfig);
+await new Promise((resolve) => setTimeout(resolve, 140));
+mouseDown(pointAt(640, 580));
+await new Promise((resolve) => setTimeout(resolve, 130));
+assert.equal(action, "ai", "已选择任意地区层级后必须正常进入开赛流程");
 
 action = null;
 shell.showHome(defaults());
@@ -504,7 +512,7 @@ gatedShell.showHome(defaults()); // 实际应用会切入排行榜并重置导�
 action = null;
 gatedCanvasListeners.mousedown(pointAt(640, 580));
 await new Promise((resolve) => setTimeout(resolve, 130));
-assert.equal(action, "ai", "好友入口关闭后立即开赛必须保持可点");
+assert.equal(action, "home-region-required", "好友入口关闭时，未选地区的立即开赛仍必须先选家乡队");
 gatedShell.destroy();
 
 // 新手引导：首次未看过 → showTutorial 必须切到引导遮罩

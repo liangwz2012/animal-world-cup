@@ -653,7 +653,12 @@ function startRuralFootballApp() {
     const requested = payload && levels.includes(payload.level) ? payload.level : levels[Math.min(region.path.length, levels.length - 1)];
     const targetIndex = Math.max(0, levels.indexOf(requested));
     regionPickerPath = region.path.slice(0, targetIndex);
-    regionPickerContext = { kind: "home-region", side, targetIndex };
+    regionPickerContext = {
+      kind: "home-region",
+      side,
+      targetIndex,
+      resumeAction: payload && typeof payload.resumeAction === "string" ? payload.resumeAction : "",
+    };
     showHomeRegionPicker(0);
   }
 
@@ -688,7 +693,11 @@ function startRuralFootballApp() {
     const selected = await selectRegion(base, code, { wxApi });
     let next = applySelection(currentConfig, context.side, selected);
     if (context.side === "red") {
+      const resumeAction = context.resumeAction;
       await updateHomeOpponent(next);
+      if (resumeAction) {
+        setTimeout(() => handleShellAction(resumeAction, currentConfig, null), 0);
+      }
     } else {
       currentConfig = next;
       regionPickerContext = null;
@@ -865,6 +874,17 @@ function startRuralFootballApp() {
     };
     if (action === "home-region-open") {
       openHomeRegionPicker(config, payload);
+      return;
+    }
+    if (action === "home-region-required") {
+      openHomeRegionPicker(config, {
+        side: "red",
+        level: "province",
+        resumeAction: payload && payload.resumeAction || "ai",
+      });
+      if (wxApi && typeof wxApi.showToast === "function") {
+        wxApi.showToast({ title: "先选一个家乡地区队", icon: "none", duration: 1600 });
+      }
       return;
     }
     if (action === "home-region-dropdown") {

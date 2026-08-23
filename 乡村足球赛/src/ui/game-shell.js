@@ -842,7 +842,14 @@ function createGameShell(options) {
 
     const actionY = 552;
     actionButton(105, actionY, 295, "挑战玩法", () => showModeHub("challenge", config), { height: 60 });
-    actionButton(430, actionY - 7, 420, "立即开赛", () => onAction("ai", normalizeConfig(Object.assign({}, config, { mode: "ai" }))), { primary: true, height: 70 });
+    actionButton(430, actionY - 7, 420, "立即开赛", () => {
+      const nextConfig = normalizeConfig(Object.assign({}, config, { mode: "ai" }));
+      if (!nextConfig.redRegion.path.length) {
+        onAction("home-region-required", nextConfig, { resumeAction: "ai" });
+        return;
+      }
+      onAction("ai", nextConfig);
+    }, { primary: true, height: 70 });
     actionButton(880, actionY, 295, "战绩与好友", () => showModeHub("social", config), { height: 60 });
     const hint = center(text("阵型和操作说明会在开赛前显示", 18, 0xe7f0b3, "700"), 640, 655);
     design.addChild(hint);
