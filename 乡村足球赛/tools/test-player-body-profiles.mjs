@@ -10,7 +10,7 @@ const {
   PLAYER_PROFILE_SEQUENCE,
   createBodyProfileController,
 } = require("../src/data/player-body-profiles.js");
-const { RURAL_SQUAD } = require("../src/data/rural-squad.js");
+const { RURAL_MATCH_LINEUP_INDEXES, RURAL_SQUAD } = require("../src/data/rural-squad.js");
 const runtimeModuleSource = fs.readFileSync(
   new URL("../src/data/player-body-profiles.js", import.meta.url),
   "utf8",
@@ -21,8 +21,13 @@ assert.doesNotMatch(
   "旧版微信开发工具会把 Object.entries/fromEntries 错译成不存在的 Babel helper",
 );
 
-assert.equal(PLAYER_PROFILE_SEQUENCE.length, 7, "七人制双方必须各有 7 个确定体型");
-assert.ok(new Set(PLAYER_PROFILE_SEQUENCE).size >= 5, "首发七人必须展示至少 5 种体型");
+assert.equal(PLAYER_PROFILE_SEQUENCE.length, 14, "七人制双方 14 名球员必须各自绑定真实名单体型");
+assert.ok(new Set(PLAYER_PROFILE_SEQUENCE).size >= 5, "双方首发必须展示至少 5 种体型");
+const expectedProfiles = RURAL_MATCH_LINEUP_INDEXES.red
+  .concat(RURAL_MATCH_LINEUP_INDEXES.blue)
+  .map((squadIndex) => RURAL_SQUAD[squadIndex].bodyProfile);
+assert.deepEqual(PLAYER_PROFILE_SEQUENCE, expectedProfiles, "运行时槽位必须按真实主客队名单映射体型");
+assert.equal(PLAYER_PROFILE_SEQUENCE[3], "tall-strong", "红队 5 号钢筋中场不得再误套高瘦体型");
 for (const player of RURAL_SQUAD) {
   assert.ok(BODY_PROFILES[player.bodyProfile], `${player.id} 的 bodyProfile 必须存在`);
 }
@@ -69,12 +74,13 @@ assert.equal(referee.__ruralBodyProfile, undefined, "裁判/参考 Renderer 不�
 assert.equal(captain.__ruralBodyProfile, "large");
 assert.equal(captain.spine.scale.x, 0.54);
 assert.equal(captain.spine.scale.y, 0.54);
-assert.equal(blueCaptain.spine.scale.x, captain.spine.scale.x, "双方同一位置体型必须一致");
-assert.equal(courier.__ruralBodyProfile, "tall-slim");
-assert.equal(courier.spine.scale.x, -0.45, "缩放后必须保留朝左方向");
-assert.equal(courier.spine.scale.y, 0.55);
-assert.equal(courier.spine.ballContainer.scale.x, 1 / 0.45, "足球 X 尺寸必须抵消人物缩放");
-assert.equal(courier.spine.ballContainer.scale.y, 1 / 0.55, "足球 Y 尺寸必须抵消人物缩放");
+assert.equal(blueCaptain.__ruralBodyProfile, "tall-strong", "客队门将必须使用村医本人的高壮体型");
+assert.equal(blueCaptain.spine.scale.x, 0.52);
+assert.equal(courier.__ruralBodyProfile, "tall-strong", "红队运行时 3 号槽位对应真实 5 号球员");
+assert.equal(courier.spine.scale.x, -0.52, "缩放后必须保留朝左方向");
+assert.equal(courier.spine.scale.y, 0.54);
+assert.equal(courier.spine.ballContainer.scale.x, 1 / 0.52, "足球 X 尺寸必须抵消人物缩放");
+assert.equal(courier.spine.ballContainer.scale.y, 1 / 0.54, "足球 Y 尺寸必须抵消人物缩放");
 
 status = controller.setPreview("balanced");
 assert.equal(status.previewProfile, "balanced");
@@ -90,7 +96,7 @@ assert.equal(status.overrides[0], "tall-slim");
 assert.equal(captain.__ruralBodyProfile, "tall-slim", "主队队长必须支持单人视觉体型覆盖");
 assert.equal(captain.spine.scale.x, 0.45);
 assert.equal(captain.spine.scale.y, 0.55);
-assert.equal(blueCaptain.__ruralBodyProfile, "large", "主队队长自定义不得影响客队同位置球员");
+assert.equal(blueCaptain.__ruralBodyProfile, "tall-strong", "主队队长自定义不得影响客队真实名单体型");
 assert.throws(() => controller.setPlayerProfile(0, "not-a-profile"), /未知球员体型/);
 controller.setPlayerProfile(0, "");
 assert.equal(captain.__ruralBodyProfile, "large", "清除单人覆盖后必须恢复名单体型");
@@ -107,21 +113,21 @@ function fakeKitRenderer(id) {
   };
   return renderer;
 }
-const slimKit = fakeKitRenderer(3);
-const stockyKit = fakeKitRenderer(6);
+const slimKit = fakeKitRenderer(6);
+const stockyKit = fakeKitRenderer(5);
 const kitGame = { stadium: { children: [{ children: [slimKit] }, { children: [stockyKit] }] } };
 hook(kitGame);
 const slimShirt = slimKit.spine.skeleton.slots[0].attachment;
 const stockyShirt = stockyKit.spine.skeleton.slots[0].attachment;
-assert.ok(Math.abs(slimShirt.scaleX - 0.99 * 1.005) < 1e-6, "高瘦球员胸衣只能轻微收窄接缝");
-assert.ok(Math.abs(slimShirt.scaleY - 1.01 * 0.99) < 1e-6, "高瘦球员胸衣只能轻微加长接缝");
-assert.ok(Math.abs(stockyShirt.scaleX - 1.01 * 0.995) < 1e-6, "矮壮球员胸衣只能轻微放宽接缝");
+assert.ok(Math.abs(slimShirt.scaleX - 0.99 * 0.995) < 1e-6, "高瘦球员胸衣只能轻微收窄接缝");
+assert.ok(Math.abs(slimShirt.scaleY - 1.01) < 1e-6, "高瘦球员胸衣只能轻微加长接缝");
+assert.ok(Math.abs(stockyShirt.scaleX - 1.01 * 0.99) < 1e-6, "矮壮球员胸衣只能轻微放宽接缝");
 assert.ok(Math.abs(stockyShirt.scaleY - 0.99) < 1e-6, "矮壮球员胸衣只能轻微收短接缝");
 const stockyShorts = stockyKit.spine.skeleton.slots[1].attachment;
 assert.ok(Math.abs(stockyShorts.scaleX - 1.01) < 1e-6, "短裤只能做接缝微调");
 assert.equal(slimKit.spine.skeleton.slots[2].attachment.scaleX, 1, "头部附件不得参与球衣裁剪");
 hook(kitGame);
-assert.ok(Math.abs(stockyShirt.scaleX - 1.01 * 0.995) < 1e-6, "重复应用体型不得叠加缩放");
+assert.ok(Math.abs(stockyShirt.scaleX - 1.01 * 0.99) < 1e-6, "重复应用体型不得叠加缩放");
 
 const buildSource = fs.readFileSync(
   new URL("./build.mjs", import.meta.url),

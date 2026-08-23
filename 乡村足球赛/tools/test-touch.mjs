@@ -27,6 +27,12 @@ assert.equal(layout.actions.shoot.x, layout.actions.lob.x, "手机射门键必�
 assert.equal(layout.actions.shoot.y, layout.actions.pass.y, "手机射门键必须位于动作区垂直中心");
 assert.ok(layout.actions.sprint.x > layout.actions.shoot.x && layout.actions.sprint.y === layout.actions.shoot.y, "手机冲刺键必须位于射门键最右侧");
 assert.ok(layout.actions.tackle.y > layout.actions.shoot.y && layout.actions.tackle.x === layout.actions.shoot.x, "手机铲球键必须位于射门键最下方");
+assert.ok(layout.actions.pass.radius >= 27.5, "窄横屏动作键直径也必须不小于约55px");
+assert.ok(layout.actions.shoot.hitRadius > layout.actions.pass.hitRadius, "中央射门键必须保留更大的主操作热区");
+assert.ok(
+  layout.actions.shoot.x - layout.actions.pass.x > layout.actions.pass.radius * 2,
+  "传球与射门按钮必须留有明确空隙，避免误触",
+);
 const touch = (identifier, x, y) => ({ identifier, clientX: x, clientY: y });
 
 const stickRight = touch("stick", layout.stick.x + layout.stick.radius, layout.stick.y);

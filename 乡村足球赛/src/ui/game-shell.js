@@ -835,6 +835,12 @@ function createGameShell(options) {
     homeRegionPanel(leftX, panelY, panelW, "red", config.redRegion, 0xa44734);
     homeRegionPanel(rightX, panelY, panelW, "blue", config.blueRegion, 0x315a9b);
     design.addChild(center(text("VS", 42, 0xfff8d7, "900"), 640, panelY + 235));
+    // 首页不再增加第二个分享按钮；微信胶囊菜单本身已有转发入口，只在其左侧
+    // 放一条低干扰提示，避免底部操作区出现重复入口。
+    const shareHint = text("点击右上角 ··· 转发分享", 14, 0xf4f6ca, "800");
+    if (shareHint.anchor && shareHint.anchor.set) shareHint.anchor.set(1, 0.5);
+    shareHint.position.set(1092, 25);
+    design.addChild(shareHint);
     const diff = DIFFICULTIES.find((item) => item.value === config.ai);
     const matchTime = TIMES.find((item) => item.value === config.time);
     const settingY = 470;

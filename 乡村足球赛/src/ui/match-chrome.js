@@ -40,7 +40,9 @@ function sidelinePlacardLayout(value, height, scale) {
   const signHeight = 52 * scale;
   const gap = 8 * scale;
   const total = chars.length * signHeight + Math.max(0, chars.length - 1) * gap;
-  const top = clamp((height - total) / 2, 86 * scale, Math.max(86 * scale, height - total - 34 * scale));
+  // 名牌固定靠近上半场边，给右下操作区和球门附近留出空间；六字长队名在
+  // 小屏上仍会自动向上夹紧，保证最后一块牌不越过底部安全区。
+  const top = clamp(130 * scale, 72 * scale, Math.max(72 * scale, height - total - 34 * scale));
   return chars.map((character, index) => ({
     character,
     y: top + index * (signHeight + gap),
@@ -144,6 +146,17 @@ function drawToolIcon(graphics, kind, cx, cy, size, color) {
       graphics.bezierCurveTo(x(5.4), y(13.8), x(8.9), y(11), x(14), y(11));
       graphics.lineTo(x(19.8), y(11));
     }
+  } else if (kind === "pause") {
+    graphics.lineStyle(Math.max(2.4, 3 * unit), color, 1);
+    path([[8.5, 5], [8.5, 19]]);
+    path([[15.5, 5], [15.5, 19]]);
+  } else if (kind === "play") {
+    graphics.beginFill(color, 1);
+    graphics.moveTo(x(7.5), y(5));
+    graphics.lineTo(x(19), y(12));
+    graphics.lineTo(x(7.5), y(19));
+    graphics.lineTo(x(7.5), y(5));
+    graphics.endFill();
   } else if (kind === "adjust") {
     // 四向移动箭头 = 调整/移动按键位置
     path([[12, 3.5], [12, 20.5]]);
@@ -217,6 +230,8 @@ function createMatchChrome(options) {
   let canvasMouseAttached = false;
   let lastPointer = null;
   let guestScoreInitialized = false;
+  let sidelineSecondHalf = false;
+  let manualPaused = false;
 
   function text(value, size, color, weight) {
     return new PIXI.Text(String(value), {
@@ -312,19 +327,25 @@ function createMatchChrome(options) {
     sidelineSignLayer.addChild(label);
   }
 
-  function drawSidelineSigns() {
+  function drawSidelineSigns(secondHalf) {
+    sidelineSignLayer.removeChildren();
     const signW = 43 * scale;
     const redLabel = localityLabel("red");
     const blueLabel = localityLabel("blue");
+    const leftX = 18 * scale;
+    const rightX = width - signW - 18 * scale;
+    const redX = secondHalf ? rightX : leftX;
+    const blueX = secondHalf ? leftX : rightX;
     sidelinePlacardLayout(redLabel, height, scale).forEach((item) => {
-      drawSidelinePlacard(18 * scale, item.y, item.character, 0xa44734, 0xf9ddd2);
+      drawSidelinePlacard(redX, item.y, item.character, 0xa44734, 0xf9ddd2);
     });
     sidelinePlacardLayout(blueLabel, height, scale).forEach((item) => {
-      drawSidelinePlacard(width - signW - 18 * scale, item.y, item.character, 0x315a9b, 0xddeafa);
+      drawSidelinePlacard(blueX, item.y, item.character, 0x315a9b, 0xddeafa);
     });
+    sidelineSecondHalf = !!secondHalf;
   }
 
-  drawSidelineSigns();
+  drawSidelineSigns(false);
 
   function sprite(path, parent, x, y, w, h) {
     const image = PIXI.Sprite.fromImage ? PIXI.Sprite.fromImage(path) : new PIXI.Sprite(PIXI.Texture.fromImage(path));
@@ -494,22 +515,22 @@ function createMatchChrome(options) {
     const top = topY == null ? 16 * scale : topY;
     rounded(toolLayer, x, top, w, h, 14 * scale, 0xfffef8, 0.42, 0x8a7046, 1.2 * scale);
     const icon = new PIXI.Graphics();
+    icon.__ruralToolKind = iconName;
     drawToolIcon(icon, iconName, x + w / 2, top + 22 * scale, 23 * scale, 0x4f8a2f);
     toolLayer.addChild(icon);
     addHit(x, top + 1 * scale, w, h, action);
     return {
       nextX: x + w + 7 * scale,
       setIcon(nextIconName) {
+        icon.__ruralToolKind = nextIconName;
         drawToolIcon(icon, nextIconName, x + w / 2, top + 22 * scale, 23 * scale, 0x4f8a2f);
       },
     };
   }
 
-  // 第一排：观赛/视角/声音/分享等高频工具(保持原样，避免与居中记分牌相撞)。
+  // 左上角只保留有明确用途的六项：缩小、放大、主页、声音、截图、分享。
   let toolX = 12 * scale;
   let tool = toolButton(toolX, "zoom-out", () => { const z = zoomObject(); if (z) z.step(1 / 1.18); });
-  toolX = tool.nextX;
-  tool = toolButton(toolX, "replay", () => { const z = zoomObject(); if (z) z.reset(); });
   toolX = tool.nextX;
   tool = toolButton(toolX, "zoom-in", () => { const z = zoomObject(); if (z) z.step(1.18); });
   toolX = tool.nextX;
@@ -526,19 +547,59 @@ function createMatchChrome(options) {
   toolX = tool.nextX;
   toolButton(toolX, "share", shareMatch);
 
-  // 第二排(低频“设置类”)：调整按键 + 关于。放在第一排正下方，
-  // 既跟主工具条风格统一，又避开居中记分牌与右上角微信胶囊。
-  const row2Y = 16 * scale + 44 * scale + 8 * scale;
-  let tool2X = 12 * scale;
-  const adjustTool = toolButton(tool2X, "adjust", () => {
-    const editing = !inputHost.__ORIGINAL_RUNTIME_CONTROL_EDIT__;
-    inputHost.__ORIGINAL_RUNTIME_CONTROL_EDIT__ = editing;
-    // 触控读写可能落在 GameGlobal 或 globalThis 任一宿主上，两处同步以防不一致。
-    try { if (typeof globalThis !== "undefined") globalThis.__ORIGINAL_RUNTIME_CONTROL_EDIT__ = editing; } catch (error) {}
-    notify(editing ? "拖动摇杆和按钮到顺手位置，完成后点“完成”" : "按键位置已保存");
-  }, row2Y);
-  tool2X = adjustTool.nextX;
-  toolButton(tool2X, "info", showAbout, row2Y);
+  // 比分栏右侧的大按钮直接控制比赛暂停。好友客机没有权威状态修改权，
+  // 因此只显示提示；单机和好友房主复用现有 matchSync/pitch 暂停链路。
+  const pauseW = 66 * scale;
+  const pauseH = 66 * scale;
+  const pauseX = Math.min(width - 156 * scale, barX + barW + 16 * scale);
+  const pauseY = 16 * scale;
+  const pauseBg = rounded(toolLayer, pauseX, pauseY, pauseW, pauseH, 20 * scale, 0x4f812e, 0.94, 0xfff1cd, 2 * scale);
+  const pauseIcon = new PIXI.Graphics();
+  pauseIcon.__ruralPauseControl = true;
+  toolLayer.addChild(pauseIcon);
+  const pauseLabel = center(text("暂停", 10, 0xfff8dc, "900"), pauseX + pauseW / 2, pauseY + 51 * scale);
+  toolLayer.addChild(pauseLabel);
+
+  function syncPauseVisual(paused) {
+    manualPaused = !!paused;
+    pauseBg.clear();
+    pauseBg.lineStyle(2 * scale, 0xfff1cd, 0.72);
+    pauseBg.beginFill(paused ? 0xc9821f : 0x4f812e, 0.94);
+    pauseBg.drawRoundedRect(pauseX, pauseY, pauseW, pauseH, 20 * scale);
+    pauseBg.endFill();
+    pauseLabel.text = paused ? "继续" : "暂停";
+    pauseIcon.__ruralPauseState = paused ? "play" : "pause";
+    drawToolIcon(
+      pauseIcon,
+      paused ? "play" : "pause",
+      pauseX + pauseW / 2,
+      pauseY + 26 * scale,
+      27 * scale,
+      0xfff8dc,
+    );
+  }
+
+  function togglePause() {
+    const sync = inputHost.__ORIGINAL_RUNTIME_MATCH_SYNC__
+      || inputHost.window && inputHost.window.__ORIGINAL_RUNTIME_MATCH_SYNC__;
+    const role = sync && sync.role || config.localRole || "off";
+    if (config.friendPhase === "friend" && role === "guest") {
+      notify("比赛暂停由房主控制");
+      return;
+    }
+    const next = !(game.pitch && game.pitch.paused);
+    if (sync && typeof (next ? sync.pause : sync.resume) === "function") {
+      if (next) sync.pause("manual");
+      else sync.resume();
+    } else if (game.pitch && typeof (next ? game.pitch.pause : game.pitch.resume) === "function") {
+      if (next) game.pitch.pause();
+      else game.pitch.resume();
+    }
+    syncPauseVisual(next);
+  }
+
+  syncPauseVisual(!!(game.pitch && game.pitch.paused));
+  addHit(pauseX, pauseY, pauseW, pauseH, togglePause, "pause");
 
   // 关于弹窗：开源改造声明(Apache-2.0 归属) + 备案/著作权(如已填)。点空白或“知道了”关闭。
   function showAbout() {
@@ -830,6 +891,11 @@ function createMatchChrome(options) {
         shownHalf = true;
         showEvent("半场休息", "准备进入下半场", null, "half");
       }
+      const secondHalf = !!(authority ? authority.secondHalf : pitch.secondHalf);
+      if (secondHalf !== sidelineSecondHalf) drawSidelineSigns(secondHalf);
+      if (!!pitch.paused !== manualPaused && !(config.friendPhase === "friend" && config.localRole === "guest")) {
+        syncPauseVisual(!!pitch.paused);
+      }
       const ball = authority && authority.ball || pitch.ball;
       const velocity = ball && ball.velocity;
       const speed = velocity ? Math.hypot(Number(velocity.x) || 0, Number(velocity.y) || 0, Number(velocity.z) || 0) : 0;
@@ -886,6 +952,11 @@ function createMatchChrome(options) {
   return {
     root,
     showResult,
+    setPaused(paused) {
+      const target = !!paused;
+      if (target !== !!(game.pitch && game.pitch.paused)) togglePause();
+      return manualPaused;
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -898,6 +969,7 @@ function createMatchChrome(options) {
       if (touchAttached && !touchUsesStart && wxApi && wxApi.offTouchEnd) wxApi.offTouchEnd(handlePointer);
       if (mouseAttached && wxApi && wxApi.offMouseDown) wxApi.offMouseDown(handlePointer);
       if (canvasMouseAttached && matchCanvas && typeof matchCanvas.removeEventListener === "function") matchCanvas.removeEventListener("mousedown", handlePointer);
+      if (manualPaused && game.pitch && typeof game.pitch.resume === "function") game.pitch.resume();
       if (sound) sound.stopMatchAmbience();
       if (root.parent && root.parent.removeChild) root.parent.removeChild(root);
       if (root.destroy) root.destroy({ children: true });

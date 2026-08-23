@@ -31,11 +31,32 @@ function labelSize(label) {
   return { font: 11 };
 }
 
+function hierarchyMirrored(display) {
+  // setDirection 往往早于下一帧 worldTransform 更新；此时沿父链累计 X/Y 缩放
+  // 的符号，仍可识别“胸衣局部不翻、Spine 根节点翻转”的客队镜像情况。
+  let reflected = false;
+  let current = display;
+  let depth = 0;
+  while (current && depth < 12) {
+    const scale = current.scale || {};
+    const sx = Number(scale.x);
+    const sy = Number(scale.y);
+    if ((Number.isFinite(sx) ? sx : 1) * (Number.isFinite(sy) ? sy : 1) < 0) reflected = !reflected;
+    current = current.parent;
+    depth += 1;
+  }
+  if (depth) return reflected;
+  // 极少数自定义容器不暴露 parent/scale，只能回退到已计算的世界变换。
+  const transform = display && display.worldTransform;
+  return !!(transform
+    && Number(transform.a) * Number(transform.d) - Number(transform.b) * Number(transform.c) < 0);
+}
+
 function syncDirection(spine) {
   const shirt = spine && spine.sprites && spine.sprites.chest_shirt;
   const label = shirt && shirt.__ruralRegionLabel;
   if (!label || !label.scale) return;
-  label.scale.x = Number(shirt.scale && shirt.scale.x) < 0 ? -1 : 1;
+  label.scale.x = hierarchyMirrored(shirt) ? -1 : 1;
 }
 
 function ensureDirectionHook(spine) {
@@ -109,6 +130,7 @@ module.exports = {
   SIDE_SIZE,
   collectPlayerRenderers,
   displayLabel,
+  hierarchyMirrored,
   labelSize,
   attachRuntimeJerseyLabels,
 };

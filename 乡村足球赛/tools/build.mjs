@@ -114,6 +114,18 @@ function patchMatch(source) {
   source = replaceOnce(source, stateNeedle, stateReplacement, "core/states 静态构造器替换");
   source = replaceOnce(
     source,
+    'if(t.controller.shoot.isActive&&!this.skipFirstShot)return void t.states.change(ie)}t.controller.walk.isActive?t.walk():t.dribble(),t.move(t.controller.velocity)',
+    'if(t.controller.shoot.isActive&&!this.skipFirstShot)return void t.states.change(ie)}t.controller.sprint.isActive?t.run():t.controller.walk.isActive?t.walk():t.dribble(),t.move(t.controller.velocity)',
+    "持球队员冲刺提升到普通跑速",
+  );
+  source = replaceOnce(
+    source,
+    'he=T.extend("ClientDribble",{enter:function(t){t.dribble()},update:function(t,e){t.controller.walk.isActive?t.walk():t.dribble(),t.move(t.controller.velocity)},exit:function(t){t.run()}})',
+    'he=T.extend("ClientDribble",{enter:function(t){t.dribble()},update:function(t,e){t.controller.sprint.isActive?t.run():t.controller.walk.isActive?t.walk():t.dribble(),t.move(t.controller.velocity)},exit:function(t){t.run()}})',
+    "联网渲染持球冲刺保持同一速度语义",
+  );
+  source = replaceOnce(
+    source,
     'this._stadium=e,this._stadium.sectors&&M.makeSectors(this._stadium,this.baseTexture),this._stadium.fans&&M.prepare(null,this._stadium,this._redTeam,this._blueTeam,this.baseTexture,this)',
     'this._stadium=e,globalThis.__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__&&(this._stadium.fans=null),this._stadium.sectors&&M.makeSectors(this._stadium,this.baseTexture),this._stadium.fans&&M.prepare(null,this._stadium,this._redTeam,this._blueTeam,this.baseTexture,this)',
     "真机关闭高内存动态观众烘焙",
@@ -331,6 +343,18 @@ function patchShim(source) {
 }
 
 function patchStandalone(source) {
+  source = replaceOnce(
+    source,
+    'if(acPlay()){for(var gki=0;gki<mode.game.allPlayers.length;gki+=1){var gkp=mode.game.allPlayers[gki];gkp&&gkp.isGoalkeeper&&(gkp.catchSpeed*=.5,gkp.maxForce*=.65,gkp.sprintSpeed*=.78,gkp.runSpeed*=.8,gkp.interceptRange*=.6)}window.__bootTrace("gk nerf (play)")}',
+    'if(acPlay())window.__bootTrace("goalkeeper base attributes preserved");',
+    "恢复双方门将原始移动、拦截与扑救参数",
+  );
+  source = replaceOnce(
+    source,
+    'bp2&&(typeof bp2.maxForce=="number"&&(bp2.maxForce*=.8),typeof bp2.runSpeed=="number"&&(bp2.runSpeed*=.8),typeof bp2.sprintSpeed=="number"&&(bp2.sprintSpeed*=.8),typeof bp2.interceptRange=="number"&&(bp2.interceptRange*=.8),typeof bp2.catchSpeed=="number"&&(bp2.catchSpeed*=.8))',
+    'bp2&&!bp2.isGoalkeeper&&(typeof bp2.maxForce=="number"&&(bp2.maxForce*=.8),typeof bp2.runSpeed=="number"&&(bp2.runSpeed*=.8),typeof bp2.sprintSpeed=="number"&&(bp2.sprintSpeed*=.8),typeof bp2.interceptRange=="number"&&(bp2.interceptRange*=.8))',
+    "客队难度平衡不得再次削弱门将",
+  );
   source = replaceOnce(
     source,
     'refKitMap={chest_shirt:"human_shirt.png",arm_left_sleeve:',

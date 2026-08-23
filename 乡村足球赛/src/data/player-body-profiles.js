@@ -1,4 +1,4 @@
-const { RURAL_SQUAD } = require("./rural-squad");
+const { RURAL_MATCH_LINEUP_INDEXES, RURAL_SQUAD } = require("./rural-squad");
 
 const MIN_VISUAL_SCALE = 0.88;
 const MAX_VISUAL_SCALE = 1.12;
@@ -91,7 +91,9 @@ function applyKitFit(renderer, profile) {
 }
 
 const PLAYER_PROFILE_SEQUENCE = Object.freeze(
-  RURAL_SQUAD.slice(0, RUNTIME_SIDE_SIZE).map((player) => player.bodyProfile),
+  RURAL_MATCH_LINEUP_INDEXES.red
+    .concat(RURAL_MATCH_LINEUP_INDEXES.blue)
+    .map((squadIndex) => RURAL_SQUAD[squadIndex].bodyProfile),
 );
 
 function clamp(value, minimum, maximum) {
@@ -148,7 +150,9 @@ function createBodyProfileController(options) {
     if (Number.isFinite(playerId) && playerOverrides[Math.trunc(playerId)]) {
       return playerOverrides[Math.trunc(playerId)];
     }
-    return PLAYER_PROFILE_SEQUENCE[rendererIndex(renderer, index)] || "balanced";
+    const runtimeId = renderer && renderer.player && Number(renderer.player.id);
+    const sequenceIndex = Number.isFinite(runtimeId) ? Math.trunc(runtimeId) : Math.trunc(index || 0);
+    return PLAYER_PROFILE_SEQUENCE[sequenceIndex] || "balanced";
   }
 
   function applyToRenderer(renderer, index) {

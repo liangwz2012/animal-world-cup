@@ -5,6 +5,7 @@ const require = createRequire(import.meta.url);
 const {
   attachRuntimeJerseyLabels,
   displayLabel,
+  hierarchyMirrored,
   labelSize,
 } = require("../src/ui/runtime-jersey-labels.js");
 
@@ -14,9 +15,9 @@ class Point {
 }
 
 class Container {
-  constructor() { this.children = []; this.position = new Point(); this.scale = new Point(1, 1); }
-  addChild(...children) { this.children.push(...children); return children[0]; }
-  removeChild(child) { this.children = this.children.filter((item) => item !== child); }
+  constructor() { this.children = []; this.position = new Point(); this.scale = new Point(1, 1); this.parent = null; }
+  addChild(...children) { for (const child of children) { child.parent = this; this.children.push(child); } return children[0]; }
+  removeChild(child) { this.children = this.children.filter((item) => item !== child); child.parent = null; }
   destroy() {}
 }
 
@@ -35,10 +36,10 @@ const PIXI = { Container, Graphics, Text };
 
 function renderer(id) {
   const shirt = new Container();
-  const spine = {
-    sprites: { chest_shirt: shirt },
-    setDirection(direction) { shirt.scale.x = direction; },
-  };
+  const spine = new Container();
+  spine.sprites = { chest_shirt: shirt };
+  spine.addChild(shirt);
+  spine.setDirection = function setDirection(direction) { this.scale.x = direction; };
   return { player: { id }, spine };
 }
 
@@ -64,6 +65,8 @@ assert.equal(
 );
 assert.equal(renderers[7].spine.sprites.chest_shirt.__ruralRegionLabel.__ruralRegionText.text, "水口");
 renderers[0].spine.setDirection(-1);
+assert.equal(renderers[0].spine.sprites.chest_shirt.scale.x, 1, "真实问题路径中胸衣局部缩放保持正值");
+assert.equal(hierarchyMirrored(renderers[0].spine.sprites.chest_shirt), true, "父级骨架镜像必须被识别");
 assert.equal(
   renderers[0].spine.sprites.chest_shirt.__ruralRegionLabel.scale.x,
   -1,

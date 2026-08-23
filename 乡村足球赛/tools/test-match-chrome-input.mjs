@@ -125,6 +125,10 @@ const game = {
     redTeam: { score: 1 },
     blueTeam: { score: 3 },
     matchTime: 5400,
+    secondHalf: false,
+    paused: false,
+    pause() { this.paused = true; },
+    resume() { this.paused = false; },
     ball: { velocity: { x: 0, y: 0, z: 0 } },
   },
 };
@@ -134,7 +138,7 @@ const inputHost = {
     red: { ownTicks: 48, shots: 10, passes: 61, slides: 11, corners: 3, throwIns: 4, goalKicks: 5 },
     blue: { ownTicks: 52, shots: 18, passes: 54, slides: 6, corners: 7, throwIns: 6, goalKicks: 4 },
   },
-  requestAnimationFrame() { return 1; },
+  requestAnimationFrame(callback) { this.__nextFrame = callback; return 1; },
   cancelAnimationFrame() {},
 };
 let homeCount = 0;
@@ -180,15 +184,47 @@ assert.match(captainPortraits.find((node) => node.__ruralCaptainFacing === "righ
 assert.match(captainPortraits.find((node) => node.__ruralCaptainFacing === "left").path, /rider-winger\.png$/, "客队 HUD 必须显示真实客队名单人物");
 assert.equal(captainPortraits.find((node) => node.__ruralCaptainFacing === "right").scale.x < 0, true, "左侧队长必须面向右侧");
 assert.equal(captainPortraits.find((node) => node.__ruralCaptainFacing === "left").scale.x > 0, true, "右侧队长必须面向左侧");
+const toolbarKinds = chrome.root.children
+  .flatMap((layer) => layer.children || [])
+  .filter((node) => node.__ruralToolKind)
+  .map((node) => node.__ruralToolKind);
+assert.deepEqual(
+  toolbarKinds,
+  ["zoom-out", "zoom-in", "home", "sound-on", "camera", "share"],
+  "比赛工具栏必须只保留缩小、放大、主页、声音、截图和分享",
+);
+assert.equal(toolbarKinds.includes("replay"), false, "无效复位按钮必须删除");
+assert.equal(toolbarKinds.includes("adjust"), false, "按键调整按钮不得继续占据比赛界面");
+assert.equal(toolbarKinds.includes("info"), false, "说明按钮不得继续占据比赛界面");
 
 // HUD 尺寸随 match-chrome 的 scale 公式（height/720*1.18，封顶 2.6）。
 // 坐标全部按公式推导，避免 HUD 布局调整后测试坐标失效。
 const S = Math.max(0.58, Math.min(720 / 720 * 1.18, 2.6));
-// 顶部工具栏第 4 个按钮（home）中心：起点 12、按钮宽 44、间距 7、命中区 y 17..61。
-const homeToolCx = (12 + 3 * (44 + 7) + 22) * S;
+// 顶部工具栏第 3 个按钮（home）中心：起点 12、按钮宽 44、间距 7、命中区 y 17..61。
+const homeToolCx = (12 + 2 * (44 + 7) + 22) * S;
 const homeToolCy = (17 + 22) * S;
 listeners.mousedown({ clientX: 20 + homeToolCx / 2, clientY: 10 + homeToolCy / 2 });
 assert.equal(homeCount, 1, "开发者工具点击主页图标必须立即调用返回主页");
+
+// 暂停按钮位于比分栏右侧，点击后必须冻结 pitch，再次点击恢复。
+const barW = Math.min(1280 * 0.5, 490 * S);
+const barX = (1280 - barW) / 2;
+const pauseCx = barX + barW + 16 * S + 33 * S;
+const pauseCy = (16 + 33) * S;
+listeners.mousedown({ clientX: 20 + pauseCx / 2, clientY: 10 + pauseCy / 2 });
+assert.equal(game.pitch.paused, true, "点击暂停必须调用真实 pitch.pause");
+assert.equal(chrome.setPaused(false), false, "继续按钮必须恢复比赛");
+assert.equal(game.pitch.paused, false);
+
+// 下半场双方实际换边后，场边队名牌也必须同步换边。
+game.pitch.secondHalf = true;
+inputHost.__nextFrame();
+const sidelineTexts = chrome.root.children[0].children.filter((node) => node instanceof Text);
+const redPlacard = sidelineTexts.find((node) => node.text === "镇");
+const bluePlacard = sidelineTexts.find((node) => node.text === "广");
+assert.ok(redPlacard.position.x > 1000, "下半场红队名牌必须移动到右侧");
+assert.ok(bluePlacard.position.x < 200, "下半场蓝队名牌必须移动到左侧");
+assert.ok(redPlacard.position.y < 260, "场边队名牌必须整体上移并避开右下操作区");
 
 chrome.showResult({ score: [1, 3] });
 // 赛果卡按钮几何（与 showResult 中公式一致）。

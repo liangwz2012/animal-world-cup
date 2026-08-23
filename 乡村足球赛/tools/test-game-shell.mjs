@@ -172,6 +172,12 @@ const expectedVocations = [
   ...ruralPlayersForSide("blue"),
 ].map((player) => player.vocation);
 const initialHomeTexts = currentNodes().filter((node) => typeof node.text === "string").map((node) => node.text);
+assert.equal(
+  initialHomeTexts.filter((value) => value === "点击右上角 ··· 转发分享").length,
+  1,
+  "首页必须只提示使用微信右上角系统转发入口",
+);
+assert.equal(initialHomeTexts.includes("分享对阵"), false, "首页不得再增加重复的独立分享按钮");
 for (const vocation of expectedVocations) {
   assert.equal(initialHomeTexts.filter((value) => value === vocation).length, 1, `首页必须显示职业标签：${vocation}`);
 }

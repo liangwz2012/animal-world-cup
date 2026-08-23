@@ -29,9 +29,11 @@ function computeControlLayout(width, height, safeArea, overrides) {
   const margin = 22 * scale;
   const stickRadius = 66 * scale;
   const thumbRadius = 30 * scale;
-  const padSize = 208 * scale;
-  const actionRadius = 31 * scale;
-  const shootRadius = 35 * scale;
+  // 原 62px 动作键在横屏手机上容易误触相邻按钮。动作区扩成 240px，五键直径
+  // 统一提升到约 74px，并把相邻中心距从 73px 放宽到 84px。
+  const padSize = 240 * scale;
+  const actionRadius = 37 * scale;
+  const shootRadius = 39 * scale;
   // 横向内边距封顶：底部两角是拇指区，横屏刘海/灵动岛在顶部中央，不应把摇杆和
   // 动作键群按整段刘海安全区(可达 ~50px)往屏幕中间推。这里只保留“圆角安全余量”
   // 级别的内边距，让两簇控件贴回左右下角——这是大屏机型“波轮太右/按钮太左”的根因修复。
@@ -47,8 +49,8 @@ function computeControlLayout(width, height, safeArea, overrides) {
   // 默认(自适配)簇中心：波轮贴左下角，动作键群贴右下角。
   let stickX = insetLeft + margin + stickRadius;
   let stickY = logicalHeight - safe.bottom - margin - stickRadius;
-  // 动作键群以中央冲刺键为中心，与 padLeft+104*scale / padTop+104*scale 对齐。
-  const padHalf = 104 * scale;
+  // 动作键群以中央射门键为中心，与 padLeft+120*scale / padTop+120*scale 对齐。
+  const padHalf = 120 * scale;
   let padCenterX = (logicalWidth - insetRight - margin - padSize) + padHalf;
   let padCenterY = (logicalHeight - safe.bottom - margin - padSize - hintReserve) + padHalf;
 
@@ -83,43 +85,43 @@ function computeControlLayout(width, height, safeArea, overrides) {
     },
     actions: {
       lob: {
-        x: padLeft + 104 * scale,
-        y: padTop + 31 * scale,
+        x: padLeft + 120 * scale,
+        y: padTop + 36 * scale,
         radius: actionRadius,
-        hitRadius: 36 * scale,
+        hitRadius: 42 * scale,
         mode: "pulse",
       },
       pass: {
-        x: padLeft + 31 * scale,
-        y: padTop + 104 * scale,
+        x: padLeft + 36 * scale,
+        y: padTop + 120 * scale,
         radius: actionRadius,
-        hitRadius: 36 * scale,
+        hitRadius: 42 * scale,
         mode: "pulse",
       },
       tackle: {
-        x: padLeft + 104 * scale,
-        y: padTop + 177 * scale,
+        x: padLeft + 120 * scale,
+        y: padTop + 204 * scale,
         radius: actionRadius,
-        hitRadius: 36 * scale,
+        hitRadius: 42 * scale,
         mode: "pulse",
       },
       shoot: {
-        x: padLeft + 104 * scale,
-        y: padTop + 104 * scale,
+        x: padLeft + 120 * scale,
+        y: padTop + 120 * scale,
         radius: shootRadius,
-        hitRadius: 40 * scale,
+        hitRadius: 44 * scale,
         mode: "hold",
       },
       sprint: {
-        x: padLeft + 177 * scale,
-        y: padTop + 104 * scale,
+        x: padLeft + 204 * scale,
+        y: padTop + 120 * scale,
         radius: actionRadius,
-        hitRadius: 36 * scale,
+        hitRadius: 42 * scale,
         mode: "hold",
       },
     },
     hint: {
-      x: padLeft + 104 * scale,
+      x: padLeft + 120 * scale,
       y: logicalHeight - safe.bottom - 43 * scale,
       width: 74 * scale,
       height: 27 * scale,
