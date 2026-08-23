@@ -17,6 +17,8 @@ const REGION_LEVELS = [
   { level: "county", label: "区县" },
   { level: "town", label: "乡镇" },
 ];
+const HOME_REGION_LEVEL_WIDTHS = [78, 78, 82, 82];
+const HOME_REGION_LEVEL_GAP = 8;
 // 首页统一使用12人乡村队半身像，不再把人物身份绑定到旧的动物球队资源键。
 const HOME_PORTRAIT_PLAYERS = Object.freeze({
   red: Object.freeze(ruralPlayersForSide("red")),
@@ -581,6 +583,25 @@ function createGameShell(options) {
     return HOME_PORTRAIT_PLAYERS[side === "blue" ? "blue" : "red"].slice();
   }
 
+  function requestHomeRegionDropdown(side, levelIndex, path, anchorX, anchorY) {
+    const safeIndex = Math.max(0, Math.min(REGION_LEVELS.length - 1, Number(levelIndex) || 0));
+    const safePath = Array.isArray(path) ? path : [];
+    dropdownRequest = {
+      side: side === "blue" ? "blue" : "red",
+      levelIndex: safeIndex,
+      title: `选择${REGION_LEVELS[safeIndex].label}`,
+      anchorX,
+      anchorY,
+    };
+    // 与直接点击首页地区芯片共用同一个原地下拉流程。
+    showRegionDropdown({ loading: true, entries: [] });
+    onAction("home-region-dropdown", normalizeConfig(config), {
+      side: dropdownRequest.side,
+      levelIndex: safeIndex,
+      parentCode: safeIndex > 0 && safePath[safeIndex - 1] ? safePath[safeIndex - 1].code : "",
+    });
+  }
+
   function homeRegionPanel(panelX, panelY, panelW, side, region, tone) {
     const isRed = side === "red";
     const path = region.path;
@@ -629,8 +650,8 @@ function createGameShell(options) {
     }
     // 四级入口始终同排可见；未选择的层级显示 XX，占位入口在上一级选好前锁定。
     const cascadeCount = REGION_LEVELS.length;
-    const selGap = 8;
-    const levelWidths = [78, 78, 82, 82];
+    const selGap = HOME_REGION_LEVEL_GAP;
+    const levelWidths = HOME_REGION_LEVEL_WIDTHS;
     const customWidth = 158;
     const rerollWidth = 80;
     const showInlineCustom = isRed && path.length >= REGION_LEVELS.length;
@@ -653,21 +674,7 @@ function createGameShell(options) {
         ? ["我的省", "我的市", "我的县", "我的乡镇"]
         : ["对方省", "对方市", "对方县", "对方乡镇"];
       regionChip(chipX, selectorY, selW, filled ? filled.shortName : placeholders[index], unlocked ? () => {
-        dropdownRequest = {
-          side,
-          levelIndex: index,
-          title: `选择${REGION_LEVELS[index].label}`,
-          anchorX: chipX + selW / 2,
-          anchorY: selectorY + 50,
-        };
-        // 点下的瞬间先同步弹出"加载中"浮层，消灭"等数据回来才出现"的竞态缝隙；
-        // 数据到达后由 main 的 showRegionDropdown 填充条目
-        showRegionDropdown({ loading: true, entries: [] });
-        onAction("home-region-dropdown", normalizeConfig(config), {
-          side,
-          levelIndex: index,
-          parentCode: index > 0 ? path[index - 1].code : "",
-        });
+        requestHomeRegionDropdown(side, index, path, chipX + selW / 2, selectorY + 50);
       } : null, !!filled);
       cursorX += selW + selGap;
     }
@@ -845,11 +852,14 @@ function createGameShell(options) {
     actionButton(430, actionY - 7, 420, "立即开赛", () => {
       const nextConfig = normalizeConfig(Object.assign({}, config, { mode: "ai" }));
       if (!nextConfig.redRegion.path.length) {
-        onAction("home-region-required", nextConfig, { resumeAction: "ai" });
+        const cascadeWidth = HOME_REGION_LEVEL_WIDTHS.reduce((sum, value) => sum + value, 0)
+          + (HOME_REGION_LEVEL_WIDTHS.length - 1) * HOME_REGION_LEVEL_GAP;
+        const provinceAnchorX = leftX + (panelW - cascadeWidth) / 2 + HOME_REGION_LEVEL_WIDTHS[0] / 2;
+        requestHomeRegionDropdown("red", 0, [], provinceAnchorX, panelY + 152);
         return;
       }
       onAction("ai", nextConfig);
-    }, { primary: true, height: 70 });
+    }, { primary: true, height: 70, releaseLockAfterAction: true });
     actionButton(880, actionY, 295, "战绩与好友", () => showModeHub("social", config), { height: 60 });
     const hint = center(text("阵型和操作说明会在开赛前显示", 18, 0xe7f0b3, "700"), 640, 655);
     design.addChild(hint);
@@ -1997,6 +2007,7 @@ function createGameShell(options) {
     get modeHub() { return modeHubState; },
     get friendState() { return friendState ? Object.assign({}, friendState) : null; },
     get regionPicker() { return normalizeRegionPicker(regionPickerState); },
+    get regionDropdown() { return dropdownState ? Object.assign({}, dropdownState) : null; },
     get campaign() { return normalizeCampaignState(campaignState); },
     get onlineFeatures() { return normalizeOnlineFeatures(onlineFeatures); },
     setProgress,

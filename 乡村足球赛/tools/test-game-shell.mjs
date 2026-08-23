@@ -406,14 +406,18 @@ shell.showHome(defaults());
 const startPoint = pointAt(640, 580);
 touchStart({ touches: [{ clientX: startPoint.clientX * 3, clientY: startPoint.clientY * 3 }] });
 await new Promise((resolve) => setTimeout(resolve, 130));
-assert.equal(action, "home-region-required", "未选地区时高 DPI 真机点击开赛必须先触发家乡省份选择");
-assert.deepEqual(actionPayload, { resumeAction: "ai" });
+assert.equal(action, "home-region-dropdown", "未选地区时高 DPI 真机点击开赛必须展开首页原有省份下拉框");
+assert.deepEqual(actionPayload, { side: "red", levelIndex: 0, parentCode: "" });
+assert.equal(shell.screen, "home", "引导选地区时必须留在首页，不得跳全屏弹窗");
+assert.equal(shell.regionDropdown && shell.regionDropdown.title, "选择省份");
+assert.equal(shell.regionDropdown && shell.regionDropdown.loading, true, "省份数据返回前应立即显示原地加载浮层");
 
 action = null;
 shell.showHome(defaults());
 mouseDown(pointAt(640, 580));
 await new Promise((resolve) => setTimeout(resolve, 130));
-assert.equal(action, "home-region-required", "未选地区时 PC 鼠标点击开赛也必须先触发家乡省份选择");
+assert.equal(action, "home-region-dropdown", "未选地区时 PC 鼠标点击开赛也必须展开首页省份下拉框");
+assert.equal(shell.screen, "home");
 
 action = null;
 shell.showHome(regionalConfig);
@@ -512,7 +516,8 @@ gatedShell.showHome(defaults()); // 实际应用会切入排行榜并重置导�
 action = null;
 gatedCanvasListeners.mousedown(pointAt(640, 580));
 await new Promise((resolve) => setTimeout(resolve, 130));
-assert.equal(action, "home-region-required", "好友入口关闭时，未选地区的立即开赛仍必须先选家乡队");
+assert.equal(action, "home-region-dropdown", "好友入口关闭时，未选地区的立即开赛仍必须展开原有省份下拉框");
+assert.equal(gatedShell.screen, "home");
 gatedShell.destroy();
 
 // 新手引导：首次未看过 → showTutorial 必须切到引导遮罩
