@@ -1,4 +1,5 @@
 const { installMiniWindow } = require("../platform/adapter");
+const { warmImageDataUriCache } = require("../platform/adapter");
 const { installTouchInput } = require("../input/touch");
 const { installDesktopKeyboardInput } = require("../input/desktop-keyboard");
 const { createMatchSyncBridge } = require("../net/match-sync");
@@ -7,7 +8,6 @@ const { createDynamicJerseyComposer } = require("../ui/dynamic-jersey");
 const { createMatchWatchdog } = require("../data/match-watchdog");
 const { attachRuntimeJerseyLabels } = require("../ui/runtime-jersey-labels");
 const { createBodyProfileController } = require("../data/player-body-profiles");
-const { createFanSpriteVisibilityBridge } = require("../data/fan-sprite-visibility");
 const RURAL_RACE_CATALOG = require("../../generated/rural-race-catalog.static");
 
 const IDENTITY = "original-runtime-latest";
@@ -296,6 +296,54 @@ async function loadRegionDataSubpackage(wxApi) {
     }
   }
   throw lastError || new Error("region_data 分包加载失败");
+}
+
+// 首局比赛资源清单：球员分层部件 + 球场纹理 + 裁判装备 + 共享小图。
+// 仅收集确定存在于运行包内的路径；个别缺失文件由预热函数自行安全跳过。
+function collectWarmImagePaths() {
+  const paths = [];
+  for (const id of Object.keys(RURAL_RACE_CATALOG)) {
+    const skin = RURAL_RACE_CATALOG[id];
+    for (const slot of Object.keys(skin || {})) {
+      const part = skin[slot];
+      if (part && part.name) paths.push(`data/player/races/${id}/${part.name}`);
+    }
+  }
+  // 48名看台群众只新增正背头像，其余身体部件复用已预热的人类骨架素材。
+  for (let index = 1; index <= 48; index += 1) {
+    const id = `crowd_${String(index).padStart(2, "0")}`;
+    paths.push(`data/player/races/${id}/head.png`, `data/player/races/${id}/head_back.png`);
+  }
+  paths.push(
+    "data/stadiums/common/goal.png",
+    "data/stadiums/common/other.png",
+    "data/stadiums/common/rural_crowd.png",
+    "data/stadiums/common/fans.png",
+    "data/stadiums/international/stadium_left.jpg",
+    "data/stadiums/international/stadium_right.jpg",
+    "data/stadiums/international/other.png",
+    "data/stadiums/international/filter.png",
+    "data/stadiums/international/fansmask.png",
+    "data/balls/classic_1/texture.png",
+    "images/dirt.png",
+    "images/flag/overlay.png",
+    "images/flag/shape.png",
+    "images/depth_mask.png",
+    "images/ball_air_flow.png",
+    "images/team_spot_red.png",
+    "images/team_spot_blue.png",
+    "images/shadow.png",
+    "images/particles/hit.png",
+  );
+  for (const name of [
+    "human_shirt", "human_shirt_front", "human_shirt_back",
+    "human_sleeve_left", "human_sleeve_right", "human_shorts", "human_shorts_leg",
+    "human_socks", "human_shoes", "human_head", "human_head_back", "human_neck",
+    "human_arm_left", "human_arm_right", "human_hand_left", "human_hand_right", "human_knee",
+  ]) {
+    paths.push(`rural-football/kit-ref/${name}.png`);
+  }
+  return paths;
 }
 
 // 全局钩子（wx.onError / unhandledrejection / window.error）是最后的安全网，
@@ -753,13 +801,6 @@ async function bootOriginalRuntime(options) {
   const matchSync = createMatchSyncBridge({ role: "off" });
   bindMatchSyncState(root, inputHost, matchSync);
 
-  // 动态观众需要把身体与头部分开烘焙。原引擎 sprites 表允许空槽位，不能让
-  // 压缩引擎代码直接访问 `.visible`；统一通过已测试的空值安全桥接模块操作。
-  const fanSpriteVisibility = createFanSpriteVisibilityBridge();
-  for (const target of [root, root.window, inputHost, inputHost.window]) {
-    if (target) target.__RURAL_FAN_SPRITE_VISIBILITY__ = fanSpriteVisibility;
-  }
-
   if (!options.onPlatformReady && wxApi && wxApi.showLoading) wxApi.showLoading({ title: "原版引擎加载中", mask: true });
   if (typeof options.onProgress === "function") options.onProgress(0);
   // 必须先等分包落盘再加载引擎模块：i18n 等 AMD 模块工厂在 require 时会
@@ -832,6 +873,21 @@ async function bootOriginalRuntime(options) {
   }
   setStage("B1_MODULES_REGISTERED", `modules=${moduleCount}`);
   if (typeof options.onProgress === "function") options.onProgress(100);
+
+  // 首局资源后台预热：此时两个分包已落盘、引擎已就绪，趁用户在首页选队，
+  // 把比赛图片提前读成 base64 缓存，首局 82-98% 加载段只剩解码。
+  setTimeout(() => {
+    try {
+      const warmCount = warmImageDataUriCache(
+        collectWarmImagePaths(),
+        wxApi,
+        typeof globalThis !== "undefined" ? globalThis : root,
+      );
+      console.info("[original-runtime-latest] 比赛图片缓存预热已排队", `files=${warmCount}`);
+    } catch (warmError) {
+      console.warn("[original-runtime-latest] 图片预热失败（不影响开局）", warmError && warmError.message || warmError);
+    }
+  }, 600);
 
   const runtimeEvents = bindRuntimeEventBus(root, inputHost);
   // 球员卡死看门狗：真机出现过外场球员整场钉住不动的独有异常（无头仿真证明

@@ -87,12 +87,13 @@ async function main() {
   if (!generatedMatch.includes("Object.defineProperty(n,\"name\"")) throw new Error("状态构造器静态替换未生效");
   if (!generatedMatch.includes("__ORIGINAL_RUNTIME_GET_CRITICAL_TEXTURE__")) throw new Error("原版指示器仍依赖易失 Pixi 全局纹理缓存");
   if (!generatedMatch.includes("dynamic rural villagers placed:")) throw new Error("原生动态村民观众未接入");
-  if (!generatedMatch.includes("Math.min(t.fans.maxSkins||24,i.length)")) throw new Error("动态观众低内存皮肤上限未生效");
-  if (!generatedMatch.includes("t.fans.renderScale||4")) throw new Error("动态观众 4x 纹理上限未生效");
-  if (!generatedMatch.includes("__rfHead") || !generatedMatch.includes("lookAtBall:")) throw new Error("动态观众头部追球层未接入");
-  if (!generatedMatch.includes("lookAngle=Math.atan2(1024-O,2048-M)")
-    || !generatedMatch.includes("baseRotation=lookAngle+Math.PI/2")) {
-    throw new Error("动态观众未按座位朝向球场中央");
+  if (!generatedMatch.includes("Math.min(t.fans.maxSkins||48,i.length)")) throw new Error("动态观众 48 套混合皮肤上限未生效");
+  if (!generatedMatch.includes("t.fans.renderScale||3")) throw new Error("动态观众 3x 纹理上限未生效");
+  if (!generatedMatch.includes("var D=M>2048?-1:1") || !generatedMatch.includes("F.scale.x=w*V*D")) {
+    throw new Error("动态观众未沿用原生网页版左右侧脸朝向");
+  }
+  if (generatedMatch.includes("__rfHead") || generatedMatch.includes("lookAngle=Math.atan2")) {
+    throw new Error("已废弃的独立大头像/整人径向旋转路径重新混入构建");
   }
   if (generatedMatch.includes('Texture.fromFrame("indicators/sight.png")')) throw new Error("sight 指示器仍直接调用 Texture.fromFrame");
   if (generatedMatch.includes('Sprite.fromFrame("indicators/header.png")')) throw new Error("header 指示器仍直接调用 Sprite.fromFrame");
@@ -111,6 +112,8 @@ async function main() {
   if (!generatedStandalone.includes("critical texture cache gate failed: indicators/sight.png")) throw new Error("比赛启动缺少关键纹理缓存硬闸门");
   if (!generatedStandalone.includes("safe profile: skip dynamic fans atlas")) throw new Error("安全设备画像仍可能卡在动态观众图集生成");
   if (!generatedStandalone.includes("fans.load timeout: continue without dynamic fans")) throw new Error("桌面动态观众加载缺少超时兜底");
+  if (!generatedStandalone.includes("if(barrierEntered||!fansReady||!gameReady)return")) throw new Error("观众与比赛资源缺少双就绪屏障");
+  if (!generatedStandalone.includes("game.load begin (parallel)") || !generatedStandalone.includes("fans.load begin (parallel)")) throw new Error("观众与比赛资源仍在串行加载");
   if (generatedStandalone.includes("RuntimeBackedGame") || generatedStandalone.includes("fallback")) throw new Error("发现不允许的回退路径");
 
   const bootSource = await fs.readFile(path.join(projectDir, "src/boot/start.js"), "utf8");
@@ -138,7 +141,10 @@ async function main() {
   if (!appSource.includes("campaign: campaignView(),\n        onlineFeatures,")) {
     throw new Error("启动早期缓存的云端开关没有传入首页，后期开启好友入口可能不生效");
   }
-  if (!appSource.includes("82 + raw * 0.16")) throw new Error("比赛核心资源进度未映射到 82%-98%");
+  if (!appSource.includes("82 + raw * 0.14")) throw new Error("比赛核心资源进度未映射到 82%-96%");
+  if (!appSource.includes('addEventListener("ab-load-stage"') || !appSource.includes("parallelLoadState.fans && parallelLoadState.game")) throw new Error("比赛双就绪阶段进度未接入主包");
+  if (!appSource.includes("shareRegionContextForLaunch") || !appSource.includes("appendShareRegionQuery")) throw new Error("地域分享继承未接入冷/热启动与分享载荷");
+  if (!appSource.includes("shareUnlockEnabled: false")) throw new Error("首发不得通过云端打开分享解锁");
   if (bootSource.includes('reportFatal(new Error("B3 操控失败')) throw new Error("B3 可恢复操控问题不应再显示阻塞式致命弹窗");
   if (!touchSource.includes("primary.active = true")) throw new Error("松手归零所需的持续 active 语义缺失");
   if (!platformSource.includes('navigator, "getGamepads", () => []')) throw new Error("微信真机缺少 Gamepad API 的逐帧异常兼容未生效");

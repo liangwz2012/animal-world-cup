@@ -7,6 +7,8 @@ class SoundBank {
   constructor(wxApi) {
     this.wx = wxApi;
     this.muted = false;
+    this.paused = false;
+    this.ambienceActive = false;
     this.loops = {};
     this.oneshots = new Set();
   }
@@ -23,7 +25,7 @@ class SoundBank {
 
   play(id, options) {
     options = options || {};
-    if (this.muted) return null;
+    if (this.muted || this.paused) return null;
     const audio = this.create(id, false, options.volume == null ? 0.75 : options.volume);
     if (!audio) return null;
     const cleanup = () => {
@@ -38,7 +40,7 @@ class SoundBank {
   }
 
   startLoop(slot, id, volume) {
-    if (this.muted || this.loops[slot]) return;
+    if (this.muted || this.paused || this.loops[slot]) return;
     const audio = this.create(id, true, volume);
     if (!audio) return;
     this.loops[slot] = audio;
@@ -57,26 +59,58 @@ class SoundBank {
   }
 
   startMatchAmbience() {
+    this.ambienceActive = true;
+    if (this.paused) return;
     this.startLoop("crowd", "crowd_ambience", 0.28);
     this.startLoop("music", "music_bed", 0.16);
   }
 
   stopMatchAmbience() {
+    this.ambienceActive = false;
+    this.paused = false;
     this.stopLoop("crowd");
     this.stopLoop("music");
+  }
+
+  pauseMatchAmbience() {
+    if (this.paused) return false;
+    this.paused = true;
+    for (const audio of Object.values(this.loops)) {
+      try { if (audio && typeof audio.pause === "function") audio.pause(); } catch (error) {}
+    }
+    for (const audio of this.oneshots) {
+      try { audio.stop(); } catch (error) {}
+      try { audio.destroy(); } catch (error) {}
+    }
+    this.oneshots.clear();
+    return true;
+  }
+
+  resumeMatchAmbience() {
+    if (!this.paused) return false;
+    this.paused = false;
+    if (this.muted || !this.ambienceActive) return true;
+    for (const slot of Object.keys(this.loops)) {
+      const audio = this.loops[slot];
+      try { if (audio && typeof audio.play === "function") audio.play(); } catch (error) {}
+    }
+    if (!this.loops.crowd) this.startLoop("crowd", "crowd_ambience", 0.28);
+    if (!this.loops.music) this.startLoop("music", "music_bed", 0.16);
+    return true;
   }
 
   setMuted(value) {
     this.muted = !!value;
     if (this.muted) {
-      this.stopMatchAmbience();
+      this.stopLoop("crowd");
+      this.stopLoop("music");
       for (const audio of this.oneshots) {
         try { audio.stop(); } catch (error) {}
         try { audio.destroy(); } catch (error) {}
       }
       this.oneshots.clear();
     } else {
-      this.startMatchAmbience();
+      if (this.ambienceActive && !this.paused) this.startMatchAmbience();
       this.play("ui_select", { volume: 0.5 });
     }
   }

@@ -33,6 +33,7 @@ const { createLeaderboardClient } = require("../net/leaderboard-client");
 const { createSeasonJourney } = require("../data/season-journey");
 const { createDailyChallenge } = require("../data/daily-challenge");
 const { regionalShareTitle } = require("../data/regional-share");
+const { appendShareRegionQuery, shareRegionContextForLaunch } = require("../data/share-region-context");
 const { isDesktopWechat } = require("../input/desktop-keyboard");
 
 // 仅用于开发者工具无法把鼠标转换成 wx.onTouch 的衔接验收；提交前保持 false。
@@ -43,6 +44,12 @@ const DEV_AUTO_RETURN_HOME_REMATCH = false;
 function startRuralFootballApp() {
   const wxApi = typeof wx !== "undefined" ? wx : null;
   const globalObject = typeof globalThis !== "undefined" ? globalThis : {};
+  let initialLaunchOptions = {};
+  try {
+    initialLaunchOptions = wxApi && typeof wxApi.getLaunchOptionsSync === "function"
+      ? wxApi.getLaunchOptionsSync() || {}
+      : {};
+  } catch (error) {}
   let shell = null;
   let runtime = null;
   let activeChrome = null;
@@ -51,6 +58,7 @@ function startRuralFootballApp() {
   let leaderboardClient = null;
   let playGate = null;
   let pendingLaunchOptions = null;
+  let lastAppliedShareRegionKey = "";
   let devMatchStarts = 0;
   let currentMatchStartedAt = 0;
   // 首页先行：引擎与资源分包在后台继续加载。若用户在就绪前点开赛，
@@ -143,6 +151,35 @@ function startRuralFootballApp() {
     }
     pendingLaunchOptions = null;
     return !!(friendCoordinator && friendCoordinator.handleLaunchOptions(entry || {}));
+  }
+
+  function hasFriendInvite(entry) {
+    const query = entry && entry.query && typeof entry.query === "object" ? entry.query : {};
+    return typeof query.invite === "string" && query.invite.length > 0;
+  }
+
+  function applyShareRegionLaunch(entry) {
+    const parsed = shareRegionContextForLaunch(entry);
+    if (!parsed.ok || parsed.key === lastAppliedShareRegionKey) return Promise.resolve(false);
+    lastAppliedShareRegionKey = parsed.key;
+    return createRegionTeamSelection({ path: parsed.codes }, { wxApi })
+      .then((selection) => updateHomeOpponent(applySelection(currentConfig, "red", selection)))
+      .then(() => {
+        console.info("[rural-football-app] SHARE_REGION_APPLIED", parsed.key);
+        return true;
+      })
+      .catch((error) => {
+        if (lastAppliedShareRegionKey === parsed.key) lastAppliedShareRegionKey = "";
+        console.warn("[rural-football-app] 地域分享参数无效，回落本机家乡队", error && error.message || error);
+        return false;
+      });
+  }
+
+  function handleLaunchOptions(entry) {
+    const source = entry || {};
+    if (hasFriendInvite(source)) return Promise.resolve(handleFriendLaunchOptions(source));
+    handleFriendLaunchOptions(source);
+    return applyShareRegionLaunch(source);
   }
 
   applyOnlineFeatures(onlineFeatures);
@@ -1159,6 +1196,7 @@ function startRuralFootballApp() {
               || regionalShareTitle(currentConfig, onlineFeatures.regionalShare),
             imageUrl: context.inputHost.__RURAL_FOOTBALL_LAST_SHARE_CARD__
               || context.inputHost.__RURAL_FOOTBALL_LAST_SCREENSHOT__ || undefined,
+            query: appendShareRegionQuery("", currentConfig.redRegion),
           };
           return friendCoordinator ? friendCoordinator.sharePayload(base) : base;
         });
@@ -1198,10 +1236,15 @@ function startRuralFootballApp() {
           submitRankedResult(recorded, resultConfig || currentConfig);
         },
       });
-      homeRegionRestorePromise = storedHomeRegion
+      const initialSharedRegion = shareRegionContextForLaunch(initialLaunchOptions);
+      const initialRegionSource = initialSharedRegion.ok
+        ? { path: initialSharedRegion.codes, customName: "" }
+        : storedHomeRegion;
+      if (initialSharedRegion.ok) lastAppliedShareRegionKey = initialSharedRegion.key;
+      homeRegionRestorePromise = initialRegionSource
         ? createRegionTeamSelection({
-          path: storedHomeRegion.path.map((item) => item.code),
-          customName: storedHomeRegion.customName,
+          path: initialRegionSource.path.map((item) => typeof item === "string" ? item : item.code),
+          customName: initialRegionSource.customName,
         }, { wxApi }).then((selection) => updateHomeOpponent(applySelection(currentConfig, "red", selection)))
           .catch((error) => {
             console.warn("[rural-football-app] 恢复上次家乡队失败，回落空选择", error && error.message || error);
@@ -1210,13 +1253,11 @@ function startRuralFootballApp() {
         : Promise.resolve(currentConfig);
       if (context.wxApi && typeof context.wxApi.onShow === "function") {
         context.wxApi.onShow((entry) => {
-          handleFriendLaunchOptions(entry || {});
+          handleLaunchOptions(entry || {});
         });
       }
-      if (context.wxApi && typeof context.wxApi.getLaunchOptionsSync === "function") {
-        try { handleFriendLaunchOptions(context.wxApi.getLaunchOptionsSync() || {}); } catch (error) {
-          console.warn("[rural-football-app] 读取好友邀请失败", error);
-        }
+      try { handleLaunchOptions(initialLaunchOptions); } catch (error) {
+        console.warn("[rural-football-app] 读取启动分享参数失败", error);
       }
       // 首页不等引擎：主包资源已足够渲染选队页，资源分包与引擎在后台并行加载。
       // 用户在首页选队期间后台通常已就绪；就绪前点开赛会进入排队（见 beginMatch）。
@@ -1298,10 +1339,28 @@ function startRuralFootballApp() {
       || runtime.inputHost.__ruralFootballEvents
       || runtime.inputHost.window && runtime.inputHost.window.__ruralFootballEvents
       || runtime.root;
+    const parallelLoadState = { fans: false, game: false };
     if (loadingEvents && typeof loadingEvents.addEventListener === "function") {
       loadingEvents.addEventListener("ab-load-progress", (event) => {
         const raw = Math.max(0, Math.min(100, Number(event && event.detail) || 0));
-        if (shell) shell.setProgress(Math.min(98, 82 + raw * 0.16), true);
+        if (shell) shell.setProgress(Math.min(96, 82 + raw * 0.14), true);
+      });
+      loadingEvents.addEventListener("ab-load-stage", (event) => {
+        const detail = event && event.detail && typeof event.detail === "object" ? event.detail : {};
+        const stage = detail.stage || "";
+        if (stage === "parallel-start") {
+          parallelLoadState.fans = false;
+          parallelLoadState.game = false;
+        }
+        if (["fans-ready", "fans-timeout", "fans-skipped"].includes(stage)) parallelLoadState.fans = true;
+        if (stage === "game-ready") parallelLoadState.game = true;
+        if (shell) {
+          const progress = parallelLoadState.fans && parallelLoadState.game
+            ? 98
+            : parallelLoadState.game ? 96 : parallelLoadState.fans ? 90 : 82;
+          shell.setProgress(progress, true);
+        }
+        if (stage) console.info("[rural-football-app] MATCH_LOAD_STAGE", stage, `elapsed=${Number(detail.elapsed) || 0}`);
       });
     }
     if (shell) {

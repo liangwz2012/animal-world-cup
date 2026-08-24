@@ -2,6 +2,7 @@ const { TEAMS } = require("../data/game-options");
 const { RURAL_SQUAD } = require("../data/rural-squad");
 const { matchShareCaption, generateMatchShareCard } = require("./share-card");
 const { regionalShareTitle } = require("../data/regional-share");
+const { appendShareRegionQuery } = require("../data/share-region-context");
 const { features: remoteFeatures } = require("../data/feature-flags");
 const compliance = require("../data/release-compliance");
 
@@ -502,7 +503,7 @@ function createMatchChrome(options) {
     const payload = {
       title: regionalShareTitle(config, remoteFeatures() && remoteFeatures().regionalShare),
       imageUrl: lastShareCard || lastScreenshot || undefined,
-      query: `red=${config.redTeam}&blue=${config.blueTeam}`,
+      query: appendShareRegionQuery(`red=${config.redTeam}&blue=${config.blueTeam}`, config.redRegion),
     };
     if (wxApi && typeof wxApi.shareAppMessage === "function") {
       try { wxApi.shareAppMessage(payload); } catch (error) { notify("请从右上角分享"); }
@@ -562,6 +563,10 @@ function createMatchChrome(options) {
 
   function syncPauseVisual(paused) {
     manualPaused = !!paused;
+    if (sound) {
+      if (manualPaused && typeof sound.pauseMatchAmbience === "function") sound.pauseMatchAmbience();
+      if (!manualPaused && typeof sound.resumeMatchAmbience === "function") sound.resumeMatchAmbience();
+    }
     pauseBg.clear();
     pauseBg.lineStyle(2 * scale, 0xfff1cd, 0.72);
     pauseBg.beginFill(paused ? 0xc9821f : 0x4f812e, 0.94);
@@ -927,6 +932,7 @@ function createMatchChrome(options) {
   }
   if (sound) {
     sound.startMatchAmbience();
+    if (game.pitch && game.pitch.paused) sound.pauseMatchAmbience();
     sound.play("whistle_kickoff", { volume: 0.72 });
   }
   if (wxApi && typeof wxApi.onTouchStart === "function") {

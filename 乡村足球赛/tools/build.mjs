@@ -173,56 +173,32 @@ function patchMatch(source) {
   source = replaceOnce(
     source,
     'var i=t.fans.seats,r=Math.min(120,i.length);',
-    'var i=t.fans.seats,r=Math.min(t.fans.maxSkins||24,i.length);',
+    'var i=t.fans.seats,r=Math.min(t.fans.maxSkins||48,i.length);',
     "动态村民观众皮肤上限",
   );
   source = replaceOnce(
     source,
     'var n=8,s=Math.ceil(60*n),o=Math.ceil(90*n),h=s/2,l=o-6;',
-    'var n=t.fans.renderScale||4,s=Math.ceil(60*n),o=Math.ceil(90*n),h=s/2,l=o-6;',
+    'var n=t.fans.renderScale||3,s=Math.ceil(60*n),o=Math.ceil(90*n),h=s/2,l=o-6;',
     "动态村民观众纹理分辨率",
   );
   source = replaceOnce(
     source,
-    'this._fanTextures=[];var c=new a.Container;',
-    'this._fanTextures=[],this._fanHeadTextures=[];var c=new a.Container;',
-    "动态村民观众独立头部纹理池",
-  );
-  source = replaceOnce(
-    source,
     'var p=new a.RenderTexture(e,s,o);p.legacyRenderer=e,this.player.position.set(h,l),p.render(c,null,!0),this._fanTextures.push(p)',
-    'var rfBack=u>=Math.ceil(r/2);this.player.setFacing(rfBack?-1:1),this.player.setAnimation("sitting"),this.player.update(0),this.player.position.set(h,l),this.player.rotation=0,this.player.scale.set(n*.4,n*.4);var rfSprites=this.player.sprites||{},rfVisibility=window.__RURAL_FAN_SPRITE_VISIBILITY__||globalThis.__RURAL_FAN_SPRITE_VISIBILITY__;if(!rfVisibility)throw new Error("fan sprite visibility bridge unavailable");var rfVisible=rfVisibility.snapshot(rfSprites);rfVisibility.hideHead(rfSprites);var p=new a.RenderTexture(e,s,o);p.legacyRenderer=e,p.render(c,null,!0),this.player.update(.28);var p2=new a.RenderTexture(e,s,o);p2.legacyRenderer=e,p2.render(c,null,!0);rfVisibility.showOnlyHead(rfSprites);var hn=Math.max(2,Math.ceil(n/2)),hs=Math.ceil(60*hn),ho=Math.ceil(90*hn),hh=hs/2,hl=ho-6;this.player.position.set(hh,hl),this.player.scale.set(hn*.4,hn*.4);var ph=new a.RenderTexture(e,hs,ho);ph.legacyRenderer=e,ph.render(c,null,!0),rfVisibility.restore(rfSprites,rfVisible);this._fanTextures.push({body:[p,p2],head:ph,headScale:hn,headAnchorX:hh/hs,headAnchorY:hl/ho,back:rfBack})',
-    "动态村民观众双帧身体与可追球头部纹理",
-  );
-  source = replaceOnce(
-    source,
-    'var M=P[0]+m.uniform(-2,2),O=P[1]+m.uniform(-2,2),R=Math.floor(m.uniform(0,E));',
-    'var M=P[0]+m.uniform(-2,2),O=P[1]+m.uniform(-2,2),frontCount=Math.ceil(E/2),useBack=O>1024,poolStart=useBack?frontCount:0,poolSize=useBack?E-frontCount:frontCount,R=poolStart+Math.floor(m.uniform(0,Math.max(1,poolSize)));',
-    "看台上下半区选择正面或背面观众",
-  );
-  source = replaceOnce(
-    source,
-    'for(var I=0;I<8&&E>6&&S.indexOf(A[R])>=0;I++)R=Math.floor(m.uniform(0,E));',
-    'for(var I=0;I<8&&poolSize>3&&S.indexOf(A[R])>=0;I++)R=poolStart+Math.floor(m.uniform(0,Math.max(1,poolSize)));',
-    "同朝向观众池内避免连续重复",
-  );
-  source = replaceOnce(
-    source,
-    'var w=1/n,T=new a.Container;T.scale.set(1.25,1.25);var S=[],E=this._fanTextures.length,A=this._fanRaces||[];',
-    'var w=1/n,T=new a.Container;T.scale.set(1.25,1.25);var bodyLayer=new a.Container,headLayer=new a.Container,fanNodes=[];T.addChild(bodyLayer),T.addChild(headLayer);var S=[],E=this._fanTextures.length,A=this._fanRaces||[];',
-    "观众身体与头部分层批处理",
+    'var p=new a.RenderTexture(e,s,o);p.legacyRenderer=e,this.player.position.set(h,l),p.render(c,null,!0),this.player.update(.28);var p2=new a.RenderTexture(e,s,o);p2.legacyRenderer=e,p2.render(c,null,!0),this._fanTextures.push([p,p2])',
+    "动态村民观众双帧完整人物纹理",
   );
   source = replaceOnce(
     source,
     'var k=this._fanTextures[R];if(!k)continue;S.push(A[R]);if(S.length>5)S.shift();var F=new a.Sprite(k);F.anchor.set(h/s,l/o),F.scale.set(w,w),F.position.set(M,O);var D=M>2048?-1:1;F.scale.x=w*D,F.rotation=-D*(15+m.uniform(-2,2))*Math.PI/180,T.addChild(F)',
-    'var k=this._fanTextures[R];if(!k)continue;S.push(A[R]);if(S.length>5)S.shift();var body=new a.Sprite(k.body[0]);body.anchor.set(h/s,l/o),body.scale.set(w,w),body.position.set(M,O);var headSprite=new a.Sprite(k.head),headScale=1/k.headScale;headSprite.anchor.set(k.headAnchorX,k.headAnchorY),headSprite.scale.set(headScale,headScale),headSprite.position.set(M,O);var mirror=m.uniform(0,1)<.5?-1:1;body.scale.x*=mirror,headSprite.scale.x*=mirror;var lookAngle=Math.atan2(1024-O,2048-M),baseRotation=lookAngle+Math.PI/2+m.uniform(-.035,.035);body.rotation=baseRotation,headSprite.rotation=baseRotation,body.__rfSkinIndex=R,headSprite.__rfSkinIndex=R,bodyLayer.addChild(body),headLayer.addChild(headSprite),fanNodes.push({__rfBody:body,__rfHead:headSprite,__rfTextures:k.body,__rfSeatX:M,__rfSeatY:O,__rfLookAngle:lookAngle,__rfBaseY:O,__rfBaseRotation:baseRotation,__rfPhase:m.uniform(0,Math.PI*2)})',
-    "动态村民观众面向球场中心并拆分批处理头部",
+    'var k=this._fanTextures[R];if(!k)continue;S.push(A[R]);if(S.length>5)S.shift();var F=new a.Sprite(k[0]),V=m.uniform(.92,1.06);F.anchor.set(h/s,l/o),F.scale.set(w*V,w*V),F.position.set(M,O);var D=M>2048?-1:1;F.scale.x=w*V*D,F.rotation=-D*(15+m.uniform(-2,2))*Math.PI/180,F.__rfTextures=k,F.__rfBaseY=O,F.__rfBaseRotation=F.rotation,F.__rfPhase=m.uniform(0,Math.PI*2),T.addChild(F)',
+    "沿用原生网页版左右朝向，随机混排人物与体型并保留双帧动作",
   );
   source = replaceOnce(
     source,
     'this._fansContainer=T;var B=this._container;console.info("[fans] live fans placed:",T.children.length,"seats:",i.length),B&&B.addChildAt(T,1)',
-    'this._fansContainer=T,this._fanNodes=fanNodes,headLayer.children.sort(function(left,right){return(left.__rfSkinIndex||0)-(right.__rfSkinIndex||0)}),this._fanTick&&a.ticker.shared.remove(this._fanTick),this._fanElapsed=0,this._fanFrame=0;var self=this;this._fanTick=function(delta){self._fanElapsed+=delta/60;for(var parent=T;parent;parent=parent.parent)if(parent.visible===!1)return;var ballView=self.stadium&&self.stadium.ballRenderer,ballPosition=ballView&&ballView.position,bx=ballPosition?ballPosition.x/1.25:2048,by=ballPosition?ballPosition.y/1.25:1024,globalLookX=Math.max(-2.2,Math.min(2.2,(bx-2048)/2048*2.2)),globalLookY=Math.max(-1.6,Math.min(1.6,(by-1024)/1024*1.6)),nodes=self._fanNodes||[],start=self._fanFrame++%4;for(var q=start;q<nodes.length;q+=4){var fan=nodes[q],body=fan.__rfBody,headView=fan.__rfHead,wave=Math.sin(self._fanElapsed*2+fan.__rfPhase),bodyY=fan.__rfBaseY+1.2*wave,bodyRotation=fan.__rfBaseRotation+.008*wave;body.y=bodyY,body.rotation=bodyRotation;var frames=fan.__rfTextures;frames&&frames.length>1&&(body.texture=frames[(Math.floor(self._fanElapsed*2+fan.__rfPhase)&1)]);if(headView){var target=Math.atan2(by-fan.__rfSeatY,bx-fan.__rfSeatX),turn=target-fan.__rfLookAngle;for(;turn>Math.PI;)turn-=Math.PI*2;for(;turn<-Math.PI;)turn+=Math.PI*2;headView.rotation=bodyRotation+Math.max(-.24,Math.min(.24,turn))*.72,headView.x=fan.__rfSeatX+globalLookX,headView.y=bodyY+globalLookY}}};a.ticker.shared.add(this._fanTick);var B=this._container;console.info("[fans] dynamic rural villagers placed:",fanNodes.length,"skins:",r,"textureScale:",n,"lookAtBall:",!0),B&&B.addChildAt(T,1)',
-    "动态村民观众错峰摇摆、头部追球与批处理",
+    'this._fansContainer=T,this._fanTick&&a.ticker.shared.remove(this._fanTick),this._fanElapsed=0,this._fanFrame=0;var self=this;this._fanTick=function(delta){self._fanElapsed+=delta/60;for(var parent=T;parent;parent=parent.parent)if(parent.visible===!1)return;var children=T.children,start=self._fanFrame++%4;for(var q=start;q<children.length;q+=4){var fan=children[q],wave=Math.sin(self._fanElapsed*2+fan.__rfPhase);fan.y=fan.__rfBaseY+1.2*wave,fan.rotation=fan.__rfBaseRotation+.008*wave;var frames=fan.__rfTextures;frames&&frames.length>1&&(fan.texture=frames[(Math.floor(self._fanElapsed*2+fan.__rfPhase)&1)])}};a.ticker.shared.add(this._fanTick);var B=this._container;console.info("[fans] dynamic rural villagers placed:",T.children.length,"skins:",r,"textureScale:",n,"orientation:","web-left-right"),B&&B.addChildAt(T,1)',
+    "动态村民观众按原生左右朝向错峰双帧摇摆",
   );
   // 真机巨头修复主闸（配合 patchPixi，注释见其上方）：teams 打包前，resources 的
   // loadImages 必须等到每张图的尺寸真正就绪才回调 —— 否则 image_packer 建出 0 尺寸
@@ -403,7 +379,7 @@ function patchStandalone(source) {
   source = replaceOnce(
     source,
     "function reveal(){try{",
-    "function reveal(){if(self.game.__ruralRevealDone)return;self.game.__ruralRevealDone=!0;try{",
+    "function reveal(){if(self.game.__ruralRevealDone)return;self.game.__ruralRevealDone=!0;var revealMetrics=window.__RURAL_MATCH_LOAD_METRICS__||globalThis.__RURAL_MATCH_LOAD_METRICS__;revealMetrics&&!revealMetrics.firstFrameMs&&(revealMetrics.firstFrameMs=Date.now()-revealMetrics.startedAt,console.info(\"[load-barrier] first frame\",\"firstFrameMs=\"+revealMetrics.firstFrameMs));try{",
     "比赛可见首帧幂等保险",
   );
   source = replaceOnce(
@@ -446,8 +422,8 @@ function restoreStaticTextureCache(){var PIXI=runtime("pixi"),loader=PIXI&&PIXI.
   source = replaceOnce(
     source,
     'blog("fans.load"),fans.load(settings("DEFAULTS_ROOT"),function(){blog("fans.load done → game.load");try{var loader=window.__matchGame.loader||window.PIXI&&window.PIXI.loader;loader&&loader.on&&loader.on("progress",function(ldr){var pct=Math.round(ldr.progress||0);window.__loadProgress=pct,window.dispatchEvent(new CustomEvent("ab-load-progress",{detail:pct}))})}catch{}window.__matchGame.load(function(){window.__matchGame.__ruralFootballLoaded=!0;blog("game.load done → states.change(StandaloneMatch)"),window.__matchGame.states.change(createStandaloneMatchState(options)),blog("states.change returned")})})',
-    'var beginGameLoad=function(){if(window.__ruralFootballGameLoadStarted)return;window.__ruralFootballGameLoadStarted=!0;blog("game.load begin");try{var loader=window.__matchGame.loader||window.PIXI&&window.PIXI.loader;loader&&loader.on&&loader.on("progress",function(ldr){var pct=Math.round(ldr.progress||0);window.__loadProgress=pct,window.dispatchEvent(new CustomEvent("ab-load-progress",{detail:pct}))})}catch{}window.__matchGame.load(function(){window.__matchGame.__ruralFootballLoaded=!0;blog("game.load done → states.change(StandaloneMatch)"),window.__matchGame.states.change(createStandaloneMatchState(options)),blog("states.change returned")})};if(globalThis.__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__){blog("safe profile: skip dynamic fans atlas"),beginGameLoad()}else{blog("fans.load");var fansSettled=!1,fansTimer=setTimeout(function(){if(fansSettled)return;fansSettled=!0,globalThis.__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__=!0,blog("fans.load timeout: continue without dynamic fans"),beginGameLoad()},12e3);fans.load(settings("DEFAULTS_ROOT"),function(){if(fansSettled)return;fansSettled=!0,clearTimeout(fansTimer),blog("fans.load done"),beginGameLoad()})}',
-    "真机跳过动态观众图集并为桌面观众加载加超时",
+    'var parallelLoadStartedAt=Date.now(),fansReady=!!globalThis.__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__,gameReady=!1,fansSettled=fansReady,gameSettled=!1,barrierEntered=!1,fansReadyAt=fansReady?parallelLoadStartedAt:0,gameReadyAt=0,emitLoadStage=function(stage){try{window.dispatchEvent(new CustomEvent("ab-load-stage",{detail:{stage:stage,elapsed:Date.now()-parallelLoadStartedAt}}))}catch(stageError){}},enterLoadedMatch=function(){if(barrierEntered||!fansReady||!gameReady)return;barrierEntered=!0;var barrierAt=Date.now(),loadMetrics={startedAt:parallelLoadStartedAt,fansMs:fansReadyAt-parallelLoadStartedAt,gameMs:gameReadyAt-parallelLoadStartedAt,barrierMs:barrierAt-parallelLoadStartedAt,firstFrameMs:0};window.__RURAL_MATCH_LOAD_METRICS__=globalThis.__RURAL_MATCH_LOAD_METRICS__=loadMetrics,emitLoadStage("barrier-ready"),console.info("[load-barrier] ready","fansMs="+loadMetrics.fansMs,"gameMs="+loadMetrics.gameMs,"barrierMs="+loadMetrics.barrierMs),blog("parallel barrier ready → states.change(StandaloneMatch)"),window.__matchGame.states.change(createStandaloneMatchState(options)),blog("states.change returned")},beginGameLoad=function(){if(window.__ruralFootballGameLoadStarted)return;window.__ruralFootballGameLoadStarted=!0;blog("game.load begin (parallel)");try{var loader=window.__matchGame.loader||window.PIXI&&window.PIXI.loader;loader&&loader.on&&loader.on("progress",function(ldr){var pct=Math.round(ldr.progress||0);window.__loadProgress=pct,window.dispatchEvent(new CustomEvent("ab-load-progress",{detail:pct}))})}catch{}window.__matchGame.load(function(){if(gameSettled)return;gameSettled=!0,gameReady=!0,gameReadyAt=Date.now(),window.__matchGame.__ruralFootballLoaded=!0,emitLoadStage("game-ready"),blog("game.load done (waiting parallel barrier)"),enterLoadedMatch()})};emitLoadStage("parallel-start"),beginGameLoad();if(fansReady){blog("safe profile: skip dynamic fans atlas"),emitLoadStage("fans-skipped"),enterLoadedMatch()}else{blog("fans.load begin (parallel)");var fansTimer=setTimeout(function(){if(fansSettled)return;fansSettled=!0,fansReady=!0,fansReadyAt=Date.now(),globalThis.__ORIGINAL_RUNTIME_MOBILE_SAFE_FANS__=!0,emitLoadStage("fans-timeout"),blog("fans.load timeout: continue without dynamic fans"),enterLoadedMatch()},12e3);fans.load(settings("DEFAULTS_ROOT"),function(){if(fansSettled)return;fansSettled=!0,fansReady=!0,fansReadyAt=Date.now(),clearTimeout(fansTimer),emitLoadStage("fans-ready"),blog("fans.load done (waiting parallel barrier)"),enterLoadedMatch()})}',
+    "观众与比赛资源并行加载并以双就绪屏障安全入场",
   );
   source = replaceOnce(
     source,
@@ -784,19 +760,19 @@ async function main() {
       { texture: "stadium_right.jpg", position: [2560, 0], layer: "base", scale: [1.25, 1.25] },
     );
     // 恢复原生电脑网页版的座位观众系统：2342 个座位、遮罩、镜头层级全部沿用。
-    // 静态 fans/rural_crowd 围场图不再挂载；观众从24个独立普通村民种族生成，
-    // 随机球衣颜色、24 套低内存双帧皮肤复用到所有座位。
+    // 静态 fans/rural_crowd 围场图不再挂载；观众从48个独立普通村民种族生成，
+    // 随机衣服颜色、身体与体型，48 套 3x 低内存双帧皮肤复用到所有座位。
     stadiumData.sprites = stadiumData.sprites.filter(
       (sprite) => sprite.texture !== "../common/fans.png"
         && sprite.texture !== "../common/rural_crowd.png",
     );
     stadiumData.fans = stadiumData.fans || {};
     stadiumData.fans.races = Object.fromEntries(
-      Array.from({ length: 24 }, (_, index) => [`crowd_${String(index + 1).padStart(2, "0")}`, 1 / 24]),
+      Array.from({ length: 48 }, (_, index) => [`crowd_${String(index + 1).padStart(2, "0")}`, 1 / 48]),
     );
     stadiumData.fans.teamRacesRatio = 0;
-    stadiumData.fans.maxSkins = 24;
-    stadiumData.fans.renderScale = 4;
+    stadiumData.fans.maxSkins = 48;
+    stadiumData.fans.renderScale = 3;
     textAssets[stadiumJsonKey] = JSON.stringify(stadiumData);
     await fs.writeFile(path.join(stagedStadiumDir, "stadium.json"), textAssets[stadiumJsonKey]);
     await fs.rm(path.join(stagedStadiumDir, "stadium.jpg"), { force: true }); // 分包省 1.5MB

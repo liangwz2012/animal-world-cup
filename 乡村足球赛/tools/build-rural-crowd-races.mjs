@@ -6,7 +6,8 @@ import sharp from "sharp";
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const masterDir = path.join(projectDir, "美术整体替换包", "乡村观众", "masters");
 const racesDir = path.join(projectDir, "source-assets", "public", "match-runtime-min", "data", "player", "races");
-const sheetFiles = [1, 2, 3].map((index) => path.join(masterDir, `crowd-heads-${String(index).padStart(2, "0")}.webp`));
+const sideSheetFiles = [1, 2, 3, 4, 5, 6].map((index) => path.join(masterDir, `crowd-side-heads-${String(index).padStart(2, "0")}.webp`));
+const backSheetFiles = [1, 2, 3].map((index) => path.join(masterDir, `crowd-heads-${String(index).padStart(2, "0")}.webp`));
 
 function donorRace(index) {
   const number = index % 14 + 1;
@@ -14,6 +15,7 @@ function donorRace(index) {
 }
 
 function isCheckerBackground(data, offset, channels) {
+  if (channels >= 4 && data[offset + 3] < 32) return true;
   const r = data[offset];
   const g = data[offset + 1];
   const b = data[offset + 2];
@@ -68,7 +70,7 @@ function removeConnectedCheckerboard(data, info) {
     rgba[target] = data[source];
     rgba[target + 1] = data[source + 1];
     rgba[target + 2] = data[source + 2];
-    rgba[target + 3] = background[index] ? 0 : 255;
+    rgba[target + 3] = background[index] ? 0 : channels >= 4 ? data[source + 3] : 255;
   }
   // 生图棋盘偶尔在下巴外留下与边缘不连通的小白块。保留最大前景连通域，
   // 删除这些孤岛；头、耳朵、头发和颈部本身始终属于同一主体。
@@ -109,12 +111,12 @@ function removeConnectedCheckerboard(data, info) {
   return rgba;
 }
 
-async function extractHead(sheetPath, row, column) {
+async function extractHead(sheetPath, row, column, rowCount = 4) {
   const metadata = await sharp(sheetPath).metadata();
   const left = Math.round(column * metadata.width / 4);
-  const top = Math.round(row * metadata.height / 4);
+  const top = Math.round(row * metadata.height / rowCount);
   const right = Math.round((column + 1) * metadata.width / 4);
-  const bottom = Math.round((row + 1) * metadata.height / 4);
+  const bottom = Math.round((row + 1) * metadata.height / rowCount);
   const { data, info } = await sharp(sheetPath)
     .extract({ left, top, width: right - left, height: bottom - top })
     .raw()
@@ -140,36 +142,39 @@ async function extractHead(sheetPath, row, column) {
 }
 
 const manifest = [];
-for (let index = 0; index < 24; index += 1) {
+for (let index = 0; index < 48; index += 1) {
   const id = `crowd_${String(index + 1).padStart(2, "0")}`;
   const sheetIndex = Math.floor(index / 8);
   const withinSheet = index % 8;
-  const row = Math.floor(withinSheet / 2);
+  const sideRow = Math.floor(withinSheet / 4);
+  const sideColumn = withinSheet % 4;
+  const backRow = Math.floor(withinSheet / 2);
   const pair = withinSheet % 2;
-  const frontColumn = pair * 2;
-  const backColumn = frontColumn + 1;
+  const backColumn = pair * 2 + 1;
   const donor = donorRace(index);
   const targetDir = path.join(racesDir, id);
   await fs.rm(targetDir, { recursive: true, force: true });
   await fs.cp(path.join(racesDir, donor), targetDir, { recursive: true });
-  const front = await extractHead(sheetFiles[sheetIndex], row, frontColumn);
-  const back = await extractHead(sheetFiles[sheetIndex], row, backColumn);
-  await fs.writeFile(path.join(targetDir, "head.png"), front);
+  const side = await extractHead(sideSheetFiles[sheetIndex], sideRow, sideColumn, 2);
+  const back = await extractHead(backSheetFiles[sheetIndex % backSheetFiles.length], backRow, backColumn, 4);
+  await fs.writeFile(path.join(targetDir, "head.png"), side);
   await fs.writeFile(path.join(targetDir, "head_back.png"), back);
   manifest.push({
     id,
     donor,
-    master: path.basename(sheetFiles[sheetIndex]),
-    row,
-    frontColumn,
+    sideMaster: path.basename(sideSheetFiles[sheetIndex]),
+    backMaster: path.basename(backSheetFiles[sheetIndex % backSheetFiles.length]),
+    sideRow,
+    sideColumn,
+    backRow,
     backColumn,
-    frontBytes: front.length,
+    sideBytes: side.length,
     backBytes: back.length,
   });
 }
 
 await fs.writeFile(
   path.join(masterDir, "crowd-head-manifest.json"),
-  `${JSON.stringify({ version: 1, count: manifest.length, characters: manifest }, null, 2)}\n`,
+  `${JSON.stringify({ version: 2, direction: "right-facing-profile", count: manifest.length, characters: manifest }, null, 2)}\n`,
 );
-console.info(`[art:rural-audience] PASS：生成 ${manifest.length} 名独立村民观众正背头像`);
+console.info(`[art:rural-audience] PASS：生成 ${manifest.length} 名统一朝右侧脸村民观众头像（左侧看台水平镜像）`);

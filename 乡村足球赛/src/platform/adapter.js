@@ -401,6 +401,35 @@ function localImageDataUri(localPath, wxApi, global) {
   return null;
 }
 
+// 首局资源后台预热：把比赛要用的本地图片提前读成 base64 写入 IMAGE_DATA_URI_CACHE。
+// 用户选队期间完成文件 IO，首局 82-98% 加载段只剩图片解码，明显缩短等待。
+// 分批执行避免阻塞主线程；文件只读一次，多种键形（公开路径/文件系统路径）都指向同一结果。
+function warmImageDataUriCache(paths, wxApi, global) {
+  const host = global || (typeof globalThis !== "undefined" ? globalThis : null);
+  const list = (Array.isArray(paths) ? paths : []).filter((item) => typeof item === "string" && item);
+  let index = 0;
+  const step = () => {
+    const batch = list.slice(index, index + 6);
+    index += batch.length;
+    for (const input of batch) {
+      const fsForm = normalizeAssetPath(input);
+      const uri = localImageDataUri(fsForm, wxApi, host);
+      if (!uri) continue;
+      const publicForm = publicUrlForLocalPath(fsForm);
+      const keys = [
+        publicForm,
+        String(publicForm).replace(/^\/+/, ""),
+        fsForm,
+        String(fsForm).replace(/^\/+/, ""),
+      ];
+      for (const key of keys) IMAGE_DATA_URI_CACHE[key] = uri;
+    }
+    if (index < list.length) setTimeout(step, 16);
+  };
+  if (list.length) setTimeout(step, 0);
+  return list.length;
+}
+
 // ⛔ 真机根因（勿再回退到任何「拦截原生 src」的设计）：
 // 真机上 wx.createImage() 的 src 是「原生数据属性」—— getOwnPropertyDescriptor 只能
 // 看到 {value, writable}（没有可抓的 setter），但赋值其实由引擎内部的原生回调拦截以
@@ -1258,4 +1287,6 @@ function installMiniWindow(options) {
 module.exports = {
   installMiniWindow,
   normalizeAssetPath,
+  warmImageDataUriCache,
+  localImageDataUri,
 };
