@@ -1191,8 +1191,10 @@ function startRuralFootballApp() {
       }
       if (context.wxApi && context.wxApi.onShareAppMessage) {
         context.wxApi.onShareAppMessage(() => {
+          if (activeChrome && typeof activeChrome.pauseForShare === "function") activeChrome.pauseForShare();
           const base = {
-            title: context.inputHost.__RURAL_FOOTBALL_LAST_SHARE_TITLE__
+            title: activeChrome && typeof activeChrome.shareTitle === "function" && activeChrome.shareTitle()
+              || context.inputHost.__RURAL_FOOTBALL_LAST_SHARE_TITLE__
               || regionalShareTitle(currentConfig, onlineFeatures.regionalShare),
             imageUrl: context.inputHost.__RURAL_FOOTBALL_LAST_SHARE_CARD__
               || context.inputHost.__RURAL_FOOTBALL_LAST_SCREENSHOT__ || undefined,

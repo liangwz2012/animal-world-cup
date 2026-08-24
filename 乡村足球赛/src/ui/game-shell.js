@@ -8,6 +8,7 @@ const {
 } = require("../data/game-options");
 const { ruralPlayersForSide } = require("../data/rural-squad");
 const { FRIEND_ENTRY_ENABLED } = require("../net/friend-service-config");
+const { buildLoadingHints, loadingHintForElapsed } = require("./loading-hints");
 
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 720;
@@ -235,6 +236,8 @@ function createGameShell(options) {
   let targetProgress = 0;
   let shownProgress = 0;
   let progressParts = null;
+  let loadingHints = [];
+  let loadingHintStartedAt = 0;
   let rafId = null;
   let suspended = false;
   let config = normalizeConfig(options.config);
@@ -384,6 +387,8 @@ function createGameShell(options) {
     if (typeof design.removeChildren === "function") design.removeChildren();
     hitAreas = [];
     progressParts = null;
+    loadingHints = [];
+    loadingHintStartedAt = 0;
     dropdownState = null;
     dropdownLayer = null;
   }
@@ -398,6 +403,8 @@ function createGameShell(options) {
       targetProgress = shownProgress;
     }
     clearDesign();
+    loadingHints = buildLoadingHints(loadingOptions.label || "正在加载游戏资源");
+    loadingHintStartedAt = Date.now();
     addBackground();
     sprite("shell-assets/brand-logo.png", 640, 277, 318, 318, loadingOptions.freshAssets);
 
@@ -416,7 +423,7 @@ function createGameShell(options) {
     const fill = new PIXI.Graphics();
     design.addChild(fill);
     const ball = sprite("shell-assets/football.png", trackX, trackY - 4, 94, 94, loadingOptions.freshAssets);
-    const status = center(text(loadingOptions.label || "正在加载游戏资源", 22, 0xf8f3d9, "800"), 640, 494);
+    const status = center(text(loadingHints[0], 22, 0xf8f3d9, "800"), 640, 494);
     const pct = center(text(`${Math.round(shownProgress)}%`, 25, 0xf8f3d9, "800"), 640, 625);
     // 构建水印：一眼确认手机上跑的是不是最新代码。看到这个 tag = 新代码已生效。
     const buildStamp = center(text(`build ${BUILD_TAG}`, 15, 0xbcd08a, "700"), 640, 664);
@@ -488,7 +495,8 @@ function createGameShell(options) {
       return image;
     };
     runtimeSprite("shell-assets/brand-logo.png", 640, 277, 318, 318);
-    const status = center(text(label || "正在加载比赛场景", 22, 0xf8f3d9, "800"), 640, 494);
+    const runtimeHints = buildLoadingHints(label || "正在加载比赛场景");
+    const status = center(text(runtimeHints[0], 22, 0xf8f3d9, "800"), 640, 494);
     ui.addChild(status);
     const trackX = 314;
     const trackY = 557;
@@ -506,10 +514,16 @@ function createGameShell(options) {
     const ball = runtimeSprite("shell-assets/football.png", trackX, trackY - 4, 94, 94);
     const pct = center(text("0%", 25, 0xf8f3d9, "800"), 640, 625);
     ui.addChild(pct);
-    runtimeLoadingOverlay = { root, fill, ball, pct, trackX, trackY, trackW, timer: null };
+    runtimeLoadingOverlay = { root, fill, ball, pct, status, hints: runtimeHints, hintStartedAt: Date.now(), trackX, trackY, trackW, timer: null };
     updateRuntimeLoadingProgress(progress == null ? 82 : progress);
     runtimeLoadingOverlay.timer = setInterval(() => {
-      if (runtimeLoadingOverlay && runtimeLoadingOverlay.ball) runtimeLoadingOverlay.ball.rotation += 0.08;
+      if (runtimeLoadingOverlay && runtimeLoadingOverlay.ball) {
+        runtimeLoadingOverlay.ball.rotation += 0.08;
+        runtimeLoadingOverlay.status.text = loadingHintForElapsed(
+          runtimeLoadingOverlay.hints[0],
+          Date.now() - runtimeLoadingOverlay.hintStartedAt,
+        );
+      }
     }, 50);
     game.stage.addChild(root);
     return true;
@@ -954,15 +968,17 @@ function createGameShell(options) {
     design.addChild(center(text(state.subtitle, 18, 0x71805e, "700"), 640, cardY + 77));
     design.addChild(center(text("乡村友谊赛规则：无越位、无犯规", 15, 0x8a976f, "700"), 640, cardY + 101));
 
-    const formationPanelX = 120;
-    const controlsPanelX = 660;
+    // 先看操作、再看阵型：教学放左侧，阵型放右侧，降低首次进入的信息负担。
+    const controlsPanelX = 100;
+    const formationPanelX = 660;
     const contentY = cardY + 118;
-    const contentW = 500;
+    const controlsPanelW = 540;
+    const formationPanelW = 520;
     const contentH = 438;
-    rounded(design, formationPanelX, contentY, contentW, contentH, 24, 0xf2f7e5, 1, 0xc8d5ad, 1, 2.5);
-    rounded(design, controlsPanelX, contentY, contentW, contentH, 24, 0xf2f7e5, 1, 0xc8d5ad, 1, 2.5);
-    design.addChild(center(text("选择阵型", 28, 0xa44734, "900"), formationPanelX + contentW / 2, contentY + 35));
-    design.addChild(center(text("操作教学", 28, 0x315a9b, "900"), controlsPanelX + contentW / 2, contentY + 35));
+    rounded(design, formationPanelX, contentY, formationPanelW, contentH, 24, 0xf2f7e5, 1, 0xc8d5ad, 1, 2.5);
+    rounded(design, controlsPanelX, contentY, controlsPanelW, contentH, 24, 0xf2f7e5, 1, 0xc8d5ad, 1, 2.5);
+    design.addChild(center(text("选择阵型", 28, 0xa44734, "900"), formationPanelX + formationPanelW / 2, contentY + 35));
+    design.addChild(center(text("操作教学", 28, 0x315a9b, "900"), controlsPanelX + controlsPanelW / 2, contentY + 35));
 
     formationPitch(formationPanelX + 28, contentY + 78, 170, 304, config.redFormation, "red");
     design.addChild(center(text(config.redFormation, 23, 0xa44734, "900"), formationPanelX + 113, contentY + 402));
@@ -997,6 +1013,35 @@ function createGameShell(options) {
       design.addChild(center(text(label, labelSize || 14, 0x31481f, "900"), cx, cy));
     }
 
+    function tutorialShootKey(cx, cy, radius) {
+      const key = new PIXI.Graphics();
+      key.lineStyle(2, 0x426d2a, 0.82);
+      key.beginFill(0xffe6b6, 1);
+      key.drawCircle(cx, cy, radius);
+      key.endFill();
+      key.lineStyle(1.35, 0x31481f, 0.98);
+      key.drawCircle(cx, cy, radius * 0.58);
+      const points = [];
+      for (let index = 0; index < 5; index += 1) {
+        const angle = -Math.PI / 2 + index * Math.PI * 2 / 5;
+        points.push({
+          x: cx + Math.cos(angle) * radius * 0.24,
+          y: cy + Math.sin(angle) * radius * 0.24,
+        });
+      }
+      key.moveTo(points[0].x, points[0].y);
+      for (let index = 1; index < points.length; index += 1) key.lineTo(points[index].x, points[index].y);
+      key.lineTo(points[0].x, points[0].y);
+      for (const point of points) {
+        const dx = point.x - cx;
+        const dy = point.y - cy;
+        const magnitude = Math.hypot(dx, dy) || 1;
+        key.moveTo(point.x, point.y);
+        key.lineTo(cx + dx / magnitude * radius * 0.54, cy + dy / magnitude * radius * 0.54);
+      }
+      design.addChild(key);
+    }
+
     if (desktopControls) {
       const keycap = (x, y, w, h, label, primary) => {
         rounded(design, x + 2, y + 4, w, h, 10, 0x253314, 0.16, 0, 0, 0);
@@ -1019,10 +1064,10 @@ function createGameShell(options) {
       keycap(arrowsX + 112, arrowsY + 60, 54, 54, "→ 冲", false);
       design.addChild(center(text("方向键  右手动作", 18, 0x5d7350, "800"), arrowsX + 83, contentY + 270));
       keycap(controlsPanelX + 138, contentY + 300, 224, 54, "SPACE  射门", true);
-      design.addChild(center(text("电脑版微信键盘操作", 16, 0x7c8a63, "800"), controlsPanelX + contentW / 2, contentY + 371));
+      design.addChild(center(text("电脑版微信键盘操作", 16, 0x7c8a63, "800"), controlsPanelX + controlsPanelW / 2, contentY + 371));
     } else {
-      const joystickX = controlsPanelX + 145;
-      const joystickY = contentY + 230;
+      const joystickX = controlsPanelX + 138;
+      const joystickY = contentY + 192;
       const joystick = new PIXI.Graphics();
       joystick.lineStyle(5, 0x5d9038, 0.8);
       joystick.beginFill(0xffffff, 0.78);
@@ -1034,33 +1079,41 @@ function createGameShell(options) {
       joystick.drawCircle(joystickX - 20, joystickY + 19, 35);
       joystick.endFill();
       design.addChild(joystick);
-      design.addChild(center(text("左手", 20, 0x7c8a63, "800"), joystickX, contentY + 371));
+      design.addChild(center(text("左手", 20, 0x7c8a63, "800"), joystickX, contentY + 334));
 
-      const keyX = controlsPanelX + 372;
-      const keyY = contentY + 220;
+      const keyX = controlsPanelX + 410;
+      const keyY = contentY + 182;
       controlKey(keyX, keyY - 78, 36, "挑传", 0xf1f8e8, 15);
       controlKey(keyX - 78, keyY, 36, "传球", 0xf1f8e8, 15);
       controlKey(keyX, keyY, 44, "射门", 0xffe6b6, 17);
       controlKey(keyX + 78, keyY, 36, "冲刺", 0xf9c44d, 15);
       controlKey(keyX, keyY + 78, 36, "铲球", 0xf1f8e8, 15);
-      design.addChild(center(text("右手", 20, 0x7c8a63, "800"), keyX, contentY + 371));
+      design.addChild(center(text("右手", 20, 0x7c8a63, "800"), keyX, contentY + 334));
     }
 
     // 传球方向图例：比赛内的小脚印会围绕当前操控球员指向可接应队友。
-    const passHintX = controlsPanelX + 46;
-    const passHintY = contentY + 394;
-    const passHintW = contentW - 92;
-    rounded(design, passHintX, passHintY, passHintW, 32, 15, 0xe6f1d8, 1, 0xb8ca9c, 0.9, 1.5);
+    const passHintX = controlsPanelX + 36;
+    const passHintY = contentY + 362;
+    const passHintW = controlsPanelW - 72;
+    rounded(design, passHintX, passHintY, passHintW, 52, 15, 0xe6f1d8, 1, 0xb8ca9c, 0.9, 1.5);
     const paw = new PIXI.Graphics();
     paw.beginFill(0x5d9038, 0.72);
-    if (typeof paw.drawEllipse === "function") paw.drawEllipse(passHintX + 24, passHintY + 17, 5, 4);
-    else paw.drawCircle(passHintX + 24, passHintY + 17, 4.5);
-    paw.drawCircle(passHintX + 19, passHintY + 11, 2.2);
-    paw.drawCircle(passHintX + 24, passHintY + 9, 2.3);
-    paw.drawCircle(passHintX + 29, passHintY + 11, 2.2);
+    if (typeof paw.drawEllipse === "function") paw.drawEllipse(passHintX + 24, passHintY + 13, 5, 4);
+    else paw.drawCircle(passHintX + 24, passHintY + 13, 4.5);
+    paw.drawCircle(passHintX + 19, passHintY + 7, 2.2);
+    paw.drawCircle(passHintX + 24, passHintY + 5, 2.3);
+    paw.drawCircle(passHintX + 29, passHintY + 7, 2.2);
     paw.endFill();
     design.addChild(paw);
-    design.addChild(center(text("脚印＝队友传球方向 · 按传/挑找接应", 14, 0x4c6b3a, "800"), passHintX + passHintW / 2 + 10, passHintY + 16));
+    const passHintText = text("脚印＝队友传球方向 · 按传/挑找接应", 13, 0x4c6b3a, "800");
+    if (passHintText.anchor && passHintText.anchor.set) passHintText.anchor.set(0, 0.5);
+    passHintText.position.set(passHintX + 44, passHintY + 12);
+    design.addChild(passHintText);
+    tutorialShootKey(passHintX + 24, passHintY + 36, 11);
+    const shootHintText = text("长按射球，可以调整力度和方向", 13, 0x6b744f, "800");
+    if (shootHintText.anchor && shootHintText.anchor.set) shootHintText.anchor.set(0, 0.5);
+    shootHintText.position.set(passHintX + 44, passHintY + 36);
+    design.addChild(shootHintText);
 
     actionButton(340, cardY + 584, 270, "返回选队", () => {
       showHome(config);
@@ -1705,6 +1758,9 @@ function createGameShell(options) {
 
   function loop() {
     if (suspended) return;
+    if (screen === "loading" && progressParts && progressParts.status && loadingHints.length) {
+      progressParts.status.text = loadingHintForElapsed(loadingHints[0], Date.now() - loadingHintStartedAt);
+    }
     renderProgress();
     renderer.render(stage);
     rafId = (options.requestFrame || requestAnimationFrame)(loop);

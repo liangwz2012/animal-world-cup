@@ -101,8 +101,22 @@ function regionalShareTitle(config, feature) {
   return rendered && Array.from(rendered).length <= 80 ? rendered : FALLBACK_TITLE;
 }
 
+function regionalScoreShareTitle(config, score, feature) {
+  const base = regionalShareTitle(config, feature);
+  const values = Array.isArray(score) ? score : [];
+  const red = Math.max(0, Math.floor(Number(values[0]) || 0));
+  const blue = Math.max(0, Math.floor(Number(values[1]) || 0));
+  const matchup = base
+    .replace(/[，,]\s*快来踢球[！!]?$/u, "")
+    .replace(/[！!]$/u, "")
+    .trim();
+  const title = `${matchup} ${red}:${blue}！快来踢球`;
+  return matchup && Array.from(title).length <= 80 ? title : base;
+}
+
 module.exports = {
   FALLBACK_TITLE,
+  regionalScoreShareTitle,
   regionalShareTitle,
   renderTemplate,
   sideIdentity,

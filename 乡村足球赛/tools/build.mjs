@@ -454,6 +454,18 @@ function acP2(){var sync=acMatchSync();return sync&&typeof sync.acceptsRemoteInp
   );
   source = replaceOnce(
     source,
+    'function acDriveClaim(stt,user,team,pitch,bpos,live,fireKickoff){if(live&&!stt.wasLive&&fireKickoff){var wrs=stt.restartSpot,wc=pitch.center;if(wrs&&Math.abs(wrs.x-wc.x)<3&&Math.abs(wrs.y-wc.y)<3)try{window.dispatchEvent(new CustomEvent("ab-kickoff-played"))}catch{}}if(stt.wasLive=live,!live){user.team&&user.changeTeam(null),stt.restartSpot={x:bpos.x,y:bpos.y};return}if(user.team)return;var rs=stt.restartSpot,dxr=rs?bpos.x-rs.x:999,dyr=rs?bpos.y-rs.y:999,movedSq=dxr*dxr+dyr*dyr,carrier=pitch.ball.owner,ownerMine=!!(carrier&&carrier.team===team);if(ownerMine&&movedSq>.09||movedSq>1){user.changeTeam(team);var tgt=ownerMine&&!carrier.isGoalkeeper?carrier:null;if(!tgt)for(var fps=team.fieldPlayers||team.players||[],bnd=1/0,i=0;i<fps.length;i+=1){var p=fps[i];if(p&&!p.isGoalkeeper&&p.position){var d=Math.hypot(p.position.x-bpos.x,p.position.y-bpos.y);d<bnd&&(bnd=d,tgt=p)}}if(tgt&&user.takeControl&&user.player!==tgt)try{user.takeControl(tgt)}catch{}}}',
+    'function acDriveClaim(stt,user,team,pitch,bpos,live,fireKickoff){if(live&&!stt.wasLive&&fireKickoff){var wrs=stt.restartSpot,wc=pitch.center;if(wrs&&Math.abs(wrs.x-wc.x)<3&&Math.abs(wrs.y-wc.y)<3)try{window.dispatchEvent(new CustomEvent("ab-kickoff-played"))}catch{}}if(stt.wasLive=live,!live){user.team&&user.changeTeam(null),stt.restartSpot={x:bpos.x,y:bpos.y};return}try{user.team!==team&&user.changeTeam(team)}catch(teamError){console.warn("[control-claim] changeTeam failed",teamError&&teamError.message||teamError)}var current=user.player,currentListed=!pitch.players||pitch.players.indexOf(current)>=0,currentLinked=!current||(!current.user||current.user===user)&&(!current.controller||current.controller===user.controller),currentValid=!!(current&&current.team===team&&currentListed&&currentLinked);if(currentValid)return;var reclaimReason=!current?"missing-player":current.team!==team?"wrong-team":!currentListed?"detached-player":"broken-link",rs=stt.restartSpot,dxr=rs?bpos.x-rs.x:999,dyr=rs?bpos.y-rs.y:999,movedSq=dxr*dxr+dyr*dyr,carrier=pitch.ball.owner,ownerMine=!!(carrier&&carrier.team===team);if(ownerMine&&movedSq>.09||movedSq>1){var tgt=ownerMine&&!carrier.isGoalkeeper?carrier:null;if(!tgt)for(var fps=team.fieldPlayers||team.players||[],bnd=1/0,i=0;i<fps.length;i+=1){var p=fps[i];if(p&&!p.isGoalkeeper&&p.position){var d=Math.hypot(p.position.x-bpos.x,p.position.y-bpos.y);d<bnd&&(bnd=d,tgt=p)}}if(tgt&&user.takeControl&&user.player!==tgt){var claimStates=runtime("players/states");if(claimStates.transitionToHuman&&!claimStates.transitionToHuman(tgt)){stt.blockedRestartClaims=(stt.blockedRestartClaims||0)+1;return}try{user.takeControl(tgt),stt.reclaims=(stt.reclaims||0)+1,stt.lastReclaimReason=reclaimReason,window.__ORIGINAL_RUNTIME_CONTROL_RECLAIM__={count:stt.reclaims,reason:reclaimReason,playerId:tgt.id}}catch(controlError){console.warn("[control-claim] takeControl failed",controlError&&controlError.message||controlError)}}}}',
+    "活球期间控制权为空或失效时重新认领",
+  );
+  source = replaceOnce(
+    source,
+    'function acAutoSwitch(stt,user,pitch,live,elapsed){if(stt.switchCd=Math.max(0,(stt.switchCd||0)-elapsed),user.controller&&user.controller.togglePlayer.isActive&&(stt.switchCd=1.2),!(live&&user.player&&!user.player.hasBall&&user.team&&(stt.switchCd<=0||user.player.isGoalkeeper)))return;for(var cp=user.player,bx=pitch.ball.position.x,by=pitch.ball.position.y,fps=user.team.fieldPlayers||user.team.players,near=null,nd=1/0,fi=0;fi<fps.length;fi+=1){var fp=fps[fi];if(fp&&!fp.isGoalkeeper){var dx=fp.position.x-bx,dy=fp.position.y-by,d=Math.sqrt(dx*dx+dy*dy);d<nd&&(nd=d,near=fp)}}if(near&&near!==cp){var cdx=cp.position.x-bx,cdy=cp.position.y-by,dCp=Math.sqrt(cdx*cdx+cdy*cdy);(cp.isGoalkeeper||nd<dCp-1)&&(function(){try{user.takeControl(near),stt.switchCd=.25}catch(switchError){console.warn("[auto-switch] takeControl 失败但已拦截",switchError&&switchError.message||switchError)}})()}}',
+    'function acAutoSwitch(stt,user,pitch,live,elapsed){if(stt.switchCd=Math.max(0,(stt.switchCd||0)-elapsed),user.controller&&user.controller.togglePlayer.isActive&&(stt.switchCd=1.2),!(live&&user.player&&!user.player.hasBall&&user.team&&(stt.switchCd<=0||user.player.isGoalkeeper)))return;for(var cp=user.player,bx=pitch.ball.position.x,by=pitch.ball.position.y,fps=user.team.fieldPlayers||user.team.players,near=null,nd=1/0,fi=0;fi<fps.length;fi+=1){var fp=fps[fi];if(fp&&!fp.isGoalkeeper){var dx=fp.position.x-bx,dy=fp.position.y-by,d=Math.sqrt(dx*dx+dy*dy);d<nd&&(nd=d,near=fp)}}if(near&&near!==cp){var cdx=cp.position.x-bx,cdy=cp.position.y-by,dCp=Math.sqrt(cdx*cdx+cdy*cdy);if(cp.isGoalkeeper||nd<dCp-1){var switchStates=runtime("players/states");if(switchStates.transitionToHuman&&!switchStates.transitionToHuman(near)){stt.blockedRestartSwitches=(stt.blockedRestartSwitches||0)+1,window.__ORIGINAL_RUNTIME_RESTART_SWITCH_BLOCKED__={count:stt.blockedRestartSwitches,playerId:near.id,state:near.states&&near.states.current&&near.states.current.name||"restart"};return}(function(){try{user.takeControl(near),stt.switchCd=.25}catch(switchError){console.warn("[auto-switch] takeControl 失败但已拦截",switchError&&switchError.message||switchError)}})()}}}',
+    "角球与界外球动作完成前禁止自动切人抢占",
+  );
+  source = replaceOnce(
+    source,
     "update:function(mode,elapsed){var pitch=mode.game.pitch;if(!pitch.paused){if(acPlay()){",
     "update:function(mode,elapsed){var pitch=mode.game.pitch,matchSync=acMatchSync(),guestSync=acGuestSync(matchSync);if(!pitch.paused&&!(matchSync&&matchSync.paused)){if(guestSync){guestSync.guestTick(elapsed,mode.game)}else{if(acPlay()){",
     "客机跳过本地 AI 和物理主循环",
@@ -481,6 +493,18 @@ function acP2(){var sync=acMatchSync();return sync&&typeof sync.acceptsRemoteInp
     "if(ownerMine&&movedSq>.09||movedSq>1){",
     "if(ownerMine&&movedSq>.09||movedSq>1||window.__ORIGINAL_RUNTIME_FORCE_HUMAN_CONTROL__){",
     "玩家立即认领红队",
+  );
+  source = replaceOnce(
+    source,
+    '"signal:pitch.Pitch.states.Goal.onEnter":function(game){',
+    '"signal:pitch.Pitch.states.Goal.onEnter":function(game,goalState,scoringTeam,goalScorer,goalUser){',
+    "进球事件接收实际触球球员",
+  );
+  source = replaceOnce(
+    source,
+    'window.dispatchEvent(new CustomEvent("ab-goal",{detail:{red:redTeam.id||redId,blue:blueTeam.id||blueId,score:[game.pitch.redTeam.score|0,game.pitch.blueTeam.score|0]}}))',
+    'window.dispatchEvent(new CustomEvent("ab-goal",{detail:{red:redTeam.id||redId,blue:blueTeam.id||blueId,score:[game.pitch.redTeam.score|0,game.pitch.blueTeam.score|0],scoringSide:gSide,scorerId:goalScorer&&Number.isFinite(goalScorer.id)?goalScorer.id:-1,scorerSide:goalScorer&&goalScorer.team===game.pitch.blueTeam?"blue":goalScorer&&goalScorer.team===game.pitch.redTeam?"red":gSide,ownGoal:!!(goalScorer&&scoringTeam&&goalScorer.team!==scoringTeam)}}))',
+    "进球事件传递真实球员身份",
   );
   source = replaceOnce(
     source,

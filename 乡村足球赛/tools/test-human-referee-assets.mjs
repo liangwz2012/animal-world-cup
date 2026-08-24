@@ -101,6 +101,9 @@ async function main() {
   assert.notDeepEqual(frontShirt, baseShirt, "裁判正面必须实际写入“裁判”文字");
   assert.notDeepEqual(backShirt, baseShirt, "裁判背面必须实际写入“裁判”文字");
   assert.notDeepEqual(frontShirt, backShirt, "裁判正背文字字号布局必须分别生成");
+  const generatorSource = await fs.readFile(path.join(projectDir, "tools/build-human-referee-assets.mjs"), "utf8");
+  assert.match(generatorSource, /human_shirt_front\.png"\), 16, 28/, "裁判正面文字必须与球员胸前地区名同级放大");
+  assert.match(generatorSource, /human_shirt_back\.png"\), 15, 29/, "裁判背面文字必须保持大号并避开下方区域");
   console.info("[test:referee] PASS：标准人类裁判员已按原骨架尺寸接入，正背方向、墨黑红金乡村裁判服与回退素材均合格");
 }
 

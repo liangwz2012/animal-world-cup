@@ -544,7 +544,14 @@ assert.ok(
   currentNodes().some((node) => node.text === "脚印＝队友传球方向 · 按传/挑找接应"),
   "赛前操作教学必须解释常驻脚印的含义和使用方式",
 );
-await clickAt(473, 260); // 主队第二个阵型：3-2-1
+assert.ok(
+  currentNodes().some((node) => node.text === "长按射球，可以调整力度和方向"),
+  "赛前操作教学必须说明长按射门可调整力度和方向",
+);
+const tutorialHeading = currentNodes().find((node) => node.text === "操作教学");
+const formationHeading = currentNodes().find((node) => node.text === "选择阵型");
+assert.ok(tutorialHeading.position.x < formationHeading.position.x, "赛前弹窗必须先显示左侧操作教学，再显示右侧阵型选择");
+await clickAt(1012, 260); // 右侧阵型面板第二个阵型：3-2-1
 assert.equal(shell.screen, "prematch", "调整阵型后必须留在赛前弹窗");
 assert.equal(shell.config.redFormation, "3-2-1", "赛前弹窗修改的阵型必须写回对局配置");
 await clickAt(805, 633);

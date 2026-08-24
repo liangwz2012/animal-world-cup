@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { matchShareTitle, matchShareCaption, generateMatchShareCard } = require("../src/ui/share-card");
-const { FALLBACK_TITLE, regionalShareTitle } = require("../src/data/regional-share");
+const { FALLBACK_TITLE, regionalShareTitle, regionalScoreShareTitle } = require("../src/data/regional-share");
 const { normalizeRegionalShareFeature } = require("../src/data/remote-feature-contracts");
 
 const place = (code, parentCode, level, name, shortName) => ({ code, parentCode, level, name, officialName: name, shortName });
@@ -51,6 +51,10 @@ assert.equal(regionalShareTitle({
   redRegion: { path: [guangdong, maoming, xinyi, zhenlong] },
   blueRegion: { path: [guangdong, maoming, xinyi, shuikou] },
 }, customTemplate), "茂名市信宜市村超｜镇隆镇 VS 水口镇，开踢！");
+assert.equal(regionalScoreShareTitle({
+  redRegion: { path: [guangdong, maoming, xinyi, zhenlong], customName: "天后街队" },
+  blueRegion: { path: [guangdong, maoming, xinyi, zhenlong], customName: "金童队" },
+}, [4, 1]), "信宜镇隆天后街 VS 信宜镇隆金童 4:1！快来踢球");
 assert.equal(regionalShareTitle({}, null), FALLBACK_TITLE);
 assert.equal(regionalShareTitle({ redRegion: { path: [guangdong] }, blueRegion: { path: [jiangxi] } }, { enabled: false }), FALLBACK_TITLE);
 

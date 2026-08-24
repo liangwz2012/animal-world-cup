@@ -109,6 +109,9 @@ async function main() {
   if (!generatedStandalone.includes("guest render-only sync bridge unavailable")) throw new Error("好友客机缺少禁止本地物理的硬闸门");
   if (!generatedStandalone.includes("matchSync&&matchSync.hostTick")) throw new Error("房主权威帧导出未接入原版主循环");
   if (!generatedStandalone.includes("reset stale user failed")) throw new Error("重赛前旧用户绑定释放逻辑缺失");
+  if (!generatedStandalone.includes("__ORIGINAL_RUNTIME_CONTROL_RECLAIM__") || !generatedStandalone.includes('"missing-player"')) throw new Error("接球后空控制权自愈逻辑缺失");
+  if (!generatedStandalone.includes("__ORIGINAL_RUNTIME_RESTART_SWITCH_BLOCKED__") || !generatedStandalone.includes('runtime("players/states")')) throw new Error("角球/界外球动作缺少自动切人资格保护");
+  if (!generatedStandalone.includes("scorerId:") || !generatedStandalone.includes("scorerSide:") || !generatedStandalone.includes("ownGoal:")) throw new Error("进球事件未传递实际球员身份");
   if (!generatedStandalone.includes("critical texture cache gate failed: indicators/sight.png")) throw new Error("比赛启动缺少关键纹理缓存硬闸门");
   if (!generatedStandalone.includes("safe profile: skip dynamic fans atlas")) throw new Error("安全设备画像仍可能卡在动态观众图集生成");
   if (!generatedStandalone.includes("fans.load timeout: continue without dynamic fans")) throw new Error("桌面动态观众加载缺少超时兜底");
@@ -145,6 +148,15 @@ async function main() {
   if (!appSource.includes('addEventListener("ab-load-stage"') || !appSource.includes("parallelLoadState.fans && parallelLoadState.game")) throw new Error("比赛双就绪阶段进度未接入主包");
   if (!appSource.includes("shareRegionContextForLaunch") || !appSource.includes("appendShareRegionQuery")) throw new Error("地域分享继承未接入冷/热启动与分享载荷");
   if (!appSource.includes("shareUnlockEnabled: false")) throw new Error("首发不得通过云端打开分享解锁");
+  const chromeSource = await fs.readFile(path.join(projectDir, "src/ui/match-chrome.js"), "utf8");
+  const shellSource = await fs.readFile(path.join(projectDir, "src/ui/game-shell.js"), "utf8");
+  const loadingHintsSource = await fs.readFile(path.join(projectDir, "src/ui/loading-hints.js"), "utf8");
+  if (!chromeSource.includes("matchPlayerPortraitPath(detail.scorerId, detail.scorerSide, scorerTeamId)")) throw new Error("进球弹窗未按实际球队名单使用进球队员头像");
+  if (!shellSource.includes("loadingHintForElapsed") || !loadingHintsSource.includes("加载仍在进行，请稍后")) throw new Error("加载页提示轮换未接入");
+  if (!shellSource.includes("tutorialShootKey") || !shellSource.includes("长按射球，可以调整力度和方向")) throw new Error("赛前操作教学缺少实战足球图标与长按射门说明");
+  if (!chromeSource.includes("__ruralScoreBackgroundAlpha = 0.94") || !chromeSource.includes("__ruralSidelineBackgroundAlpha = 0.72")) throw new Error("比分牌或场边队名牌透明度未按各自视觉标准设置");
+  if (!chromeSource.includes("shareBg = rounded(toolLayer, shareX, pauseY, pauseW, pauseH, 20 * scale, 0x4f812e, 0.94")) throw new Error("分享按钮未与暂停按钮统一绿色和不透明度");
+  if (!chromeSource.includes("regionalScoreShareTitle") || !appSource.includes("pauseForShare")) throw new Error("比赛分享缺少实时比分标题或自动暂停");
   if (bootSource.includes('reportFatal(new Error("B3 操控失败')) throw new Error("B3 可恢复操控问题不应再显示阻塞式致命弹窗");
   if (!touchSource.includes("primary.active = true")) throw new Error("松手归零所需的持续 active 语义缺失");
   if (!platformSource.includes('navigator, "getGamepads", () => []')) throw new Error("微信真机缺少 Gamepad API 的逐帧异常兼容未生效");
@@ -153,6 +165,7 @@ async function main() {
   if (appSource.includes("DEV_AUTO_RETURN_HOME_REMATCH = true")) throw new Error("开发者工具自动返回重赛标记不得进入可交付构建");
   if (appSource.includes("beginMatchmaking") || appSource.includes("promptAiFallback")) throw new Error("首发审核包仍包含未接通的真人匹配逻辑");
   if (gameOptionsSource.includes('"online"')) throw new Error("首发审核包不得包含 online 模式");
+  if (!/ai:\s*0[\s\S]{0,80}time:\s*4/.test(gameOptionsSource)) throw new Error("首发默认选项必须为简单和短时长");
 
   const gameConfig = JSON.parse(await fs.readFile(path.join(projectDir, "game.json"), "utf8"));
   const projectConfig = JSON.parse(await fs.readFile(path.join(projectDir, "project.config.json"), "utf8"));

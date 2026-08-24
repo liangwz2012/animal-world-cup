@@ -97,6 +97,7 @@ class Text extends Container {
 
 const PIXI = { Container, Graphics, Sprite, Text };
 const listeners = {};
+const shareCalls = [];
 const canvasListeners = {};
 const canvas = {
   width: 2560,
@@ -111,6 +112,9 @@ const wxApi = {
   offTouchStart(handler) { if (listeners.touchstart === handler) delete listeners.touchstart; },
   onMouseDown(handler) { listeners.mousedown = handler; },
   offMouseDown(handler) { if (listeners.mousedown === handler) delete listeners.mousedown; },
+  onShow(handler) { listeners.show = handler; },
+  offShow(handler) { if (listeners.show === handler) delete listeners.show; },
+  shareAppMessage(payload) { shareCalls.push(payload); },
 };
 const runtimeEvents = {
   handlers: {},
@@ -176,6 +180,14 @@ collectTexts(chrome.root);
 assert.ok(allTexts.includes("比赛数据"), "点击比分栏后必须展开射门、传球、抢断等比赛数据");
 assert.ok(allTexts.includes("镇") && allTexts.includes("隆") && allTexts.includes("广") && allTexts.includes("州"), "场边必须一字一牌展示双方最终地名");
 assert.ok(!allTexts.includes("镇\n隆") && !allTexts.includes("广\n州"), "同一块牌不得再挤入多个地名字");
+const sidelineBackgrounds = chrome.root.children
+  .flatMap((layer) => layer.children || [])
+  .filter((node) => node.__ruralSidelineBackgroundAlpha != null);
+const sidelineLabels = chrome.root.children
+  .flatMap((layer) => layer.children || [])
+  .filter((node) => node.__ruralSidelineLabelOpaque);
+assert.ok(sidelineBackgrounds.length >= 4 && sidelineBackgrounds.every((node) => node.__ruralSidelineBackgroundAlpha === 0.72), "场边队名牌主底板必须与比分牌使用相同透明度");
+assert.ok(sidelineLabels.length >= 4 && sidelineLabels.every((node) => node.alpha === 1), "场边地名字必须保持完全不透明");
 const captainPortraits = chrome.root.children
   .flatMap((layer) => layer.children || [])
   .filter((node) => node instanceof Sprite && node.__ruralCaptainFacing);
@@ -184,18 +196,43 @@ assert.match(captainPortraits.find((node) => node.__ruralCaptainFacing === "righ
 assert.match(captainPortraits.find((node) => node.__ruralCaptainFacing === "left").path, /rider-winger\.png$/, "客队 HUD 必须显示真实客队名单人物");
 assert.equal(captainPortraits.find((node) => node.__ruralCaptainFacing === "right").scale.x < 0, true, "左侧队长必须面向右侧");
 assert.equal(captainPortraits.find((node) => node.__ruralCaptainFacing === "left").scale.x > 0, true, "右侧队长必须面向左侧");
+const scoreBackground = chrome.root.children
+  .flatMap((layer) => layer.children || [])
+  .find((node) => node.__ruralScoreBackgroundAlpha != null);
+assert.equal(scoreBackground.__ruralScoreBackgroundAlpha, 0.94, "比分牌白色底板必须与暂停键使用相同不透明度");
+assert.equal(scoreBackground.parent.alpha, 1, "比分牌文字和数字所在层必须保持完全不透明");
+
+runtimeEvents.handlers["ab-goal"]({
+  detail: { score: [2, 3], red: "england", blue: "portugal", scoringSide: "red", scorerSide: "red", scorerId: 5 },
+});
+let goalPortraits = chrome.root.children.flatMap((layer) => layer.children || []).filter((node) => node instanceof Sprite);
+assert.ok(goalPortraits.some((node) => /bamboo-craftsman\.png$/.test(node.path)), "非Argentina红方进球必须显示该球队实际名单的进球队员头像");
+runtimeEvents.handlers["ab-goal"]({
+  detail: { score: [2, 4], red: "england", blue: "portugal", scoringSide: "blue", scorerSide: "blue", scorerId: 10 },
+});
+goalPortraits = chrome.root.children.flatMap((layer) => layer.children || []).filter((node) => node instanceof Sprite);
+assert.ok(goalPortraits.some((node) => /fishpond-farmer\.png$/.test(node.path)), "蓝方进球必须显示真实进球队员头像");
+runtimeEvents.handlers["ab-goal"]({
+  detail: { score: [2, 5], red: "england", blue: "portugal", scoringSide: "blue", scorerSide: "blue", scorerId: -1 },
+});
+goalPortraits = chrome.root.children.flatMap((layer) => layer.children || []).filter((node) => node instanceof Sprite);
+assert.ok(goalPortraits.some((node) => /rider-winger\.png$/.test(node.path)), "缺失进球人ID时必须回退得分方队长");
 const toolbarKinds = chrome.root.children
   .flatMap((layer) => layer.children || [])
   .filter((node) => node.__ruralToolKind)
   .map((node) => node.__ruralToolKind);
 assert.deepEqual(
   toolbarKinds,
-  ["zoom-out", "zoom-in", "home", "sound-on", "camera", "share"],
-  "比赛工具栏必须只保留缩小、放大、主页、声音、截图和分享",
+  ["zoom-out", "zoom-in", "home", "sound-on", "camera"],
+  "左上工具栏必须只保留缩小、放大、主页、声音和截图",
 );
 assert.equal(toolbarKinds.includes("replay"), false, "无效复位按钮必须删除");
 assert.equal(toolbarKinds.includes("adjust"), false, "按键调整按钮不得继续占据比赛界面");
 assert.equal(toolbarKinds.includes("info"), false, "说明按钮不得继续占据比赛界面");
+const largeShareControls = chrome.root.children
+  .flatMap((layer) => layer.children || [])
+  .filter((node) => node.__ruralShareControl);
+assert.equal(largeShareControls.length, 2, "比分牌旁必须有大号分享按钮的背景和图标");
 
 // HUD 尺寸随 match-chrome 的 scale 公式（height/720*1.18，封顶 2.6）。
 // 坐标全部按公式推导，避免 HUD 布局调整后测试坐标失效。
@@ -206,15 +243,28 @@ const homeToolCy = (17 + 22) * S;
 listeners.mousedown({ clientX: 20 + homeToolCx / 2, clientY: 10 + homeToolCy / 2 });
 assert.equal(homeCount, 1, "开发者工具点击主页图标必须立即调用返回主页");
 
-// 暂停按钮位于比分栏右侧，点击后必须冻结 pitch，再次点击恢复。
+// 分享、暂停按钮依次位于比分栏右侧，分享时自动暂停，返回后恢复。
 const barW = Math.min(1280 * 0.5, 490 * S);
 const barX = (1280 - barW) / 2;
-const pauseCx = barX + barW + 16 * S + 33 * S;
+const shareX = Math.min(barX + barW + 16 * S, 1280 - (66 + 10 + 66 + 18) * S);
+const shareCx = shareX + 33 * S;
+const pauseCx = shareX + (66 + 10 + 33) * S;
 const pauseCy = (16 + 33) * S;
+listeners.mousedown({ clientX: 20 + shareCx / 2, clientY: 10 + pauseCy / 2 });
+assert.equal(game.pitch.paused, true, "分享过程中必须自动暂停比赛");
+assert.equal(shareCalls.length, 1);
+assert.match(shareCalls[0].title, /1:3！快来踢球$/, "比赛分享标题必须携带实时比分");
+listeners.show();
+assert.equal(game.pitch.paused, false, "从分享界面返回后必须自动继续原本运行的比赛");
 listeners.mousedown({ clientX: 20 + pauseCx / 2, clientY: 10 + pauseCy / 2 });
 assert.equal(game.pitch.paused, true, "点击暂停必须调用真实 pitch.pause");
 assert.equal(chrome.setPaused(false), false, "继续按钮必须恢复比赛");
 assert.equal(game.pitch.paused, false);
+chrome.setPaused(true);
+chrome.pauseForShare();
+listeners.show();
+assert.equal(game.pitch.paused, true, "分享前已经手动暂停时，返回后不得自动继续比赛");
+chrome.setPaused(false);
 
 // 下半场双方实际换边后，场边队名牌也必须同步换边。
 game.pitch.secondHalf = true;
@@ -257,6 +307,7 @@ chrome.destroy();
 assert.equal(listeners.touchstart, undefined, "销毁 HUD 必须注销真机触摸监听");
 assert.equal(listeners.mousedown, undefined, "销毁 HUD 必须注销开发者工具鼠标监听");
 assert.equal(canvasListeners.mousedown, undefined, "销毁 HUD 必须注销 Canvas 鼠标监听");
+assert.equal(listeners.show, undefined, "销毁 HUD 必须注销分享返回监听");
 
 inputHost.__ORIGINAL_RUNTIME_MATCH_SYNC__ = {
   role: "guest",
@@ -284,6 +335,7 @@ const collectGuestTexts = (node) => {
 collectGuestTexts(guestChrome.root);
 assert.ok(guestTexts.includes("2") && guestTexts.includes("4"), "好友 HUD 比分必须来自房主权威帧");
 assert.ok(guestTexts.includes("60'"), "好友 HUD 时间必须来自房主权威帧");
+assert.match(guestChrome.shareTitle(), /2:4！快来踢球$/, "好友客机分享必须读取房主权威比分");
 guestChrome.showResult({ score: [2, 4] });
 const guestResultTexts = [];
 const collectGuestResultTexts = (node) => {

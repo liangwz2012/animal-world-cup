@@ -1,7 +1,8 @@
 const { TEAMS } = require("../data/game-options");
 const { RURAL_SQUAD } = require("../data/rural-squad");
+const { matchPlayerPortraitPath } = require("../data/match-player-portrait");
 const { matchShareCaption, generateMatchShareCard } = require("./share-card");
-const { regionalShareTitle } = require("../data/regional-share");
+const { regionalShareTitle, regionalScoreShareTitle } = require("../data/regional-share");
 const { appendShareRegionQuery } = require("../data/share-region-context");
 const { features: remoteFeatures } = require("../data/feature-flags");
 const compliance = require("../data/release-compliance");
@@ -205,9 +206,8 @@ function createMatchChrome(options) {
   const aboutLayer = new PIXI.Container();
   root.addChild(sidelineSignLayer, scoreLayer, toolLayer, confettiLayer, eventLayer, resultLayer, aboutLayer);
   game.stage.addChild(root);
-  // 记分牌与工具按钮跟随摇杆的半透明规格（按钮整体 0.82 + 低不透明度底），
-  // 避免 HUD 遮挡球场；事件卡/彩带/战报层保持原样。
-  scoreLayer.alpha = 0.82;
+  // 记分牌只让白色底板半透明；头像、队名、时间、比分和控球率保持完全不透明。
+  scoreLayer.alpha = 1;
   toolLayer.alpha = 0.82;
 
   let destroyed = false;
@@ -233,6 +233,9 @@ function createMatchChrome(options) {
   let guestScoreInitialized = false;
   let sidelineSecondHalf = false;
   let manualPaused = false;
+  let sharePausePending = false;
+  let sharePauseWasRunning = false;
+  let shareShowAttached = false;
 
   function text(value, size, color, weight) {
     return new PIXI.Text(String(value), {
@@ -311,8 +314,9 @@ function createMatchChrome(options) {
     const signH = 52 * scale;
     const inset = 4 * scale;
     rounded(sidelineSignLayer, x + 3 * scale, y + 5 * scale, signW, signH, 11 * scale, 0x15210c, 0.22);
-    rounded(sidelineSignLayer, x, y, signW, signH, 10 * scale, lightColor, 0.94, color, 2 * scale);
-    rounded(sidelineSignLayer, x + inset, y + inset, signW - inset * 2, signH - inset * 2, 7 * scale, 0xfffdf1, 0.93, 0xffffff, 1 * scale);
+    rounded(sidelineSignLayer, x, y, signW, signH, 10 * scale, lightColor, 0.35, color, 2 * scale);
+    const signBackground = rounded(sidelineSignLayer, x + inset, y + inset, signW - inset * 2, signH - inset * 2, 7 * scale, 0xfffdf1, 0.72, 0xffffff, 1 * scale);
+    signBackground.__ruralSidelineBackgroundAlpha = 0.72;
     const pole = new PIXI.Graphics();
     pole.beginFill(color, 0.84);
     pole.drawRect(x + signW / 2 - 1.5 * scale, y + signH, 3 * scale, 8 * scale);
@@ -324,6 +328,8 @@ function createMatchChrome(options) {
     sidelineSignLayer.addChild(pole);
 
     const label = center(text(character, 27, color, "900"), x + signW / 2, y + signH / 2 - 1 * scale);
+    label.alpha = 1;
+    label.__ruralSidelineLabelOpaque = true;
     label.style.align = "center";
     sidelineSignLayer.addChild(label);
   }
@@ -374,7 +380,8 @@ function createMatchChrome(options) {
   const barX = (width - barW) / 2;
   const barY = 10 * scale;
   // 顶部比分条在亮草皮上 0.42 透明度会整体发灰，比分/队名/时间都看不清，改为近不透明
-  rounded(scoreLayer, barX, barY, barW, barH, 22 * scale, 0xfffdf1, 0.96, 0xffffff, 2 * scale);
+  const scoreBackground = rounded(scoreLayer, barX, barY, barW, barH, 22 * scale, 0xfffdf1, 0.94, 0xffffff, 2 * scale);
+  scoreBackground.__ruralScoreBackgroundAlpha = 0.94;
   const headSize = 42 * scale;
   const redCaptainPortrait = sprite(portraitPath(config.redTeam), scoreLayer, barX + 31 * scale, barY + 31 * scale, headSize, headSize);
   const blueCaptainPortrait = sprite(portraitPath(config.blueTeam), scoreLayer, barX + barW - 31 * scale, barY + 31 * scale, headSize, headSize);
@@ -437,7 +444,7 @@ function createMatchChrome(options) {
       ["球门球", "goalKicks"],
     ];
     const panelH = (rows.length * 29 + 50) * scale;
-    rounded(statsLayer, barX + 24 * scale, barY + barH - 2 * scale, barW - 48 * scale, panelH, 15 * scale, 0xfffdf1, 0.96, 0xffffff, 2 * scale);
+    rounded(statsLayer, barX + 24 * scale, barY + barH - 2 * scale, barW - 48 * scale, panelH, 15 * scale, 0xfffdf1, 0.72, 0xffffff, 2 * scale);
     const stats = readStats();
     const title = center(text("比赛数据", 15, 0x5d9038, "900"), barX + barW / 2, barY + barH + 16 * scale);
     const leftTeam = center(text(teamDisplayName(config.redTeam), 12, 0xa44734, "900"), barX + 72 * scale, barY + barH + 34 * scale);
@@ -495,18 +502,15 @@ function createMatchChrome(options) {
   }
 
   function shareMatch() {
-    const pitch = game.pitch;
-    const score = pitch && pitch.redTeam ? [pitch.redTeam.score | 0, pitch.blueTeam.score | 0] : [0, 0];
-    const localIsBlue = config.localRole === "guest" && config.friendPhase === "friend";
-    const myScore = localIsBlue ? score[1] : score[0];
-    const foeScore = localIsBlue ? score[0] : score[1];
+    const score = currentShareScore();
     const payload = {
-      title: regionalShareTitle(config, remoteFeatures() && remoteFeatures().regionalShare),
+      title: regionalScoreShareTitle(config, score, remoteFeatures() && remoteFeatures().regionalShare),
       imageUrl: lastShareCard || lastScreenshot || undefined,
       query: appendShareRegionQuery(`red=${config.redTeam}&blue=${config.blueTeam}`, config.redRegion),
     };
     if (wxApi && typeof wxApi.shareAppMessage === "function") {
-      try { wxApi.shareAppMessage(payload); } catch (error) { notify("请从右上角分享"); }
+      pauseForShare();
+      try { wxApi.shareAppMessage(payload); } catch (error) { resumeAfterShare(); notify("请从右上角分享"); }
     } else notify("请从右上角分享");
   }
 
@@ -529,7 +533,7 @@ function createMatchChrome(options) {
     };
   }
 
-  // 左上角只保留有明确用途的六项：缩小、放大、主页、声音、截图、分享。
+  // 左上角只保留缩小、放大、主页、声音、截图；分享移到比分牌旁，与暂停同规格。
   let toolX = 12 * scale;
   let tool = toolButton(toolX, "zoom-out", () => { const z = zoomObject(); if (z) z.step(1 / 1.18); });
   toolX = tool.nextX;
@@ -544,16 +548,26 @@ function createMatchChrome(options) {
     soundTool.setIcon(sound.muted ? "sound-off" : "sound-on");
   });
   toolX = soundTool.nextX;
-  tool = toolButton(toolX, "camera", captureScreenshot);
-  toolX = tool.nextX;
-  toolButton(toolX, "share", shareMatch);
+  toolButton(toolX, "camera", captureScreenshot);
 
-  // 比分栏右侧的大按钮直接控制比赛暂停。好友客机没有权威状态修改权，
-  // 因此只显示提示；单机和好友房主复用现有 matchSync/pitch 暂停链路。
+  // 比分栏右侧依次放同尺寸分享、暂停按钮；分享靠近比分牌。
   const pauseW = 66 * scale;
   const pauseH = 66 * scale;
-  const pauseX = Math.min(width - 156 * scale, barX + barW + 16 * scale);
+  const shareX = Math.min(barX + barW + 16 * scale, width - (66 + 10 + 66 + 18) * scale);
+  const pauseX = shareX + pauseW + 10 * scale;
   const pauseY = 16 * scale;
+  const shareBg = rounded(toolLayer, shareX, pauseY, pauseW, pauseH, 20 * scale, 0x4f812e, 0.94, 0xfff1cd, 2 * scale);
+  shareBg.__ruralShareControl = true;
+  const shareIcon = new PIXI.Graphics();
+  shareIcon.__ruralShareControl = true;
+  drawToolIcon(shareIcon, "share", shareX + pauseW / 2, pauseY + 26 * scale, 27 * scale, 0xfff8dc);
+  toolLayer.addChild(shareIcon);
+  const shareLabel = center(text("分享", 10, 0xfff8dc, "900"), shareX + pauseW / 2, pauseY + 51 * scale);
+  toolLayer.addChild(shareLabel);
+  addHit(shareX, pauseY, pauseW, pauseH, shareMatch, "share");
+
+  // 暂停按钮直接控制比赛。好友客机没有权威状态修改权，因此只显示提示；
+  // 单机和好友房主复用现有 matchSync/pitch 暂停链路。
   const pauseBg = rounded(toolLayer, pauseX, pauseY, pauseW, pauseH, 20 * scale, 0x4f812e, 0.94, 0xfff1cd, 2 * scale);
   const pauseIcon = new PIXI.Graphics();
   pauseIcon.__ruralPauseControl = true;
@@ -601,6 +615,32 @@ function createMatchChrome(options) {
       else game.pitch.resume();
     }
     syncPauseVisual(next);
+  }
+
+  function currentShareScore() {
+    const authority = authoritativeGuestFrame();
+    const red = authority && authority.redTeam || game.pitch && game.pitch.redTeam;
+    const blue = authority && authority.blueTeam || game.pitch && game.pitch.blueTeam;
+    return [red && red.score | 0, blue && blue.score | 0];
+  }
+
+  function pauseForShare() {
+    if (sharePausePending) return true;
+    const guest = config.friendPhase === "friend" && config.localRole === "guest";
+    sharePauseWasRunning = !guest && !(game.pitch && game.pitch.paused);
+    sharePausePending = true;
+    if (sharePauseWasRunning) togglePause();
+    else if (sound && typeof sound.pauseMatchAmbience === "function") sound.pauseMatchAmbience();
+    return true;
+  }
+
+  function resumeAfterShare() {
+    if (!sharePausePending) return false;
+    sharePausePending = false;
+    if (sharePauseWasRunning && game.pitch && game.pitch.paused) togglePause();
+    else if (!(game.pitch && game.pitch.paused) && sound && typeof sound.resumeMatchAmbience === "function") sound.resumeMatchAmbience();
+    sharePauseWasRunning = false;
+    return true;
   }
 
   syncPauseVisual(!!(game.pitch && game.pitch.paused));
@@ -659,14 +699,14 @@ function createMatchChrome(options) {
     hitAreas = hitAreas.filter((entry) => entry.kind !== "about");
   }
 
-  function showEvent(title, line, teamId, kind) {
+  function showEvent(title, line, teamId, kind, portraitOverride) {
     eventLayer.removeChildren();
     const cardW = Math.min(width * 0.58, 470 * scale);
     const cardH = 150 * scale;
     const x = (width - cardW) / 2;
     const y = height * 0.28;
     rounded(eventLayer, x, y, cardW, cardH, 28 * scale, 0xfff7d5, 0.97, kind === "goal" ? 0xf1b82d : 0xffffff, 4 * scale);
-    if (teamId) sprite(portraitPath(teamId), eventLayer, x + 74 * scale, y + cardH / 2, 92 * scale, 92 * scale);
+    if (teamId) sprite(portraitOverride || portraitPath(teamId), eventLayer, x + 74 * scale, y + cardH / 2, 92 * scale, 92 * scale);
     const titleText = center(text(title, 34, 0x385823, "900"), x + cardW * (teamId ? 0.62 : 0.5), y + 54 * scale);
     const lineText = center(text(line, 25, 0xa44734, "900"), x + cardW * (teamId ? 0.62 : 0.5), y + 103 * scale);
     eventLayer.addChild(titleText, lineText);
@@ -775,10 +815,16 @@ function createMatchChrome(options) {
   function onGoal(event) {
     const detail = event && event.detail || {};
     const score = detail.score || lastScore;
-    const scorer = score[0] > lastScore[0] ? (detail.red || config.redTeam) : (detail.blue || config.blueTeam);
+    const scoringTeam = score[0] > lastScore[0] ? (detail.red || config.redTeam) : (detail.blue || config.blueTeam);
+    const scorerTeamId = detail.scorerSide === "blue"
+      ? (detail.blue || config.blueTeam)
+      : detail.scorerSide === "red"
+        ? (detail.red || config.redTeam)
+        : "";
+    const scorerPortrait = matchPlayerPortraitPath(detail.scorerId, detail.scorerSide, scorerTeamId);
     lastScore = [score[0] || 0, score[1] || 0];
-    showEvent("进球！", `${lastScore[0]}  :  ${lastScore[1]}`, scorer, "goal");
-    startConfetti(scorer);
+    showEvent("进球！", `${lastScore[0]}  :  ${lastScore[1]}`, scoringTeam, "goal", scorerPortrait);
+    startConfetti(scoringTeam);
     if (sound) {
       // 乡村版不再按旧动物球队播放吼叫；双方进球统一使用同一份人类观众欢呼。
       sound.play("goal_cheer", { volume: 0.95 });
@@ -948,6 +994,10 @@ function createMatchChrome(options) {
     wxApi.onMouseDown(handlePointer);
     mouseAttached = true;
   }
+  if (wxApi && typeof wxApi.onShow === "function") {
+    wxApi.onShow(resumeAfterShare);
+    shareShowAttached = true;
+  }
   const matchCanvas = game.renderer && game.renderer.view;
   if (matchCanvas && typeof matchCanvas.addEventListener === "function") {
     matchCanvas.addEventListener("mousedown", handlePointer);
@@ -963,10 +1013,16 @@ function createMatchChrome(options) {
       if (target !== !!(game.pitch && game.pitch.paused)) togglePause();
       return manualPaused;
     },
+    pauseForShare,
+    resumeAfterShare,
+    shareTitle() {
+      return regionalScoreShareTitle(config, currentShareScore(), remoteFeatures() && remoteFeatures().regionalShare);
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
       if (rafId != null && inputHost.cancelAnimationFrame) inputHost.cancelAnimationFrame(rafId);
+      if (shareShowAttached && wxApi && typeof wxApi.offShow === "function") wxApi.offShow(resumeAfterShare);
       if (runtimeEvents && runtimeEvents.removeEventListener) {
         runtimeEvents.removeEventListener("ab-goal", onGoal);
         runtimeEvents.removeEventListener("ab-match-ended", onEnded);

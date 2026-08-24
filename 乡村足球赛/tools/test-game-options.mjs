@@ -27,6 +27,8 @@ const initial = defaults();
 assert.equal(initial.redTeam, "argentina");
 assert.equal(initial.blueTeam, "portugal");
 assert.equal(initial.redCaptainProfile, "large");
+assert.equal(initial.ai, 0, "选队页默认难度必须是简单");
+assert.equal(initial.time, 4, "选队页默认时长必须是短");
 assert.notEqual(initial.redTeam, initial.blueTeam);
 assert.deepEqual(initial.redJersey.locationCodes, []);
 assert.deepEqual(initial.blueJersey.locationCodes, []);
@@ -67,5 +69,9 @@ assert.equal(regionConfig.redJersey.number, 17, "地区换名不能改球衣号�
 assert.equal(formation("2-3-1").name, "2-3-1");
 assert.equal(cycle(FORMATIONS, "2-3-1", "name", 1), "3-2-1");
 assert.equal(cycle(FORMATIONS, "2-3-1", "name", -1), "2-1-3");
+assert.equal(cycle(DIFFICULTIES, 0, "value", 1), 1, "难度向后循环应从简单到普通");
+assert.equal(cycle(DIFFICULTIES, 0, "value", -1), 2, "难度向前循环应从简单到困难");
+assert.equal(cycle(TIMES, 4, "value", 1), 6, "时长向后循环应从短到标准");
+assert.equal(cycle(TIMES, 4, "value", -1), 10, "时长向前循环应从短到长");
 
 console.info("[test:game-options] PASS：8 队、阵型、难度、时长、同队互斥与循环选择正常");

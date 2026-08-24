@@ -182,7 +182,7 @@ function defaults() {
     blueFormation: FORMATIONS[1].name,
     side: "home",
     ai: 0,
-    time: 6,
+    time: 4,
     mode: "ai",
     roomId: "",
     redCaptainProfile: "large",

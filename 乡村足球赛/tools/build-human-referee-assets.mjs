@@ -114,8 +114,9 @@ async function main() {
     await makeBlackKit(path.join(kitDir, sourceName), path.join(kitDir, targetName), expected);
   }
   const shirtBase = path.join(kitDir, "human_shirt.png");
-  await makeLabeledShirt(shirtBase, path.join(kitDir, "human_shirt_front.png"), 9, 28);
-  await makeLabeledShirt(shirtBase, path.join(kitDir, "human_shirt_back.png"), 11, 29);
+  // 与球员胸前地区名采用同一视觉字号级别；两字“裁判”仍完整限制在56×52衣服轮廓内。
+  await makeLabeledShirt(shirtBase, path.join(kitDir, "human_shirt_front.png"), 16, 28);
+  await makeLabeledShirt(shirtBase, path.join(kitDir, "human_shirt_back.png"), 15, 29);
   console.info("[art:referee] PASS：标准人类裁判员分层与墨黑红金乡村裁判服已生成；斑马旧素材仍保留用于回退");
 }
 
